@@ -1,10 +1,10 @@
-# Keyring
+# Vilify
 
-Bespoke command palettes for the web. Each site gets its own carefully crafted Cmd+K experience.
+Bespoke vim-style command palettes for the web. Each site gets its own carefully crafted keyboard-driven experience.
 
 ## Sites
 
-- **YouTube** - `keyring-youtube.user.js`
+- **YouTube** - `vilify-youtube.user.js`
 
 ## Install
 
@@ -13,7 +13,15 @@ Bespoke command palettes for the web. Each site gets its own carefully crafted C
 
 ## Usage
 
-Press `Cmd+K` (Mac) or `Ctrl+K` (Windows/Linux) to open the command palette.
+Press `Space` to open the command palette, then use vim-style motions:
+
+- `G H` - Go Home
+- `G S` - Go to Subscriptions
+- `Y Y` - Yank (copy) video URL
+- `Y T` - Yank video title
+- `J` / `L` - Seek back/forward
+- `F` - Fullscreen
+- ...and more
 
 ## Philosophy
 

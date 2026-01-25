@@ -1,9 +1,11 @@
 // ==UserScript==
-// @name         Keyring - YouTube
-// @namespace    https://github.com/user/keyring
+// @name         Vilify - YouTube
+// @namespace    https://github.com/shihabdider/vilify
 // @version      0.1.0
 // @description  Vim-style command palette for YouTube
-// @author       user
+// @author       shihabdider
+// @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/vilify-youtube.user.js
+// @downloadURL  https://raw.githubusercontent.com/shihabdider/vilify/main/vilify-youtube.user.js
 // @match        https://www.youtube.com/*
 // @match        https://youtube.com/*
 // @grant        GM_setClipboard
@@ -785,7 +787,7 @@
     cmds.push({ label: 'History', icon: '⏱', action: () => navigateTo('/feed/history'), keys: 'G I' });
     cmds.push({ label: 'Library', icon: '📚', action: () => navigateTo('/feed/library'), keys: 'G L' });
     cmds.push({ label: 'Trending', icon: '🔥', action: () => navigateTo('/feed/trending'), keys: 'G T' });
-    cmds.push({ label: 'Search', icon: '🔍', action: () => focusSearchBox(), keys: '/' });
+    cmds.push({ label: 'Search', icon: '🔍', action: () => focusSearchBox(), keys: 'I' });
 
     // Video controls - only on watch page
     if (pageType === 'watch' && videoCtx) {
@@ -851,7 +853,7 @@
     
     const sequences = {
       // Palette shortcuts
-      'gv': () => openPalette('video'),
+      '/': () => openPalette('video'),
       ':': () => openPalette('command'),
       // Navigation: g + key
       'gh': () => navigateTo('/'),
@@ -859,7 +861,7 @@
       'gi': () => navigateTo('/feed/history'),
       'gl': () => navigateTo('/feed/library'),
       'gt': () => navigateTo('/feed/trending'),
-      '/': () => focusSearchBox(),
+      'i': () => focusSearchBox(),
     };
 
     // Video-specific sequences
