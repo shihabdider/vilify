@@ -832,38 +832,60 @@
           textContent: item.group 
         }));
       } else {
+        const isVideo = item.type === 'video';
         const itemEl = createElement('div', {
           className: `keyring-item ${idx === selectedIdx ? 'selected' : ''}`,
-          'data-idx': String(idx)
+          'data-idx': String(idx),
+          'data-type': item.type || 'command'
         });
 
-        // Icon
-        itemEl.appendChild(createElement('span', { 
-          className: 'keyring-icon', 
-          textContent: item.icon || '▸' 
-        }));
+        if (isVideo) {
+          // Video item with thumbnail
+          const img = createElement('img', {
+            className: 'keyring-thumbnail',
+            src: item.thumbnailUrl,
+            alt: ''
+          });
+          itemEl.appendChild(img);
 
-        // Label
-        itemEl.appendChild(createElement('span', { 
-          className: 'keyring-label', 
-          textContent: item.label 
-        }));
-
-        // Meta (optional)
-        if (item.meta) {
-          itemEl.appendChild(createElement('span', { 
-            className: 'keyring-meta', 
-            textContent: item.meta 
+          const meta = createElement('div', { className: 'keyring-video-meta' });
+          meta.appendChild(createElement('span', {
+            className: 'keyring-label',
+            textContent: item.title
           }));
-        }
-
-        // Keys (optional)
-        if (item.keys) {
-          const shortcut = createElement('span', { className: 'keyring-shortcut' });
-          for (const key of item.keys.split(' ')) {
-            shortcut.appendChild(createElement('kbd', { textContent: key }));
+          if (item.channelName) {
+            meta.appendChild(createElement('span', {
+              className: 'keyring-meta',
+              textContent: item.channelName
+            }));
           }
-          itemEl.appendChild(shortcut);
+          itemEl.appendChild(meta);
+        } else {
+          // Command item with icon
+          itemEl.appendChild(createElement('span', {
+            className: 'keyring-icon',
+            textContent: item.icon || '▸'
+          }));
+
+          itemEl.appendChild(createElement('span', {
+            className: 'keyring-label',
+            textContent: item.label
+          }));
+
+          if (item.meta) {
+            itemEl.appendChild(createElement('span', {
+              className: 'keyring-meta',
+              textContent: item.meta
+            }));
+          }
+
+          if (item.keys) {
+            const shortcut = createElement('span', { className: 'keyring-shortcut' });
+            for (const key of item.keys.split(' ')) {
+              shortcut.appendChild(createElement('kbd', { textContent: key }));
+            }
+            itemEl.appendChild(shortcut);
+          }
         }
 
         listEl.appendChild(itemEl);
