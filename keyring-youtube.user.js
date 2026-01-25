@@ -180,6 +180,43 @@
       color: white;
     }
 
+    .keyring-thumbnail {
+      width: 80px;
+      height: 45px;
+      margin-right: 12px;
+      border-radius: 6px;
+      background: var(--yt-bg-secondary);
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .keyring-item.selected .keyring-thumbnail {
+      outline: 2px solid white;
+      outline-offset: -2px;
+    }
+
+    .keyring-item .keyring-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .keyring-video-meta {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .keyring-video-meta .keyring-label {
+      font-size: 14px;
+    }
+
+    .keyring-video-meta .keyring-meta {
+      margin-left: 0;
+      margin-top: 2px;
+    }
+
     .keyring-label {
       flex: 1;
     }
