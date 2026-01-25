@@ -500,12 +500,28 @@
     window.open(url, '_blank');
   }
 
+  function getSearchInput() {
+    return document.querySelector('input#search') || 
+           document.querySelector('ytd-searchbox input') ||
+           document.querySelector('input[name="search_query"]');
+  }
+
   function focusSearchBox() {
-    // Try multiple selectors - YouTube's search input can vary
-    const searchInput = document.querySelector('input#search') || 
-                        document.querySelector('ytd-searchbox input') ||
-                        document.querySelector('input[name="search_query"]');
+    const searchInput = getSearchInput();
     if (searchInput) {
+      // Attach Escape handler directly to the input if not already done
+      if (!searchInput.dataset.keyringEscapeHandler) {
+        searchInput.dataset.keyringEscapeHandler = 'true';
+        searchInput.addEventListener('keydown', e => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            searchInput.blur();
+            showToast('Exited search');
+          }
+        }, true);
+      }
       searchInput.focus();
       // Small delay before select to ensure focus completes
       setTimeout(() => searchInput.select(), 10);
