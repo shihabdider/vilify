@@ -401,6 +401,81 @@
     return ctx;
   }
 
+  // ============================================
+  // Video Scraping
+  // ============================================
+  const MAX_VIDEOS = 15;
+  const VIDEO_CACHE_MS = 2000;
+  let videoCache = null;
+  let videoCacheTime = 0;
+
+  function scrapeVideos() {
+    // Return cached results if fresh
+    if (videoCache && Date.now() - videoCacheTime < VIDEO_CACHE_MS) {
+      return videoCache;
+    }
+
+    const videos = [];
+    const seen = new Set();
+
+    // Selectors for different YouTube video elements
+    const selectors = [
+      'ytd-rich-item-renderer',           // Home, subscriptions grid
+      'ytd-video-renderer',               // Search results, channel videos
+      'ytd-compact-video-renderer',       // Sidebar recommendations
+      'ytd-grid-video-renderer',          // Channel videos grid
+      'ytd-playlist-video-renderer'       // Playlist items
+    ];
+
+    const elements = document.querySelectorAll(selectors.join(','));
+
+    for (const el of elements) {
+      if (videos.length >= MAX_VIDEOS) break;
+
+      // Get video link
+      const link = el.querySelector('a#video-title-link, a#video-title, a.ytd-thumbnail');
+      if (!link?.href) continue;
+
+      // Extract video ID
+      const match = link.href.match(/\/watch\?v=([^&]+)/);
+      if (!match) continue;
+      const videoId = match[1];
+
+      // Skip duplicates
+      if (seen.has(videoId)) continue;
+      seen.add(videoId);
+
+      // Get title
+      const titleEl = el.querySelector('#video-title');
+      const title = titleEl?.textContent?.trim();
+      if (!title) continue;
+
+      // Get channel name
+      const channelEl = el.querySelector('#channel-name a, .ytd-channel-name a, #text.ytd-channel-name');
+      const channelName = channelEl?.textContent?.trim() || '';
+
+      videos.push({
+        type: 'video',
+        videoId,
+        title,
+        channelName,
+        thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+        url: `/watch?v=${videoId}`
+      });
+    }
+
+    // Cache results
+    videoCache = videos;
+    videoCacheTime = Date.now();
+
+    return videos;
+  }
+
+  function clearVideoCache() {
+    videoCache = null;
+    videoCacheTime = 0;
+  }
+
   function formatTimestamp(seconds) {
     if (!seconds || !isFinite(seconds)) return '0:00';
     const h = Math.floor(seconds / 3600);
@@ -1077,6 +1152,8 @@
     }
     // Reset settings flag so they get applied on new video
     settingsApplied = false;
+    // Clear video cache
+    clearVideoCache();
     console.log('[Keyring] Navigated to:', location.pathname);
   }
 
