@@ -1,28 +1,61 @@
 # Vilify
 
-Bespoke vim-style command palettes for the web. Each site gets its own carefully crafted keyboard-driven experience.
+Bespoke vim-style command palettes for the web.
 
-## Sites
+Unlike generic browser extensions that try to handle all websites with one-size-fits-all solutions, Vilify provides **deep, site-specific integrations**. Each site gets a carefully crafted keyboard-driven experience with native theming.
 
-- **YouTube** - `vilify-youtube.user.js`
+## Supported Sites
 
-## Install
+| Site | Install | Description |
+|------|---------|-------------|
+| YouTube | [Install](https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js) | Video controls, navigation, copy URLs |
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/)
-2. Click on a userscript file and select "Install"
+## Installation
+
+1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser
+2. Click the **Install** link for your site
+3. Click "Install" in the Tampermonkey dialog
+4. Refresh the site
+
+Scripts auto-update when changes are pushed to this repo.
 
 ## Usage
 
-Press `Space` to open the command palette, then use vim-style motions:
+Press `/` to open the command palette with page content (videos, posts, etc.)
 
-- `G H` - Go Home
-- `G S` - Go to Subscriptions
-- `Y Y` - Yank (copy) video URL
-- `Y T` - Yank video title
-- `J` / `L` - Seek back/forward
-- `F` - Fullscreen
-- ...and more
+Press `:` to open the command palette with commands
+
+### Common Keybindings
+
+| Key | Action |
+|-----|--------|
+| `/` | Open palette (content) |
+| `:` | Open palette (commands) |
+| `↑` `↓` | Navigate items |
+| `Enter` | Select item |
+| `Shift+Enter` | Open in new tab |
+| `Escape` | Close palette |
+| `g h` | Go home |
+
+Each site has additional keybindings. Open the palette and type to search commands.
 
 ## Philosophy
 
-Unlike generic browser extensions that try to handle all websites poorly, Vilify provides deep, site-specific integrations. Each palette is themed to match the site and offers commands that make sense for that context.
+The bespokeness is the point. Generic solutions handle nothing well; focused solutions handle one thing excellently.
+
+Each Vilify implementation:
+- **Looks native** — themed to match the site's design
+- **Feels native** — commands that make sense for that site
+- **Works reliably** — selectors tuned to each site's DOM
+
+## Contributing
+
+Want to add a new site? See [Contributing Guide](docs/contributing.md).
+
+1. Copy `template/site.template.js`
+2. Fill in the TODOs
+3. Submit a PR
+
+## License
+
+MIT
