@@ -455,26 +455,20 @@
     const videos = [];
     const seen = new Set();
 
-    // Selectors for different YouTube video elements
-    const selectors = [
-      'ytd-rich-item-renderer',           // Home, subscriptions grid
-      'ytd-video-renderer',               // Search results, channel videos
-      'ytd-compact-video-renderer',       // Sidebar recommendations
-      'ytd-grid-video-renderer',          // Channel videos grid
-      'ytd-playlist-video-renderer'       // Playlist items
-    ];
-
-    const elements = document.querySelectorAll(selectors.join(','));
-
-    for (const el of elements) {
+    // New YouTube layout uses yt-lockup-view-model for video items
+    // Old layout used ytd-*-renderer elements
+    const newLayoutElements = document.querySelectorAll('yt-lockup-view-model');
+    
+    // Try new layout first (yt-lockup-view-model)
+    for (const el of newLayoutElements) {
       if (videos.length >= MAX_VIDEOS) break;
 
-      // Get video link
-      const link = el.querySelector('a#video-title-link, a#video-title, a.ytd-thumbnail');
-      if (!link?.href) continue;
+      // Get thumbnail link (has video URL)
+      const thumbLink = el.querySelector('a.yt-lockup-view-model__content-image');
+      if (!thumbLink?.href) continue;
 
       // Extract video ID
-      const match = link.href.match(/\/watch\?v=([^&]+)/);
+      const match = thumbLink.href.match(/\/watch\?v=([^&]+)/);
       if (!match) continue;
       const videoId = match[1];
 
@@ -482,14 +476,14 @@
       if (seen.has(videoId)) continue;
       seen.add(videoId);
 
-      // Get title
-      const titleEl = el.querySelector('#video-title');
-      const title = titleEl?.textContent?.trim();
+      // Get title from title link
+      const titleLink = el.querySelector('a.yt-lockup-metadata-view-model__title');
+      const title = titleLink?.textContent?.trim();
       if (!title) continue;
 
-      // Get channel name
-      const channelEl = el.querySelector('#channel-name a, .ytd-channel-name a, #text.ytd-channel-name');
-      const channelName = channelEl?.textContent?.trim() || '';
+      // Get channel name from metadata
+      const metadataEls = el.querySelectorAll('.yt-content-metadata-view-model__metadata span.yt-core-attributed-string');
+      const channelName = metadataEls[0]?.textContent?.trim() || '';
 
       videos.push({
         type: 'video',
@@ -499,6 +493,54 @@
         thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
         url: `/watch?v=${videoId}`
       });
+    }
+
+    // Fall back to old layout selectors if no videos found
+    if (videos.length === 0) {
+      const oldSelectors = [
+        'ytd-rich-item-renderer',           // Home, subscriptions grid
+        'ytd-video-renderer',               // Search results, channel videos
+        'ytd-compact-video-renderer',       // Sidebar recommendations
+        'ytd-grid-video-renderer',          // Channel videos grid
+        'ytd-playlist-video-renderer'       // Playlist items
+      ];
+
+      const oldElements = document.querySelectorAll(oldSelectors.join(','));
+
+      for (const el of oldElements) {
+        if (videos.length >= MAX_VIDEOS) break;
+
+        // Get video link
+        const link = el.querySelector('a#video-title-link, a#video-title, a.ytd-thumbnail');
+        if (!link?.href) continue;
+
+        // Extract video ID
+        const match = link.href.match(/\/watch\?v=([^&]+)/);
+        if (!match) continue;
+        const videoId = match[1];
+
+        // Skip duplicates
+        if (seen.has(videoId)) continue;
+        seen.add(videoId);
+
+        // Get title
+        const titleEl = el.querySelector('#video-title');
+        const title = titleEl?.textContent?.trim();
+        if (!title) continue;
+
+        // Get channel name
+        const channelEl = el.querySelector('#channel-name a, .ytd-channel-name a, #text.ytd-channel-name');
+        const channelName = channelEl?.textContent?.trim() || '';
+
+        videos.push({
+          type: 'video',
+          videoId,
+          title,
+          channelName,
+          thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+          url: `/watch?v=${videoId}`
+        });
+      }
     }
 
     // Cache results
