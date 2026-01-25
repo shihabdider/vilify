@@ -815,6 +815,53 @@
   }
 
   // ============================================
+  // Item Retrieval (Videos + Commands)
+  // ============================================
+  function getItems(query = '') {
+    const isCommandMode = query.startsWith(':');
+    const searchQuery = isCommandMode ? query.slice(1).trim().toLowerCase() : query.trim().toLowerCase();
+
+    if (isCommandMode) {
+      // Command mode: show only commands
+      let cmds = getCommands();
+      if (searchQuery) {
+        cmds = cmds.filter(item => {
+          if (item.group) return true;
+          const labelMatch = item.label?.toLowerCase().includes(searchQuery);
+          const keysMatch = item.keys?.toLowerCase().replace(/\s+/g, '').includes(searchQuery);
+          return labelMatch || keysMatch;
+        });
+        // Remove empty groups
+        cmds = cmds.filter((item, i, arr) => {
+          if (item.group) {
+            const next = arr[i + 1];
+            return next && !next.group;
+          }
+          return true;
+        });
+      }
+      return cmds;
+    }
+
+    // Default mode: show videos, filter by query
+    let videos = scrapeVideos();
+
+    if (searchQuery) {
+      videos = videos.filter(v =>
+        v.title.toLowerCase().includes(searchQuery) ||
+        v.channelName.toLowerCase().includes(searchQuery)
+      );
+    }
+
+    // If no videos match and we have a query, fall back to showing commands
+    if (videos.length === 0 && searchQuery) {
+      return getItems(':' + searchQuery);
+    }
+
+    return videos;
+  }
+
+  // ============================================
   // Rendering
   // ============================================
   function render() {
@@ -1046,7 +1093,7 @@
   // ============================================
   function openPalette() {
     if (!overlay) createUI();
-    items = getCommands();
+    items = getItems('');
     selectedIdx = 0;
     inputEl.value = '';
     render();
@@ -1066,28 +1113,8 @@
   // Input Handling
   // ============================================
   function onInput() {
-    const query = inputEl.value.trim().toLowerCase();
-    
-    items = getCommands();
-    
-    if (query.length > 0) {
-      items = items.filter(item => {
-        if (item.group) return true;
-        const labelMatch = item.label?.toLowerCase().includes(query);
-        const keysMatch = item.keys?.toLowerCase().replace(/\s+/g, '').includes(query);
-        return labelMatch || keysMatch;
-      });
-      
-      // Remove empty groups
-      items = items.filter((item, i, arr) => {
-        if (item.group) {
-          const next = arr[i + 1];
-          return next && !next.group;
-        }
-        return true;
-      });
-    }
-    
+    const query = inputEl.value;
+    items = getItems(query);
     selectedIdx = 0;
     render();
   }
