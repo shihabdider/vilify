@@ -549,6 +549,103 @@
   }
 
   // ============================================
+  // Commands
+  // ============================================
+  function getCommands() {
+    const pageType = getPageType();
+    const videoCtx = getVideoContext();
+    const cmds = [];
+
+    // Navigation - always available
+    cmds.push({ group: 'Navigation' });
+    cmds.push({ label: 'Home', icon: '🏠', action: () => navigateTo('/'), keys: 'G H' });
+    cmds.push({ label: 'Subscriptions', icon: '📺', action: () => navigateTo('/feed/subscriptions'), keys: 'G S' });
+    cmds.push({ label: 'History', icon: '⏱', action: () => navigateTo('/feed/history'), keys: 'G I' });
+    cmds.push({ label: 'Library', icon: '📚', action: () => navigateTo('/feed/library'), keys: 'G L' });
+    cmds.push({ label: 'Trending', icon: '🔥', action: () => navigateTo('/feed/trending'), keys: 'G T' });
+    cmds.push({ label: 'Search', icon: '🔍', action: () => focusSearchBox(), keys: '/' });
+
+    // Video controls - only on watch page
+    if (pageType === 'watch' && videoCtx) {
+      cmds.push({ group: 'Playback' });
+      cmds.push({ 
+        label: videoCtx.paused ? 'Play' : 'Pause', 
+        icon: videoCtx.paused ? '▶' : '⏸', 
+        action: togglePlayPause, 
+        keys: 'Space' 
+      });
+      cmds.push({ label: 'Skip back 10s', icon: '⏪', action: () => seekRelative(-10), keys: 'J' });
+      cmds.push({ label: 'Skip forward 10s', icon: '⏩', action: () => seekRelative(10), keys: 'L' });
+      cmds.push({ label: 'Skip back 5s', icon: '◀', action: () => seekRelative(-5), keys: '←' });
+      cmds.push({ label: 'Skip forward 5s', icon: '▶', action: () => seekRelative(5), keys: '→' });
+      
+      cmds.push({ group: 'Speed' });
+      cmds.push({ label: 'Speed 0.5x', icon: '🐢', action: () => setPlaybackRate(0.5) });
+      cmds.push({ label: 'Speed 1x', icon: '⏱', action: () => setPlaybackRate(1), keys: 'G 1' });
+      cmds.push({ label: 'Speed 1.25x', icon: '🏃', action: () => setPlaybackRate(1.25) });
+      cmds.push({ label: 'Speed 1.5x', icon: '🏃', action: () => setPlaybackRate(1.5) });
+      cmds.push({ label: 'Speed 2x', icon: '🚀', action: () => setPlaybackRate(2), keys: 'G 2' });
+
+      cmds.push({ group: 'View' });
+      cmds.push({ label: 'Toggle fullscreen', icon: '⛶', action: toggleFullscreen, keys: 'F' });
+      cmds.push({ label: 'Theater mode', icon: '🎬', action: toggleTheaterMode, keys: 'T' });
+      cmds.push({ label: 'Toggle captions', icon: '💬', action: toggleCaptions, keys: 'C' });
+      cmds.push({ label: 'Toggle mute', icon: videoCtx.muted ? '🔇' : '🔊', action: toggleMute, keys: 'M' });
+
+      cmds.push({ group: 'Copy' });
+      cmds.push({ label: 'Copy video URL', icon: '🔗', action: copyVideoUrl });
+      cmds.push({ 
+        label: 'Copy URL at current time', 
+        icon: '⏱', 
+        action: copyVideoUrlAtTime,
+        meta: formatTimestamp(videoCtx.currentTime)
+      });
+      cmds.push({ label: 'Copy video title', icon: '📝', action: copyVideoTitle });
+      cmds.push({ label: 'Copy title + URL', icon: '📋', action: copyVideoTitleAndUrl });
+
+      // Channel navigation
+      if (videoCtx.channelUrl) {
+        cmds.push({ group: 'Channel' });
+        cmds.push({ 
+          label: `Go to ${videoCtx.channelName || 'channel'}`, 
+          icon: '👤', 
+          action: () => navigateTo(videoCtx.channelUrl),
+          keys: 'G C'
+        });
+        cmds.push({ 
+          label: `${videoCtx.channelName || 'Channel'} videos`, 
+          icon: '🎥', 
+          action: () => navigateTo(videoCtx.channelUrl + '/videos')
+        });
+      }
+    }
+
+    return cmds;
+  }
+
+  function getKeySequences() {
+    const videoCtx = getVideoContext();
+    
+    const sequences = {
+      'gh': () => navigateTo('/'),
+      'gs': () => navigateTo('/feed/subscriptions'),
+      'gi': () => navigateTo('/feed/history'),
+      'gl': () => navigateTo('/feed/library'),
+      'gt': () => navigateTo('/feed/trending'),
+      '/': () => focusSearchBox(),
+    };
+
+    // Video-specific sequences
+    if (videoCtx) {
+      sequences['gc'] = () => videoCtx.channelUrl && navigateTo(videoCtx.channelUrl);
+      sequences['g1'] = () => setPlaybackRate(1);
+      sequences['g2'] = () => setPlaybackRate(2);
+    }
+
+    return sequences;
+  }
+
+  // ============================================
   // Rendering
   // ============================================
   function render() {
