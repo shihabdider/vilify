@@ -301,6 +301,121 @@
   }
 
   // ============================================
+  // YouTube Context Detection
+  // ============================================
+  function getPageType() {
+    const path = location.pathname;
+    const params = new URLSearchParams(location.search);
+    
+    if (path === '/watch' && params.get('v')) {
+      return 'watch';
+    } else if (path === '/' || path === '') {
+      return 'home';
+    } else if (path === '/results') {
+      return 'search';
+    } else if (path.startsWith('/@') || path.startsWith('/channel/') || path.startsWith('/c/')) {
+      return 'channel';
+    } else if (path === '/playlist') {
+      return 'playlist';
+    } else if (path === '/feed/subscriptions') {
+      return 'subscriptions';
+    } else if (path === '/feed/history') {
+      return 'history';
+    } else if (path === '/feed/library') {
+      return 'library';
+    } else if (path.startsWith('/shorts/')) {
+      return 'shorts';
+    }
+    return 'other';
+  }
+
+  function getVideoContext() {
+    if (getPageType() !== 'watch') return null;
+
+    const params = new URLSearchParams(location.search);
+    const videoId = params.get('v');
+    if (!videoId) return null;
+
+    const ctx = {
+      videoId,
+      url: location.href,
+      cleanUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    };
+
+    // Get video element
+    const video = document.querySelector('video.html5-main-video');
+    if (video) {
+      ctx.video = video;
+      ctx.currentTime = video.currentTime;
+      ctx.duration = video.duration;
+      ctx.paused = video.paused;
+      ctx.playbackRate = video.playbackRate;
+      ctx.volume = video.volume;
+      ctx.muted = video.muted;
+    }
+
+    // Get title
+    const titleEl = document.querySelector('h1.ytd-video-primary-info-renderer, h1.ytd-watch-metadata');
+    if (titleEl) {
+      ctx.title = titleEl.textContent.trim();
+    }
+
+    // Get channel name
+    const channelEl = document.querySelector('#channel-name a, ytd-video-owner-renderer a');
+    if (channelEl) {
+      ctx.channelName = channelEl.textContent.trim();
+      ctx.channelUrl = channelEl.href;
+    }
+
+    // Check if subscribed
+    const subButton = document.querySelector('ytd-subscribe-button-renderer button');
+    if (subButton) {
+      ctx.isSubscribed = subButton.getAttribute('aria-label')?.includes('Unsubscribe');
+    }
+
+    // Get like button state
+    const likeButton = document.querySelector('like-button-view-model button, #segmented-like-button button');
+    if (likeButton) {
+      ctx.isLiked = likeButton.getAttribute('aria-pressed') === 'true';
+    }
+
+    return ctx;
+  }
+
+  function getChannelContext() {
+    const pageType = getPageType();
+    if (pageType !== 'channel') return null;
+
+    const ctx = {
+      url: location.href,
+    };
+
+    // Get channel name
+    const nameEl = document.querySelector('#channel-name, #text.ytd-channel-name');
+    if (nameEl) {
+      ctx.name = nameEl.textContent.trim();
+    }
+
+    return ctx;
+  }
+
+  function formatTimestamp(seconds) {
+    if (!seconds || !isFinite(seconds)) return '0:00';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function getTimestampUrl(videoId, seconds) {
+    const t = Math.floor(seconds);
+    return `https://www.youtube.com/watch?v=${videoId}&t=${t}s`;
+  }
+
+  // ============================================
   // Rendering
   // ============================================
   function render() {
