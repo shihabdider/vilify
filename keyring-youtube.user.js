@@ -436,6 +436,114 @@
     return overlay?.classList.contains('open');
   }
 
+  // ============================================
+  // Input Handling
+  // ============================================
+  function onInput() {
+    const query = inputEl.value.trim().toLowerCase();
+    
+    items = getCommands();
+    
+    if (query.length > 0) {
+      items = items.filter(item => {
+        if (item.group) return true;
+        const labelMatch = item.label?.toLowerCase().includes(query);
+        const keysMatch = item.keys?.toLowerCase().replace(/\s+/g, '').includes(query);
+        return labelMatch || keysMatch;
+      });
+      
+      // Remove empty groups
+      items = items.filter((item, i, arr) => {
+        if (item.group) {
+          const next = arr[i + 1];
+          return next && !next.group;
+        }
+        return true;
+      });
+    }
+    
+    selectedIdx = 0;
+    render();
+  }
+
+  function onInputKeydown(e) {
+    const actionable = getActionableItems();
+    const count = actionable.length;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (count > 0) {
+        selectedIdx = (selectedIdx + 1) % count;
+        updateSelection();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (count > 0) {
+        selectedIdx = (selectedIdx - 1 + count) % count;
+        updateSelection();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      executeItem(selectedIdx);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closePalette();
+    }
+  }
+
+  // ============================================
+  // Global Keyboard Handler
+  // ============================================
+  let keySeq = '';
+  let keyTimer = null;
+
+  document.addEventListener('keydown', e => {
+    // Don't intercept when typing in inputs (except our palette)
+    const isInput = e.target.tagName === 'INPUT' || 
+                    e.target.tagName === 'TEXTAREA' || 
+                    e.target.isContentEditable;
+    
+    if (isInput && e.target !== inputEl) {
+      return;
+    }
+
+    // Cmd/Ctrl+K to toggle palette
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isPaletteOpen()) {
+        closePalette();
+      } else {
+        openPalette();
+      }
+      return;
+    }
+
+    // Escape to close
+    if (e.key === 'Escape' && isPaletteOpen()) {
+      e.preventDefault();
+      closePalette();
+      return;
+    }
+
+    // Vim-style sequences when palette is closed
+    if (!isPaletteOpen() && !isInput) {
+      clearTimeout(keyTimer);
+      keySeq += e.key.toLowerCase();
+      keyTimer = setTimeout(() => { keySeq = ''; }, KEY_SEQ_TIMEOUT_MS);
+
+      const sequences = getKeySequences();
+      if (sequences[keySeq]) {
+        e.preventDefault();
+        sequences[keySeq]();
+        keySeq = '';
+      } else if (keySeq.length >= 2) {
+        // Reset if no match and we have 2+ chars
+        keySeq = e.key.toLowerCase();
+      }
+    }
+  }, true); // Use capture to intercept before YouTube
+
   console.log('[Keyring] YouTube palette loaded');
 
 })();
