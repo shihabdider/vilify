@@ -490,6 +490,65 @@
   }
 
   // ============================================
+  // Navigation
+  // ============================================
+  function navigateTo(path) {
+    location.href = path;
+  }
+
+  function openInNewTab(url) {
+    window.open(url, '_blank');
+  }
+
+  function focusSearchBox() {
+    const searchInput = document.querySelector('input#search');
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+    }
+  }
+
+  // ============================================
+  // Copy Functions
+  // ============================================
+  function copyVideoUrl() {
+    const ctx = getVideoContext();
+    if (!ctx) {
+      showToast('No video on this page');
+      return;
+    }
+    copyToClipboard(ctx.cleanUrl);
+  }
+
+  function copyVideoUrlAtTime() {
+    const ctx = getVideoContext();
+    if (!ctx) {
+      showToast('No video on this page');
+      return;
+    }
+    const url = getTimestampUrl(ctx.videoId, ctx.currentTime);
+    copyToClipboard(url);
+  }
+
+  function copyVideoTitle() {
+    const ctx = getVideoContext();
+    if (!ctx?.title) {
+      showToast('Could not get video title');
+      return;
+    }
+    copyToClipboard(ctx.title);
+  }
+
+  function copyVideoTitleAndUrl() {
+    const ctx = getVideoContext();
+    if (!ctx?.title) {
+      showToast('Could not get video info');
+      return;
+    }
+    copyToClipboard(`${ctx.title}\n${ctx.cleanUrl}`);
+  }
+
+  // ============================================
   // Rendering
   // ============================================
   function render() {
