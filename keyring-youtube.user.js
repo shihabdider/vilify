@@ -1057,9 +1057,12 @@
     listEl = createElement('div', { id: 'keyring-list' });
 
     // Footer
+    // Footer
     const footer = createElement('div', { id: 'keyring-footer' }, [
       createFooterHint(['↑', '↓'], 'navigate'),
       createFooterHint(['↵'], 'select'),
+      createFooterHint(['⇧↵'], 'new tab'),
+      createFooterHint([':'], 'commands'),
       createFooterHint(['esc'], 'close')
     ]);
 
