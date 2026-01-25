@@ -1052,24 +1052,47 @@
   }, true); // Use capture to intercept before YouTube
 
   // ============================================
+  // Default Video Settings
+  // ============================================
+  const DEFAULT_PLAYBACK_RATE = 2;
+
+  function applyDefaultSettings() {
+    const video = getVideo();
+    if (video && video.playbackRate !== DEFAULT_PLAYBACK_RATE) {
+      video.playbackRate = DEFAULT_PLAYBACK_RATE;
+    }
+  }
+
+  // ============================================
   // SPA Navigation Detection
   // ============================================
   // YouTube is an SPA - detect navigation without full page loads
   let lastUrl = location.href;
+  let settingsApplied = false;
 
   function onNavigate() {
     // Close palette on navigation
     if (isPaletteOpen()) {
       closePalette();
     }
+    // Reset settings flag so they get applied on new video
+    settingsApplied = false;
     console.log('[Keyring] Navigated to:', location.pathname);
   }
 
-  // Watch for URL changes
+  // Watch for URL changes and apply settings when video is ready
   const observer = new MutationObserver(() => {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       onNavigate();
+    }
+    // Apply default settings when on watch page and not yet applied
+    if (!settingsApplied && getPageType() === 'watch') {
+      const video = getVideo();
+      if (video && video.readyState >= 1) {
+        applyDefaultSettings();
+        settingsApplied = true;
+      }
     }
   });
 
