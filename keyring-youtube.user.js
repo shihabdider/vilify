@@ -234,18 +234,20 @@
 
     .keyring-toast {
       position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--yt-bg-secondary);
+      bottom: 32px;
+      right: 32px;
+      background: var(--yt-bg-primary);
       color: var(--yt-text-primary);
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 14px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--yt-border);
+      font-size: 15px;
+      font-weight: 500;
+      font-family: var(--yt-font);
       z-index: 10000000;
       opacity: 0;
       transition: opacity 0.2s;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
 
     .keyring-toast.show {
