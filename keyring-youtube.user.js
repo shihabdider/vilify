@@ -627,15 +627,16 @@
       cmds.push({ label: 'Toggle mute', icon: videoCtx.muted ? '🔇' : '🔊', action: toggleMute, keys: 'M' });
 
       cmds.push({ group: 'Copy' });
-      cmds.push({ label: 'Copy video URL', icon: '🔗', action: copyVideoUrl });
+      cmds.push({ label: 'Copy video URL', icon: '🔗', action: copyVideoUrl, keys: 'Y Y' });
       cmds.push({ 
         label: 'Copy URL at current time', 
         icon: '⏱', 
         action: copyVideoUrlAtTime,
-        meta: formatTimestamp(videoCtx.currentTime)
+        meta: formatTimestamp(videoCtx.currentTime),
+        keys: '⇧Y'
       });
-      cmds.push({ label: 'Copy video title', icon: '📝', action: copyVideoTitle });
-      cmds.push({ label: 'Copy title + URL', icon: '📋', action: copyVideoTitleAndUrl });
+      cmds.push({ label: 'Copy video title', icon: '📝', action: copyVideoTitle, keys: 'Y T' });
+      cmds.push({ label: 'Copy title + URL', icon: '📋', action: copyVideoTitleAndUrl, keys: 'Y A' });
 
       // Channel navigation
       if (videoCtx.channelUrl) {
@@ -661,6 +662,7 @@
     const videoCtx = getVideoContext();
     
     const sequences = {
+      // Navigation: g + key
       'gh': () => navigateTo('/'),
       'gs': () => navigateTo('/feed/subscriptions'),
       'gi': () => navigateTo('/feed/history'),
@@ -671,12 +673,33 @@
 
     // Video-specific sequences
     if (videoCtx) {
+      // Navigation
       sequences['gc'] = () => videoCtx.channelUrl && navigateTo(videoCtx.channelUrl);
+      
+      // Speed
       sequences['g1'] = () => setPlaybackRate(1);
       sequences['g2'] = () => setPlaybackRate(2);
+      
+      // Yank (copy): y + key
+      sequences['yy'] = copyVideoUrl;           // yy = yank URL (like vim yy for yank line)
+      sequences['yt'] = copyVideoTitle;         // yt = yank title
+      sequences['ya'] = copyVideoTitleAndUrl;   // ya = yank all
     }
 
     return sequences;
+  }
+
+  // Single-key sequences (including Shift+ modifiers) handled separately
+  function getSingleKeyActions() {
+    const videoCtx = getVideoContext();
+    const actions = {};
+    
+    if (videoCtx) {
+      // Shift+Y = yank URL at current time
+      actions['Y'] = copyVideoUrlAtTime;
+    }
+    
+    return actions;
   }
 
   // ============================================
@@ -1003,6 +1026,15 @@
 
     // Vim-style sequences when palette is closed
     if (!isPaletteOpen() && !isInput) {
+      // Check single-key actions first (like Shift+Y)
+      const singleKeyActions = getSingleKeyActions();
+      if (singleKeyActions[e.key]) {
+        e.preventDefault();
+        singleKeyActions[e.key]();
+        keySeq = '';
+        return;
+      }
+
       clearTimeout(keyTimer);
       keySeq += e.key.toLowerCase();
       keyTimer = setTimeout(() => { keySeq = ''; }, KEY_SEQ_TIMEOUT_MS);
