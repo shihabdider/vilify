@@ -936,13 +936,19 @@
     const isInput = e.target.tagName === 'INPUT' || 
                     e.target.tagName === 'TEXTAREA' || 
                     e.target.isContentEditable;
-    const isSearchBox = e.target.id === 'search' || e.target.closest('ytd-searchbox');
+    // Check if we're in YouTube's search box
+    const isYouTubeSearch = isInput && (
+      e.target.id === 'search' || 
+      e.target.closest('ytd-searchbox') ||
+      e.target.closest('#search-form')
+    );
     
     // Allow Escape to blur search box
-    if (e.key === 'Escape' && isSearchBox) {
+    if (e.key === 'Escape' && isYouTubeSearch) {
       e.preventDefault();
       e.stopPropagation();
-      blurSearchBox();
+      e.target.blur();
+      showToast('Exited search');
       return;
     }
 
