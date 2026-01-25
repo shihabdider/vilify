@@ -805,11 +805,19 @@
     return el;
   }
 
-  function createUI() {
-    // Inject styles
+  // Inject styles immediately so toasts work before palette is opened
+  function injectStyles() {
+    if (document.getElementById('keyring-styles')) return;
     const style = document.createElement('style');
+    style.id = 'keyring-styles';
     style.textContent = CSS;
     document.head.appendChild(style);
+  }
+  injectStyles();
+
+  function createUI() {
+    // Ensure styles are injected
+    injectStyles();
 
     // Create overlay using DOM APIs (YouTube blocks innerHTML due to Trusted Types CSP)
     overlay = createElement('div', { id: 'keyring-overlay' });
