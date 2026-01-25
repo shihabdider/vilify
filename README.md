@@ -25,4 +25,4 @@ Press `Space` to open the command palette, then use vim-style motions:
 
 ## Philosophy
 
-Unlike generic browser extensions that try to handle all websites poorly, Keyring provides deep, site-specific integrations. Each palette is themed to match the site and offers commands that make sense for that context.
+Unlike generic browser extensions that try to handle all websites poorly, Vilify provides deep, site-specific integrations. Each palette is themed to match the site and offers commands that make sense for that context.

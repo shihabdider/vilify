@@ -4,8 +4,8 @@
 // @version      0.1.0
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
-// @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/vilify-youtube.user.js
-// @downloadURL  https://raw.githubusercontent.com/shihabdider/vilify/main/vilify-youtube.user.js
+// @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
+// @downloadURL  https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
 // @match        https://www.youtube.com/*
 // @match        https://youtube.com/*
 // @grant        GM_setClipboard
