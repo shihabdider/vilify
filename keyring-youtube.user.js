@@ -2,7 +2,7 @@
 // @name         Keyring - YouTube
 // @namespace    https://github.com/user/keyring
 // @version      0.1.0
-// @description  Cmd+K command palette for YouTube
+// @description  Vim-style command palette for YouTube
 // @author       user
 // @match        https://www.youtube.com/*
 // @match        https://youtube.com/*
@@ -197,8 +197,11 @@
 
     .keyring-item .keyring-label {
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      white-space: normal;
+      line-height: 1.3;
     }
 
     .keyring-video-meta {
@@ -210,6 +213,12 @@
 
     .keyring-video-meta .keyring-label {
       font-size: 14px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      white-space: normal;
+      line-height: 1.3;
     }
 
     .keyring-video-meta .keyring-meta {
@@ -481,9 +490,23 @@
       const title = titleLink?.textContent?.trim();
       if (!title) continue;
 
-      // Get channel name from metadata
-      const metadataEls = el.querySelectorAll('.yt-content-metadata-view-model__metadata span.yt-core-attributed-string');
-      const channelName = metadataEls[0]?.textContent?.trim() || '';
+      // Get channel name from metadata - try multiple selectors for different YT layouts
+      let channelName = '';
+      const channelSelectors = [
+        '.yt-content-metadata-view-model-wiz__metadata-text',
+        '.yt-content-metadata-view-model__metadata-text', 
+        '.yt-content-metadata-view-model__metadata span.yt-core-attributed-string',
+        'ytd-channel-name a',
+        '#channel-name a',
+        '.ytd-channel-name'
+      ];
+      for (const sel of channelSelectors) {
+        const channelEl = el.querySelector(sel);
+        if (channelEl?.textContent?.trim()) {
+          channelName = channelEl.textContent.trim();
+          break;
+        }
+      }
 
       videos.push({
         type: 'video',
@@ -528,9 +551,23 @@
         const title = titleEl?.textContent?.trim();
         if (!title) continue;
 
-        // Get channel name
-        const channelEl = el.querySelector('#channel-name a, .ytd-channel-name a, #text.ytd-channel-name');
-        const channelName = channelEl?.textContent?.trim() || '';
+        // Get channel name - try multiple selectors
+        let channelName = '';
+        const channelSelectors = [
+          '#channel-name #text',
+          '#channel-name a',
+          '.ytd-channel-name a',
+          '#text.ytd-channel-name',
+          'ytd-channel-name #text-container',
+          '[itemprop="author"] [itemprop="name"]'
+        ];
+        for (const sel of channelSelectors) {
+          const channelEl = el.querySelector(sel);
+          if (channelEl?.textContent?.trim()) {
+            channelName = channelEl.textContent.trim();
+            break;
+          }
+        }
 
         videos.push({
           type: 'video',
@@ -816,6 +853,9 @@
     const videoCtx = getVideoContext();
     
     const sequences = {
+      // Palette shortcuts
+      'gv': () => openPalette('video'),
+      ':': () => openPalette('command'),
       // Navigation: g + key
       'gh': () => navigateTo('/'),
       'gs': () => navigateTo('/feed/subscriptions'),
@@ -891,7 +931,7 @@
     if (searchQuery) {
       videos = videos.filter(v =>
         v.title.toLowerCase().includes(searchQuery) ||
-        v.channelName.toLowerCase().includes(searchQuery)
+        (v.channelName && v.channelName.toLowerCase().includes(searchQuery))
       );
     }
 
@@ -1104,7 +1144,6 @@
       createFooterHint(['↑', '↓'], 'navigate'),
       createFooterHint(['↵'], 'select'),
       createFooterHint(['⇧↵'], 'new tab'),
-      createFooterHint([':'], 'commands'),
       createFooterHint(['esc'], 'close')
     ]);
 
@@ -1136,14 +1175,23 @@
   // ============================================
   // Open / Close
   // ============================================
-  function openPalette() {
+  function openPalette(mode = 'video') {
     if (!overlay) createUI();
-    items = getItems('');
+    if (mode === 'command') {
+      inputEl.value = ':';
+      items = getItems(':');
+    } else {
+      inputEl.value = '';
+      items = getItems('');
+    }
     selectedIdx = 0;
-    inputEl.value = '';
     render();
     overlay.classList.add('open');
     inputEl.focus();
+    // Place cursor after the colon in command mode
+    if (mode === 'command') {
+      inputEl.setSelectionRange(1, 1);
+    }
   }
 
   function closePalette() {
@@ -1220,17 +1268,7 @@
       return;
     }
 
-    // Cmd/Ctrl+K to toggle palette
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      e.stopPropagation();
-      if (isPaletteOpen()) {
-        closePalette();
-      } else {
-        openPalette();
-      }
-      return;
-    }
+
 
     // Escape to close
     if (e.key === 'Escape' && isPaletteOpen()) {
@@ -1241,6 +1279,11 @@
 
     // Vim-style sequences when palette is closed
     if (!isPaletteOpen() && !isInput) {
+      // Ignore modifier keys alone
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
+        return;
+      }
+
       // Check single-key actions first (like Shift+Y)
       const singleKeyActions = getSingleKeyActions();
       if (singleKeyActions[e.key]) {
@@ -1251,17 +1294,25 @@
       }
 
       clearTimeout(keyTimer);
-      keySeq += e.key.toLowerCase();
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      keySeq += key;
       keyTimer = setTimeout(() => { keySeq = ''; }, KEY_SEQ_TIMEOUT_MS);
 
       const sequences = getKeySequences();
+      
+      // Check for exact match
       if (sequences[keySeq]) {
         e.preventDefault();
         sequences[keySeq]();
         keySeq = '';
-      } else if (keySeq.length >= 2) {
-        // Reset if no match and we have 2+ chars
-        keySeq = e.key.toLowerCase();
+        return;
+      }
+      
+      // Check if any sequence starts with current keySeq (potential match)
+      const hasPrefix = Object.keys(sequences).some(s => s.startsWith(keySeq));
+      if (!hasPrefix) {
+        // No potential match, reset
+        keySeq = '';
       }
     }
   }, true); // Use capture to intercept before YouTube
