@@ -853,8 +853,8 @@
       );
     }
 
-    // If no videos match and we have a query, fall back to showing commands
-    if (videos.length === 0 && searchQuery) {
+    // If no videos available, fall back to commands
+    if (videos.length === 0) {
       return getItems(':' + searchQuery);
     }
 
