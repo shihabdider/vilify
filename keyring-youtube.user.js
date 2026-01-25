@@ -929,11 +929,20 @@
     return items.filter(i => !i.group);
   }
 
-  function executeItem(idx) {
+  function executeItem(idx, newTab = false) {
     const actionable = getActionableItems();
     const item = actionable[idx];
-    if (item?.action) {
-      closePalette();
+    if (!item) return;
+
+    closePalette();
+
+    if (item.type === 'video') {
+      if (newTab) {
+        openInNewTab(item.url);
+      } else {
+        navigateTo(item.url);
+      }
+    } else if (item.action) {
       item.action();
     }
   }
@@ -1101,7 +1110,7 @@
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      executeItem(selectedIdx);
+      executeItem(selectedIdx, e.shiftKey);
     } else if (e.key === 'Escape') {
       e.preventDefault();
       closePalette();
