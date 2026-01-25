@@ -416,6 +416,80 @@
   }
 
   // ============================================
+  // Video Controls
+  // ============================================
+  function getVideo() {
+    return document.querySelector('video.html5-main-video');
+  }
+
+  function togglePlayPause() {
+    const video = getVideo();
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+      showToast('Playing');
+    } else {
+      video.pause();
+      showToast('Paused');
+    }
+  }
+
+  function seekRelative(seconds) {
+    const video = getVideo();
+    if (!video) return;
+    video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+    showToast(`${seconds > 0 ? '+' : ''}${seconds}s`);
+  }
+
+  function setPlaybackRate(rate) {
+    const video = getVideo();
+    if (!video) return;
+    video.playbackRate = rate;
+    showToast(`Speed: ${rate}x`);
+  }
+
+  function toggleMute() {
+    const video = getVideo();
+    if (!video) return;
+    video.muted = !video.muted;
+    showToast(video.muted ? 'Muted' : 'Unmuted');
+  }
+
+  function toggleFullscreen() {
+    const player = document.querySelector('#movie_player');
+    if (!player) return;
+    
+    // Use YouTube's fullscreen button
+    const fsButton = player.querySelector('.ytp-fullscreen-button');
+    if (fsButton) {
+      fsButton.click();
+    }
+  }
+
+  function toggleTheaterMode() {
+    const theaterButton = document.querySelector('.ytp-size-button');
+    if (theaterButton) {
+      theaterButton.click();
+      showToast('Theater mode toggled');
+    }
+  }
+
+  function toggleCaptions() {
+    const ccButton = document.querySelector('.ytp-subtitles-button');
+    if (ccButton) {
+      ccButton.click();
+      const isOn = ccButton.getAttribute('aria-pressed') === 'true';
+      showToast(isOn ? 'Captions off' : 'Captions on');
+    }
+  }
+
+  function seekToPercent(percent) {
+    const video = getVideo();
+    if (!video || !video.duration) return;
+    video.currentTime = video.duration * (percent / 100);
+  }
+
+  // ============================================
   // Rendering
   // ============================================
   function render() {
