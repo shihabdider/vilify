@@ -501,11 +501,27 @@
   }
 
   function focusSearchBox() {
-    const searchInput = document.querySelector('input#search');
+    // Try multiple selectors - YouTube's search input can vary
+    const searchInput = document.querySelector('input#search') || 
+                        document.querySelector('ytd-searchbox input') ||
+                        document.querySelector('input[name="search_query"]');
     if (searchInput) {
       searchInput.focus();
-      searchInput.select();
+      // Small delay before select to ensure focus completes
+      setTimeout(() => searchInput.select(), 10);
+      showToast('Search focused (Esc to exit)');
     }
+  }
+
+  function blurSearchBox() {
+    const searchInput = document.querySelector('input#search') || 
+                        document.querySelector('ytd-searchbox input') ||
+                        document.querySelector('input[name="search_query"]');
+    if (searchInput && document.activeElement === searchInput) {
+      searchInput.blur();
+      return true;
+    }
+    return false;
   }
 
   // ============================================
@@ -916,11 +932,20 @@
   let keyTimer = null;
 
   document.addEventListener('keydown', e => {
-    // Don't intercept when typing in inputs (except our palette)
+    // Don't intercept when typing in inputs (except our palette and special cases)
     const isInput = e.target.tagName === 'INPUT' || 
                     e.target.tagName === 'TEXTAREA' || 
                     e.target.isContentEditable;
+    const isSearchBox = e.target.id === 'search' || e.target.closest('ytd-searchbox');
     
+    // Allow Escape to blur search box
+    if (e.key === 'Escape' && isSearchBox) {
+      e.preventDefault();
+      e.stopPropagation();
+      blurSearchBox();
+      return;
+    }
+
     if (isInput && e.target !== inputEl) {
       return;
     }
