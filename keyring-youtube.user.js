@@ -450,7 +450,6 @@
   // ============================================
   // Video Scraping
   // ============================================
-  const MAX_VIDEOS = 15;
   const VIDEO_CACHE_MS = 2000;
   let videoCache = null;
   let videoCacheTime = 0;
@@ -470,7 +469,6 @@
     
     // Try new layout first (yt-lockup-view-model)
     for (const el of newLayoutElements) {
-      if (videos.length >= MAX_VIDEOS) break;
 
       // Get thumbnail link (has video URL)
       const thumbLink = el.querySelector('a.yt-lockup-view-model__content-image');
@@ -531,7 +529,6 @@
       const oldElements = document.querySelectorAll(oldSelectors.join(','));
 
       for (const el of oldElements) {
-        if (videos.length >= MAX_VIDEOS) break;
 
         // Get video link
         const link = el.querySelector('a#video-title-link, a#video-title, a.ytd-thumbnail');
