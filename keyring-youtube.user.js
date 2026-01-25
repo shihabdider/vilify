@@ -649,37 +649,66 @@
   // Rendering
   // ============================================
   function render() {
-    let html = '';
+    // Clear list using DOM API (YouTube blocks innerHTML due to Trusted Types CSP)
+    while (listEl.firstChild) {
+      listEl.removeChild(listEl.firstChild);
+    }
+
     let idx = 0;
 
     for (const item of items) {
       if (item.group) {
-        html += `<div class="keyring-group-label">${escapeHtml(item.group)}</div>`;
+        listEl.appendChild(createElement('div', { 
+          className: 'keyring-group-label', 
+          textContent: item.group 
+        }));
       } else {
-        const sel = idx === selectedIdx ? 'selected' : '';
-        const keys = item.keys 
-          ? `<span class="keyring-shortcut">${item.keys.split(' ').map(k => `<kbd>${k}</kbd>`).join('')}</span>` 
-          : '';
-        const meta = item.meta 
-          ? `<span class="keyring-meta">${escapeHtml(item.meta)}</span>` 
-          : '';
-        html += `
-          <div class="keyring-item ${sel}" data-idx="${idx}">
-            <span class="keyring-icon">${item.icon || '▸'}</span>
-            <span class="keyring-label">${escapeHtml(item.label)}</span>
-            ${meta}
-            ${keys}
-          </div>
-        `;
+        const itemEl = createElement('div', {
+          className: `keyring-item ${idx === selectedIdx ? 'selected' : ''}`,
+          'data-idx': String(idx)
+        });
+
+        // Icon
+        itemEl.appendChild(createElement('span', { 
+          className: 'keyring-icon', 
+          textContent: item.icon || '▸' 
+        }));
+
+        // Label
+        itemEl.appendChild(createElement('span', { 
+          className: 'keyring-label', 
+          textContent: item.label 
+        }));
+
+        // Meta (optional)
+        if (item.meta) {
+          itemEl.appendChild(createElement('span', { 
+            className: 'keyring-meta', 
+            textContent: item.meta 
+          }));
+        }
+
+        // Keys (optional)
+        if (item.keys) {
+          const shortcut = createElement('span', { className: 'keyring-shortcut' });
+          for (const key of item.keys.split(' ')) {
+            shortcut.appendChild(createElement('kbd', { textContent: key }));
+          }
+          itemEl.appendChild(shortcut);
+        }
+
+        listEl.appendChild(itemEl);
         idx++;
       }
     }
 
     if (idx === 0) {
-      html = '<div class="keyring-empty">No matching commands</div>';
+      listEl.appendChild(createElement('div', { 
+        className: 'keyring-empty', 
+        textContent: 'No matching commands' 
+      }));
     }
 
-    listEl.innerHTML = html;
     bindItemEvents();
   }
 
@@ -721,36 +750,71 @@
   // ============================================
   // UI Creation
   // ============================================
+  function createElement(tag, attrs = {}, children = []) {
+    const el = document.createElement(tag);
+    for (const [key, val] of Object.entries(attrs)) {
+      if (key === 'textContent') {
+        el.textContent = val;
+      } else if (key === 'className') {
+        el.className = val;
+      } else {
+        el.setAttribute(key, val);
+      }
+    }
+    for (const child of children) {
+      if (typeof child === 'string') {
+        el.appendChild(document.createTextNode(child));
+      } else {
+        el.appendChild(child);
+      }
+    }
+    return el;
+  }
+
   function createUI() {
     // Inject styles
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
 
-    // Create overlay
-    overlay = document.createElement('div');
-    overlay.id = 'keyring-overlay';
-    overlay.innerHTML = `
-      <div id="keyring-modal">
-        <div id="keyring-header">
-          <div id="keyring-header-logo"></div>
-          <div id="keyring-header-title">Command Palette</div>
-        </div>
-        <div id="keyring-input-wrapper">
-          <input id="keyring-input" type="text" placeholder="Type a command..." autocomplete="off" spellcheck="false">
-        </div>
-        <div id="keyring-list"></div>
-        <div id="keyring-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-          <span><kbd>↵</kbd> select</span>
-          <span><kbd>esc</kbd> close</span>
-        </div>
-      </div>
-    `;
+    // Create overlay using DOM APIs (YouTube blocks innerHTML due to Trusted Types CSP)
+    overlay = createElement('div', { id: 'keyring-overlay' });
+
+    const modal = createElement('div', { id: 'keyring-modal' });
+
+    // Header
+    const header = createElement('div', { id: 'keyring-header' }, [
+      createElement('div', { id: 'keyring-header-logo' }),
+      createElement('div', { id: 'keyring-header-title', textContent: 'Command Palette' })
+    ]);
+
+    // Input wrapper
+    inputEl = createElement('input', {
+      id: 'keyring-input',
+      type: 'text',
+      placeholder: 'Type a command...',
+      autocomplete: 'off',
+      spellcheck: 'false'
+    });
+    const inputWrapper = createElement('div', { id: 'keyring-input-wrapper' }, [inputEl]);
+
+    // List
+    listEl = createElement('div', { id: 'keyring-list' });
+
+    // Footer
+    const footer = createElement('div', { id: 'keyring-footer' }, [
+      createFooterHint(['↑', '↓'], 'navigate'),
+      createFooterHint(['↵'], 'select'),
+      createFooterHint(['esc'], 'close')
+    ]);
+
+    modal.appendChild(header);
+    modal.appendChild(inputWrapper);
+    modal.appendChild(listEl);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
 
     document.body.appendChild(overlay);
-    inputEl = document.getElementById('keyring-input');
-    listEl = document.getElementById('keyring-list');
 
     // Event listeners
     overlay.addEventListener('click', e => {
@@ -758,6 +822,15 @@
     });
     inputEl.addEventListener('input', onInput);
     inputEl.addEventListener('keydown', onInputKeydown);
+  }
+
+  function createFooterHint(keys, label) {
+    const span = createElement('span');
+    for (const key of keys) {
+      span.appendChild(createElement('kbd', { textContent: key }));
+    }
+    span.appendChild(document.createTextNode(' ' + label));
+    return span;
   }
 
   // ============================================
