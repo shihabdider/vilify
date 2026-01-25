@@ -27,86 +27,59 @@ The bespokeness is the point. Generic solutions handle nothing well; focused sol
 
 ## Architecture
 
-### Current State (Monolithic)
+### Approach: Template + Convention
 
-The YouTube implementation is a single self-contained userscript (~1000 lines):
-
-```
-vilify-youtube.user.js
-├── CSS (YouTube dark theme)
-├── State management
-├── Utilities (toast, clipboard, etc.)
-├── YouTube context detection
-├── Video scraping
-├── Video controls
-├── Navigation functions
-├── Copy functions
-├── Commands definition
-├── Palette rendering
-├── Input handling
-├── Keyboard handler (vim sequences)
-└── SPA navigation detection
-```
-
-### Target State (Core + Sites)
-
-To support multiple sites without duplicating code, we need to extract shared logic:
+Rather than a shared library, Vilify uses a **documented template** approach:
 
 ```
 vilify/
-├── src/
-│   ├── core/
-│   │   ├── palette.js       # Palette UI structure & rendering
-│   │   ├── keyboard.js      # Vim sequence handler, arrow nav
-│   │   ├── input.js         # Filtering, input handling
-│   │   └── utils.js         # Toast, clipboard, escapeHtml, etc.
-│   │
-│   └── sites/
-│       ├── youtube/
-│       │   ├── index.js     # Entry point, site registration
-│       │   ├── theme.css    # YouTube dark theme variables
-│       │   ├── context.js   # Page type detection, video context
-│       │   ├── scrape.js    # Video scraping from DOM
-│       │   ├── commands.js  # YouTube-specific commands
-│       │   └── controls.js  # Video playback controls
-│       │
-│       ├── gmail/
-│       │   ├── index.js
-│       │   ├── theme.css    # Gmail blue/white theme
-│       │   ├── context.js   # Thread/inbox/compose detection
-│       │   ├── scrape.js    # Email scraping
-│       │   └── commands.js  # Gmail-specific commands
-│       │
-│       └── google/
-│           ├── index.js
-│           ├── theme.css    # Google minimal theme
-│           ├── context.js   # Search results detection
-│           ├── scrape.js    # Result scraping
-│           └── commands.js  # Google-specific commands
+├── sites/
+│   ├── youtube.user.js      # Complete, standalone
+│   ├── gmail.user.js        # Complete, standalone
+│   └── reddit.user.js       # Complete, standalone
 │
-├── build/                   # Build output
-│   ├── vilify-youtube.user.js
-│   ├── vilify-gmail.user.js
-│   └── vilify-google.user.js
+├── template/
+│   └── site.template.js     # Documented skeleton with TODOs
 │
-└── scripts/
-    └── build.js             # Bundle core + site → single userscript
+├── docs/
+│   ├── design.md            # This document
+│   ├── contributing.md      # How to add a new site
+│   ├── patterns.md          # Common code patterns
+│   └── plans/               # Implementation plans
+│
+└── README.md                # Installation links
 ```
 
-### Build Strategy
+**Why not a shared library?**
 
-Each site produces a **single bundled userscript** that includes:
-1. Core palette logic (shared)
-2. Site-specific theme CSS
-3. Site-specific commands and scraping
+1. The "shared" code would be ~100 lines of trivial utilities
+2. Each site needs different rendering (thumbnails vs icons vs previews)
+3. Abstraction adds complexity without reducing code
+4. Sites can evolve independently
 
-We use a simple bundler (esbuild) to concatenate and wrap in IIFE.
+**What IS shared:**
 
-**Why single files, not dynamic loading:**
-- Tampermonkey works best with self-contained scripts
-- No CORS issues or network dependencies
-- Simpler installation (one file per site)
-- Each site is independently installable
+- **Template:** Starting point with boilerplate solved
+- **Patterns:** Documented solutions for common problems
+- **Conventions:** Consistent UX across sites (keybindings, palette behavior)
+
+### Installation Flow
+
+```
+User clicks Install link
+    ↓
+GitHub raw URL → Tampermonkey
+    ↓
+Script installed with @updateURL
+    ↓
+Auto-updates on future changes
+```
+
+Each site is a standalone `.user.js` file with:
+```javascript
+// @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/[site].user.js
+// @downloadURL  https://raw.githubusercontent.com/shihabdider/vilify/main/sites/[site].user.js
+```
 
 ---
 
