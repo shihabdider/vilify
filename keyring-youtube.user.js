@@ -889,6 +889,38 @@
     }
   }, true); // Use capture to intercept before YouTube
 
+  // ============================================
+  // SPA Navigation Detection
+  // ============================================
+  // YouTube is an SPA - detect navigation without full page loads
+  let lastUrl = location.href;
+
+  function onNavigate() {
+    // Close palette on navigation
+    if (isPaletteOpen()) {
+      closePalette();
+    }
+    console.log('[Keyring] Navigated to:', location.pathname);
+  }
+
+  // Watch for URL changes
+  const observer = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      onNavigate();
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Also handle popstate (back/forward)
+  window.addEventListener('popstate', () => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      onNavigate();
+    }
+  });
+
   console.log('[Keyring] YouTube palette loaded');
 
 })();
