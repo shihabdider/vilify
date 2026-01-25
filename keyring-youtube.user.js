@@ -253,6 +253,189 @@
     }
   `;
 
+  // ============================================
+  // Constants
+  // ============================================
+  const TOAST_DURATION_MS = 2000;
+  const KEY_SEQ_TIMEOUT_MS = 500;
+
+  // ============================================
+  // State
+  // ============================================
+  let overlay = null;
+  let inputEl = null;
+  let listEl = null;
+  let items = [];
+  let selectedIdx = 0;
+
+  // ============================================
+  // Utilities
+  // ============================================
+  function escapeHtml(str) {
+    const el = document.createElement('div');
+    el.textContent = str || '';
+    return el.innerHTML;
+  }
+
+  function showToast(message) {
+    let toast = document.querySelector('.keyring-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.className = 'keyring-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), TOAST_DURATION_MS);
+  }
+
+  function copyToClipboard(text) {
+    if (typeof GM_setClipboard === 'function') {
+      GM_setClipboard(text);
+      showToast('Copied to clipboard');
+    } else {
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Copied to clipboard'))
+        .catch(() => showToast('Failed to copy'));
+    }
+  }
+
+  // ============================================
+  // Rendering
+  // ============================================
+  function render() {
+    let html = '';
+    let idx = 0;
+
+    for (const item of items) {
+      if (item.group) {
+        html += `<div class="keyring-group-label">${escapeHtml(item.group)}</div>`;
+      } else {
+        const sel = idx === selectedIdx ? 'selected' : '';
+        const keys = item.keys 
+          ? `<span class="keyring-shortcut">${item.keys.split(' ').map(k => `<kbd>${k}</kbd>`).join('')}</span>` 
+          : '';
+        const meta = item.meta 
+          ? `<span class="keyring-meta">${escapeHtml(item.meta)}</span>` 
+          : '';
+        html += `
+          <div class="keyring-item ${sel}" data-idx="${idx}">
+            <span class="keyring-icon">${item.icon || '▸'}</span>
+            <span class="keyring-label">${escapeHtml(item.label)}</span>
+            ${meta}
+            ${keys}
+          </div>
+        `;
+        idx++;
+      }
+    }
+
+    if (idx === 0) {
+      html = '<div class="keyring-empty">No matching commands</div>';
+    }
+
+    listEl.innerHTML = html;
+    bindItemEvents();
+  }
+
+  function bindItemEvents() {
+    listEl.querySelectorAll('.keyring-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const i = parseInt(el.dataset.idx, 10);
+        executeItem(i);
+      });
+      el.addEventListener('mouseenter', () => {
+        selectedIdx = parseInt(el.dataset.idx, 10);
+        updateSelection();
+      });
+    });
+  }
+
+  function updateSelection() {
+    listEl.querySelectorAll('.keyring-item').forEach(el => {
+      const i = parseInt(el.dataset.idx, 10);
+      el.classList.toggle('selected', i === selectedIdx);
+    });
+    const sel = listEl.querySelector('.keyring-item.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+
+  function getActionableItems() {
+    return items.filter(i => !i.group);
+  }
+
+  function executeItem(idx) {
+    const actionable = getActionableItems();
+    const item = actionable[idx];
+    if (item?.action) {
+      closePalette();
+      item.action();
+    }
+  }
+
+  // ============================================
+  // UI Creation
+  // ============================================
+  function createUI() {
+    // Inject styles
+    const style = document.createElement('style');
+    style.textContent = CSS;
+    document.head.appendChild(style);
+
+    // Create overlay
+    overlay = document.createElement('div');
+    overlay.id = 'keyring-overlay';
+    overlay.innerHTML = `
+      <div id="keyring-modal">
+        <div id="keyring-header">
+          <div id="keyring-header-logo"></div>
+          <div id="keyring-header-title">Command Palette</div>
+        </div>
+        <div id="keyring-input-wrapper">
+          <input id="keyring-input" type="text" placeholder="Type a command..." autocomplete="off" spellcheck="false">
+        </div>
+        <div id="keyring-list"></div>
+        <div id="keyring-footer">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+          <span><kbd>esc</kbd> close</span>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    inputEl = document.getElementById('keyring-input');
+    listEl = document.getElementById('keyring-list');
+
+    // Event listeners
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closePalette();
+    });
+    inputEl.addEventListener('input', onInput);
+    inputEl.addEventListener('keydown', onInputKeydown);
+  }
+
+  // ============================================
+  // Open / Close
+  // ============================================
+  function openPalette() {
+    if (!overlay) createUI();
+    items = getCommands();
+    selectedIdx = 0;
+    inputEl.value = '';
+    render();
+    overlay.classList.add('open');
+    inputEl.focus();
+  }
+
+  function closePalette() {
+    if (overlay) overlay.classList.remove('open');
+  }
+
+  function isPaletteOpen() {
+    return overlay?.classList.contains('open');
+  }
+
   console.log('[Keyring] YouTube palette loaded');
 
 })();
