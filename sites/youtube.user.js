@@ -1834,6 +1834,21 @@
     video.currentTime = video.duration * (percent / 100);
   }
 
+  function toggleSubscribe() {
+    const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
+    if (ytSubBtn) {
+      ytSubBtn.click();
+      // Check new state after a brief delay for YouTube to update
+      setTimeout(() => {
+        const label = ytSubBtn.getAttribute('aria-label') || '';
+        const isNowSubscribed = label.toLowerCase().includes('unsubscribe');
+        showToast(isNowSubscribed ? 'Subscribed' : 'Unsubscribed');
+      }, 300);
+    } else {
+      showToast('Subscribe button not found');
+    }
+  }
+
   // ============================================
   // Navigation
   // ============================================
@@ -2009,6 +2024,12 @@
       if (videoCtx.channelUrl) {
         cmds.push({ group: 'Channel' });
         cmds.push({ 
+          label: videoCtx.isSubscribed ? 'Unsubscribe' : 'Subscribe', 
+          icon: videoCtx.isSubscribed ? '✓' : '⊕', 
+          action: toggleSubscribe,
+          keys: 'M'
+        });
+        cmds.push({ 
           label: `Go to ${videoCtx.channelName || 'channel'}`, 
           icon: '👤', 
           action: () => navigateTo(videoCtx.channelUrl),
@@ -2061,6 +2082,8 @@
       sequences['zc'] = toggleDescriptionClose;
       // Chapter picker
       sequences['f'] = openChapterPicker;
+      // Subscribe (mark channel)
+      sequences['m'] = toggleSubscribe;
     }
 
     return sequences;
