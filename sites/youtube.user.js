@@ -1186,38 +1186,26 @@
   function createDescriptionModal() {
     if (descOverlay) return;
 
-    descOverlay = createElement('div', { id: 'vilify-desc-overlay', className: 'vilify-overlay' });
-    const modal = createElement('div', { id: 'vilify-desc-modal', className: 'vilify-modal' });
-
-    // Header
-    const header = createElement('div', { id: 'vilify-desc-header', className: 'vilify-modal-header' });
-    header.appendChild(createElement('span', { id: 'vilify-desc-title', className: 'vilify-modal-title', textContent: 'Description' }));
-    const closeBtn = createElement('button', { id: 'vilify-desc-close', textContent: '×' });
+    const closeBtn = button({ id: 'vilify-desc-close', textContent: '×' });
     closeBtn.addEventListener('click', closeDescriptionModal);
-    header.appendChild(closeBtn);
 
-    // Content
-    const content = createElement('div', { id: 'vilify-desc-content' });
-    content.appendChild(createElement('div', { id: 'vilify-desc-text' }));
+    const modal = div({ id: 'vilify-desc-modal', className: 'vilify-modal' }, [
+      div({ id: 'vilify-desc-header', className: 'vilify-modal-header' }, [
+        span({ id: 'vilify-desc-title', className: 'vilify-modal-title', textContent: 'Description' }),
+        closeBtn
+      ]),
+      div({ id: 'vilify-desc-content' }, [div({ id: 'vilify-desc-text' })]),
+      div({ id: 'vilify-desc-footer', className: 'vilify-modal-footer' }, [
+        'Press ', createElement('kbd', { textContent: 'zc' }), ' or ',
+        createElement('kbd', { textContent: 'Esc' }), ' to close'
+      ])
+    ]);
 
-    // Footer
-    const footer = createElement('div', { id: 'vilify-desc-footer', className: 'vilify-modal-footer' });
-    footer.appendChild(document.createTextNode('Press '));
-    footer.appendChild(createElement('kbd', { textContent: 'zc' }));
-    footer.appendChild(document.createTextNode(' or '));
-    footer.appendChild(createElement('kbd', { textContent: 'Esc' }));
-    footer.appendChild(document.createTextNode(' to close'));
-
-    modal.appendChild(header);
-    modal.appendChild(content);
-    modal.appendChild(footer);
-    descOverlay.appendChild(modal);
-    document.body.appendChild(descOverlay);
-
-    // Click outside to close
+    descOverlay = div({ id: 'vilify-desc-overlay', className: 'vilify-overlay' }, [modal]);
     descOverlay.addEventListener('click', e => {
       if (e.target === descOverlay) closeDescriptionModal();
     });
+    document.body.appendChild(descOverlay);
   }
 
   function openDescriptionModal() {
