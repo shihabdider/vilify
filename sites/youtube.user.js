@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.1.0
+// @version      0.1.1
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
