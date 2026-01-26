@@ -355,6 +355,152 @@
       line-height: 1.4;
     }
 
+    /* Chapter Picker */
+    #vilify-chapter-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 15vh;
+      z-index: 9999999;
+      font-family: var(--font-main);
+    }
+
+    #vilify-chapter-overlay.open {
+      display: flex;
+    }
+
+    #vilify-chapter-modal {
+      width: 500px;
+      max-width: 90vw;
+      max-height: 70vh;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #vilify-chapter-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #vilify-chapter-header-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    #vilify-chapter-input-wrapper {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #vilify-chapter-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: var(--font-main);
+      color: var(--text-primary);
+      outline: none;
+    }
+
+    #vilify-chapter-input:focus {
+      border-color: var(--accent);
+    }
+
+    #vilify-chapter-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    #vilify-chapter-list {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+
+    .vilify-chapter-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      cursor: pointer;
+      gap: 12px;
+    }
+
+    .vilify-chapter-item:hover {
+      background: var(--bg-secondary);
+    }
+
+    .vilify-chapter-item.selected {
+      background: var(--bg-secondary);
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    .vilify-chapter-thumb {
+      width: 80px;
+      height: 45px;
+      border-radius: 6px;
+      background: var(--bg-hover);
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .vilify-chapter-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .vilify-chapter-title {
+      font-size: 14px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .vilify-chapter-time {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .vilify-chapter-empty {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    #vilify-chapter-footer {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 16px;
+    }
+
+    #vilify-chapter-footer kbd {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin: 0 4px;
+      font-size: 11px;
+    }
+
     #keyring-overlay {
       position: fixed;
       inset: 0;
@@ -979,21 +1125,171 @@
 
   function scrapeComments() {
     const comments = [];
-    const commentEls = document.querySelectorAll('ytd-comment-thread-renderer');
+    // Try multiple selectors for different YouTube layouts
+    const commentSelectors = [
+      'ytd-comment-thread-renderer',
+      'ytd-comment-view-model',
+      'ytd-comment-renderer'
+    ];
+    
+    let commentEls = [];
+    for (const sel of commentSelectors) {
+      commentEls = document.querySelectorAll(sel);
+      if (commentEls.length > 0) break;
+    }
     
     for (const el of Array.from(commentEls).slice(0, 20)) {
-      const authorEl = el.querySelector('#author-text');
-      const textEl = el.querySelector('#content-text');
+      // Try multiple author selectors
+      const authorSelectors = [
+        '#author-text',
+        '#author-text span',
+        'a#author-text',
+        '.ytd-comment-view-model #author-text',
+        '#header-author #author-text',
+        'h3 a'
+      ];
+      let author = '';
+      for (const sel of authorSelectors) {
+        const authorEl = el.querySelector(sel);
+        if (authorEl?.textContent?.trim()) {
+          author = authorEl.textContent.trim();
+          break;
+        }
+      }
       
-      if (authorEl && textEl) {
-        comments.push({
-          author: authorEl.textContent.trim(),
-          text: textEl.textContent.trim()
-        });
+      // Try multiple content selectors
+      const contentSelectors = [
+        '#content-text',
+        '#content-text span',
+        'yt-attributed-string#content-text',
+        '.ytd-comment-view-model #content-text',
+        '#comment-content #content-text'
+      ];
+      let text = '';
+      for (const sel of contentSelectors) {
+        const textEl = el.querySelector(sel);
+        if (textEl?.textContent?.trim()) {
+          text = textEl.textContent.trim();
+          break;
+        }
+      }
+      
+      if (author && text) {
+        comments.push({ author, text });
       }
     }
     
     return comments;
+  }
+
+  // ============================================
+  // Chapter Scraping
+  // ============================================
+  function scrapeChapters() {
+    const chapters = [];
+    
+    // Method 1: From chapter markers in progress bar
+    const chapterMarkers = document.querySelectorAll('.ytp-chapter-hover-container');
+    if (chapterMarkers.length > 0) {
+      for (const marker of chapterMarkers) {
+        const title = marker.querySelector('.ytp-chapter-title')?.textContent?.trim();
+        const timeText = marker.dataset.startTime || marker.getAttribute('data-start-time');
+        if (title && timeText) {
+          chapters.push({
+            title,
+            time: parseFloat(timeText),
+            thumbnailUrl: null
+          });
+        }
+      }
+    }
+    
+    // Method 2: From description chapters panel
+    if (chapters.length === 0) {
+      const chapterItems = document.querySelectorAll('ytd-macro-markers-list-item-renderer');
+      for (const item of chapterItems) {
+        const titleEl = item.querySelector('#details h4, #title');
+        const timeEl = item.querySelector('#time, #details #time');
+        const thumbEl = item.querySelector('img');
+        
+        if (titleEl && timeEl) {
+          const timeText = timeEl.textContent.trim();
+          const time = parseTimestamp(timeText);
+          chapters.push({
+            title: titleEl.textContent.trim(),
+            time,
+            timeText,
+            thumbnailUrl: thumbEl?.src || null
+          });
+        }
+      }
+    }
+    
+    // Method 3: From expandable description chapters
+    if (chapters.length === 0) {
+      const descChapters = document.querySelectorAll('ytd-expandable-video-description-body-renderer ytd-macro-markers-list-item-renderer');
+      for (const item of descChapters) {
+        const titleEl = item.querySelector('h4, #title');
+        const timeEl = item.querySelector('#time');
+        const thumbEl = item.querySelector('img');
+        
+        if (titleEl && timeEl) {
+          const timeText = timeEl.textContent.trim();
+          const time = parseTimestamp(timeText);
+          chapters.push({
+            title: titleEl.textContent.trim(),
+            time,
+            timeText,
+            thumbnailUrl: thumbEl?.src || null
+          });
+        }
+      }
+    }
+    
+    return chapters;
+  }
+
+  function parseTimestamp(str) {
+    // Parse "1:23" or "1:23:45" to seconds
+    const parts = str.split(':').map(p => parseInt(p, 10));
+    if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } else if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+    return 0;
+  }
+
+  // ============================================
+  // Description Toggle (zo/zc)
+  // ============================================
+  function toggleDescriptionOpen() {
+    const descText = document.querySelector('.vilify-description-text');
+    const descToggle = document.querySelector('.vilify-description-toggle');
+    if (descText && descToggle) {
+      descText.classList.remove('collapsed');
+      descToggle.textContent = '...less';
+      showToast('Description expanded');
+    }
+  }
+
+  function toggleDescriptionClose() {
+    const descText = document.querySelector('.vilify-description-text');
+    const descToggle = document.querySelector('.vilify-description-toggle');
+    if (descText && descToggle) {
+      descText.classList.add('collapsed');
+      descToggle.textContent = '...more';
+      showToast('Description collapsed');
+    }
+  }
+
+  function toggleDescription() {
+    const descText = document.querySelector('.vilify-description-text');
+    const descToggle = document.querySelector('.vilify-description-toggle');
+    if (descText && descToggle) {
+      const isCollapsed = descText.classList.toggle('collapsed');
+      descToggle.textContent = isCollapsed ? '...more' : '...less';
+    }
   }
 
   let watchPageRetryCount = 0;
@@ -1073,11 +1369,11 @@
     });
     const descToggle = createElement('button', { 
       className: 'vilify-description-toggle',
-      textContent: '[show more]'
+      textContent: '...more'
     });
     descToggle.addEventListener('click', () => {
       const isCollapsed = descText.classList.toggle('collapsed');
-      descToggle.textContent = isCollapsed ? '[show more]' : '[show less]';
+      descToggle.textContent = isCollapsed ? '...more' : '...less';
     });
     descEl.appendChild(descText);
     descEl.appendChild(descToggle);
@@ -1112,6 +1408,44 @@
     
     commentsSection.appendChild(commentsList);
     content.appendChild(commentsSection);
+    
+    // If no comments yet, set up observer to re-render when they load
+    if (comments.length === 0) {
+      setupCommentObserver();
+    }
+  }
+
+  let commentObserver = null;
+  function setupCommentObserver() {
+    if (commentObserver) return; // Already observing
+    
+    const commentsContainer = document.querySelector('ytd-comments, #comments');
+    if (!commentsContainer) return;
+    
+    commentObserver = new MutationObserver(() => {
+      const comments = scrapeComments();
+      if (comments.length > 0) {
+        // Found comments, update the UI
+        const commentsList = document.querySelector('.vilify-comments-list');
+        if (commentsList) {
+          while (commentsList.firstChild) {
+            commentsList.removeChild(commentsList.firstChild);
+          }
+          comments.forEach(comment => {
+            const commentEl = createElement('div', { className: 'vilify-comment' }, [
+              createElement('div', { className: 'vilify-comment-author', textContent: comment.author }),
+              createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
+            ]);
+            commentsList.appendChild(commentEl);
+          });
+        }
+        // Stop observing once we have comments
+        commentObserver.disconnect();
+        commentObserver = null;
+      }
+    });
+    
+    commentObserver.observe(commentsContainer, { childList: true, subtree: true });
   }
 
   function formatTimestamp(seconds) {
@@ -1357,6 +1691,9 @@
       cmds.push({ label: 'Theater mode', icon: '🎬', action: toggleTheaterMode, keys: 'T' });
       cmds.push({ label: 'Toggle captions', icon: '💬', action: toggleCaptions, keys: 'C' });
       cmds.push({ label: 'Toggle mute', icon: videoCtx.muted ? '🔇' : '🔊', action: toggleMute, keys: 'M' });
+      cmds.push({ label: 'Expand description', icon: '📖', action: toggleDescriptionOpen, keys: 'Z O' });
+      cmds.push({ label: 'Collapse description', icon: '📕', action: toggleDescriptionClose, keys: 'Z C' });
+      cmds.push({ label: 'Jump to chapter', icon: '📑', action: openChapterPicker, keys: 'F' });
 
       cmds.push({ group: 'Copy' });
       cmds.push({ label: 'Copy video URL', icon: '🔗', action: copyVideoUrl, keys: 'Y Y' });
@@ -1421,6 +1758,11 @@
       sequences['yy'] = copyVideoUrl;
       sequences['yt'] = copyVideoTitle;
       sequences['ya'] = copyVideoTitleAndUrl;
+      // Description toggle (vim fold style)
+      sequences['zo'] = toggleDescriptionOpen;
+      sequences['zc'] = toggleDescriptionClose;
+      // Chapter picker
+      sequences['f'] = openChapterPicker;
     }
 
     return sequences;
@@ -1803,6 +2145,213 @@
   }
 
   // ============================================
+  // Chapter Picker (f key)
+  // ============================================
+  let chapterOverlay = null;
+  let chapterInputEl = null;
+  let chapterListEl = null;
+  let chapterItems = [];
+  let chapterSelectedIdx = 0;
+  let chapterPickerActive = false;
+
+  function createChapterPicker() {
+    if (chapterOverlay) return;
+
+    chapterOverlay = createElement('div', { id: 'vilify-chapter-overlay' });
+    const modal = createElement('div', { id: 'vilify-chapter-modal' });
+
+    // Header
+    const header = createElement('div', { id: 'vilify-chapter-header' }, [
+      createElement('span', { id: 'vilify-chapter-header-title', textContent: 'Jump to Chapter' })
+    ]);
+
+    // Input
+    chapterInputEl = createElement('input', {
+      id: 'vilify-chapter-input',
+      type: 'text',
+      placeholder: 'Filter chapters...',
+      autocomplete: 'off',
+      spellcheck: 'false'
+    });
+    const inputWrapper = createElement('div', { id: 'vilify-chapter-input-wrapper' }, [chapterInputEl]);
+
+    // List
+    chapterListEl = createElement('div', { id: 'vilify-chapter-list' });
+
+    // Footer
+    const footer = createElement('div', { id: 'vilify-chapter-footer' }, [
+      createChapterFooterHint(['↑', '↓'], 'navigate'),
+      createChapterFooterHint(['↵'], 'jump'),
+      createChapterFooterHint(['esc'], 'close')
+    ]);
+
+    modal.appendChild(header);
+    modal.appendChild(inputWrapper);
+    modal.appendChild(chapterListEl);
+    modal.appendChild(footer);
+    chapterOverlay.appendChild(modal);
+    document.body.appendChild(chapterOverlay);
+
+    // Event listeners
+    chapterOverlay.addEventListener('click', e => {
+      if (e.target === chapterOverlay) closeChapterPicker();
+    });
+    chapterInputEl.addEventListener('input', onChapterInput);
+    chapterInputEl.addEventListener('keydown', onChapterKeydown);
+  }
+
+  function createChapterFooterHint(keys, label) {
+    const span = createElement('span');
+    for (const key of keys) {
+      span.appendChild(createElement('kbd', { textContent: key }));
+    }
+    span.appendChild(document.createTextNode(' ' + label));
+    return span;
+  }
+
+  function openChapterPicker() {
+    const chapters = scrapeChapters();
+    if (chapters.length === 0) {
+      showToast('No chapters found');
+      return;
+    }
+
+    if (!chapterOverlay) createChapterPicker();
+    
+    chapterItems = chapters;
+    chapterSelectedIdx = 0;
+    chapterPickerActive = true;
+    
+    renderChapterList();
+    chapterOverlay.classList.add('open');
+    chapterInputEl.value = '';
+    chapterInputEl.focus();
+  }
+
+  function closeChapterPicker() {
+    if (chapterOverlay) {
+      chapterOverlay.classList.remove('open');
+    }
+    chapterPickerActive = false;
+  }
+
+  function isChapterPickerOpen() {
+    return chapterOverlay?.classList.contains('open');
+  }
+
+  function renderChapterList(filter = '') {
+    while (chapterListEl.firstChild) {
+      chapterListEl.removeChild(chapterListEl.firstChild);
+    }
+
+    let filtered = chapterItems;
+    if (filter) {
+      const q = filter.toLowerCase();
+      filtered = chapterItems.filter(ch => ch.title.toLowerCase().includes(q));
+    }
+
+    if (filtered.length === 0) {
+      chapterListEl.appendChild(createElement('div', {
+        className: 'vilify-chapter-empty',
+        textContent: filter ? `No chapters matching "${filter}"` : 'No chapters found'
+      }));
+      return;
+    }
+
+    filtered.forEach((chapter, idx) => {
+      const item = createElement('div', {
+        className: `vilify-chapter-item ${idx === chapterSelectedIdx ? 'selected' : ''}`,
+        'data-idx': String(idx),
+        'data-time': String(chapter.time)
+      });
+
+      // Thumbnail (if available)
+      if (chapter.thumbnailUrl) {
+        item.appendChild(createElement('img', {
+          className: 'vilify-chapter-thumb',
+          src: chapter.thumbnailUrl,
+          alt: ''
+        }));
+      }
+
+      // Info
+      const info = createElement('div', { className: 'vilify-chapter-info' });
+      info.appendChild(createElement('div', { className: 'vilify-chapter-title', textContent: chapter.title }));
+      info.appendChild(createElement('div', { 
+        className: 'vilify-chapter-time', 
+        textContent: chapter.timeText || formatTimestamp(chapter.time) 
+      }));
+      item.appendChild(info);
+
+      chapterListEl.appendChild(item);
+
+      // Event listeners
+      item.addEventListener('click', () => jumpToChapter(idx, filtered));
+      item.addEventListener('mouseenter', () => {
+        chapterSelectedIdx = idx;
+        updateChapterSelection();
+      });
+    });
+  }
+
+  function updateChapterSelection() {
+    const items = chapterListEl.querySelectorAll('.vilify-chapter-item');
+    items.forEach((el, i) => {
+      el.classList.toggle('selected', i === chapterSelectedIdx);
+    });
+    const sel = chapterListEl.querySelector('.vilify-chapter-item.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+
+  function jumpToChapter(idx, filteredList = null) {
+    const list = filteredList || chapterItems;
+    const chapter = list[idx];
+    if (!chapter) return;
+
+    const video = getVideo();
+    if (video) {
+      video.currentTime = chapter.time;
+      showToast(`Jumped to: ${chapter.title}`);
+    }
+    closeChapterPicker();
+  }
+
+  function onChapterInput(e) {
+    chapterSelectedIdx = 0;
+    renderChapterList(e.target.value);
+  }
+
+  function onChapterKeydown(e) {
+    const filter = chapterInputEl.value;
+    let filtered = chapterItems;
+    if (filter) {
+      const q = filter.toLowerCase();
+      filtered = chapterItems.filter(ch => ch.title.toLowerCase().includes(q));
+    }
+    const count = filtered.length;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeChapterPicker();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (count > 0) {
+        chapterSelectedIdx = (chapterSelectedIdx + 1) % count;
+        updateChapterSelection();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (count > 0) {
+        chapterSelectedIdx = (chapterSelectedIdx - 1 + count) % count;
+        updateChapterSelection();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      jumpToChapter(chapterSelectedIdx, filtered);
+    }
+  }
+
+  // ============================================
   // Video List Rendering (Focus Mode)
   // ============================================
   function renderVideoList(videos, filterQuery = '') {
@@ -2070,15 +2619,22 @@
 
 
 
-    // Escape to close
-    if (e.key === 'Escape' && isPaletteOpen()) {
-      e.preventDefault();
-      closePalette();
-      return;
+    // Escape to close palettes
+    if (e.key === 'Escape') {
+      if (isChapterPickerOpen()) {
+        e.preventDefault();
+        closeChapterPicker();
+        return;
+      }
+      if (isPaletteOpen()) {
+        e.preventDefault();
+        closePalette();
+        return;
+      }
     }
 
     // Vim-style sequences when palette is closed
-    if (!isPaletteOpen() && !isInput) {
+    if (!isPaletteOpen() && !isChapterPickerOpen() && !isInput) {
       // Ignore modifier keys alone
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
         return;
@@ -2318,6 +2874,11 @@
     clearVideoCache();
     selectedIdx = 0;
     watchPageRetryCount = 0;
+    // Clean up comment observer
+    if (commentObserver) {
+      commentObserver.disconnect();
+      commentObserver = null;
+    }
     
     if (focusModeActive) {
       showLoading();
