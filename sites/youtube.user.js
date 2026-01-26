@@ -1189,10 +1189,11 @@
     cmds.push({ group: 'Navigation' });
     cmds.push({ label: 'Home', icon: '🏠', action: () => navigateTo('/'), keys: 'G H' });
     cmds.push({ label: 'Subscriptions', icon: '📺', action: () => navigateTo('/feed/subscriptions'), keys: 'G S' });
-    cmds.push({ label: 'History', icon: '⏱', action: () => navigateTo('/feed/history'), keys: 'G I' });
+    cmds.push({ label: 'History', icon: '⏱', action: () => navigateTo('/feed/history'), keys: 'G Y' });
     cmds.push({ label: 'Library', icon: '📚', action: () => navigateTo('/feed/library'), keys: 'G L' });
     cmds.push({ label: 'Trending', icon: '🔥', action: () => navigateTo('/feed/trending'), keys: 'G T' });
     cmds.push({ label: 'Search', icon: '🔍', action: () => focusSearchBox(), keys: 'I' });
+    cmds.push({ label: 'Exit focus mode', icon: '×', action: exitFocusMode, keys: ':Q' });
 
     // Video controls - only on watch page
     if (pageType === 'watch' && videoCtx) {
@@ -1257,31 +1258,33 @@
     const videoCtx = getVideoContext();
     
     const sequences = {
-      // Palette shortcuts
-      '/': () => openPalette('video'),
+      // Focus mode controls
+      '/': () => {
+        if (focusModeActive && getPageType() !== 'watch') {
+          openFilter();
+        } else {
+          openPalette('video');
+        }
+      },
       ':': () => openPalette('command'),
+      'i': () => focusSearchBox(),
+      
       // Navigation: g + key
       'gh': () => navigateTo('/'),
       'gs': () => navigateTo('/feed/subscriptions'),
-      'gi': () => navigateTo('/feed/history'),
+      'gy': () => navigateTo('/feed/history'),
       'gl': () => navigateTo('/feed/library'),
       'gt': () => navigateTo('/feed/trending'),
-      'i': () => focusSearchBox(),
     };
 
     // Video-specific sequences
     if (videoCtx) {
-      // Navigation
       sequences['gc'] = () => videoCtx.channelUrl && navigateTo(videoCtx.channelUrl);
-      
-      // Speed
       sequences['g1'] = () => setPlaybackRate(1);
       sequences['g2'] = () => setPlaybackRate(2);
-      
-      // Yank (copy): y + key
-      sequences['yy'] = copyVideoUrl;           // yy = yank URL (like vim yy for yank line)
-      sequences['yt'] = copyVideoTitle;         // yt = yank title
-      sequences['ya'] = copyVideoTitleAndUrl;   // ya = yank all
+      sequences['yy'] = copyVideoUrl;
+      sequences['yt'] = copyVideoTitle;
+      sequences['ya'] = copyVideoTitleAndUrl;
     }
 
     return sequences;
@@ -1807,6 +1810,14 @@
     const actionable = getActionableItems();
     const count = actionable.length;
 
+    // Check for :q command
+    if (e.key === 'Enter' && inputEl.value.trim().toLowerCase() === ':q') {
+      e.preventDefault();
+      closePalette();
+      exitFocusMode();
+      return;
+    }
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (count > 0) {
@@ -1882,6 +1893,41 @@
         singleKeyActions[e.key]();
         keySeq = '';
         return;
+      }
+
+      // Check for ZZ (exit focus mode)
+      if (focusModeActive && keySeq === 'Z' && e.key === 'Z') {
+        e.preventDefault();
+        exitFocusMode();
+        keySeq = '';
+        return;
+      }
+
+      // j/k navigation in focus mode (listing pages only)
+      if (focusModeActive && !isPaletteOpen() && !filterActive && getPageType() !== 'watch') {
+        if (e.key === 'j') {
+          e.preventDefault();
+          const items = document.querySelectorAll('.vilify-video-item');
+          if (items.length > 0) {
+            selectedIdx = (selectedIdx + 1) % items.length;
+            updateVideoSelection();
+          }
+          return;
+        }
+        if (e.key === 'k') {
+          e.preventDefault();
+          const items = document.querySelectorAll('.vilify-video-item');
+          if (items.length > 0) {
+            selectedIdx = (selectedIdx - 1 + items.length) % items.length;
+            updateVideoSelection();
+          }
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          executeVideoItem(selectedIdx, e.shiftKey);
+          return;
+        }
       }
 
       clearTimeout(keyTimer);
