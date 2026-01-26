@@ -837,9 +837,6 @@
         '.ytd-comment-view-model #content-text',
         '#comment-content #content-text'
       ]
-    },
-    channel: {
-      name: '#channel-name, #text.ytd-channel-name'
     }
   };
 
@@ -887,12 +884,6 @@
   // ============================================
   // Utilities
   // ============================================
-  function escapeHtml(str) {
-    const el = document.createElement('div');
-    el.textContent = str || '';
-    return el.innerHTML;
-  }
-
   function showToast(message) {
     let toast = document.querySelector('.keyring-toast');
     if (!toast) {
@@ -999,22 +990,7 @@
     return ctx;
   }
 
-  function getChannelContext() {
-    const pageType = getPageType();
-    if (pageType !== 'channel') return null;
 
-    const ctx = {
-      url: location.href,
-    };
-
-    // Get channel name
-    const nameEl = document.querySelector(SELECTORS.channel.name);
-    if (nameEl) {
-      ctx.name = nameEl.textContent.trim();
-    }
-
-    return ctx;
-  }
 
   // ============================================
   // Video Scraping
@@ -1206,7 +1182,6 @@
   // Description Modal (zo/zc)
   // ============================================
   let descOverlay = null;
-  let descriptionText = '';
 
   function createDescriptionModal() {
     if (descOverlay) return;
@@ -1259,7 +1234,6 @@
 
     if (!descOverlay) createDescriptionModal();
     
-    descriptionText = description;
     const textEl = document.getElementById('vilify-desc-text');
     if (textEl) textEl.textContent = description;
     
@@ -1276,21 +1250,9 @@
     return descOverlay?.classList.contains('open');
   }
 
-  function toggleDescriptionOpen() {
-    openDescriptionModal();
-  }
-
-  function toggleDescriptionClose() {
-    closeDescriptionModal();
-  }
-
-  function toggleDescription() {
-    if (isDescriptionModalOpen()) {
-      closeDescriptionModal();
-    } else {
-      openDescriptionModal();
-    }
-  }
+  // Aliases for command palette and key sequences
+  const toggleDescriptionOpen = openDescriptionModal;
+  const toggleDescriptionClose = closeDescriptionModal;
 
   let watchPageRetryCount = 0;
   const WATCH_PAGE_MAX_RETRIES = 10;
