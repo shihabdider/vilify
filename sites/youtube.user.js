@@ -1281,18 +1281,154 @@
 
 
   // ============================================
+  // YouTube DOM Polling
+  // ============================================
+  // Unified polling system to detect when YouTube has finished loading content.
+  // Instead of fragile "wait for stability" heuristics, we poll periodically
+  // and check for YouTube's loading indicators.
+  
+  const POLL_INTERVAL_MS = 200;
+  let pollTimer = null;
+  let lastVideoCount = 0;
+  let lastPollTime = 0;
+  
+  /**
+   * Check if YouTube is currently loading content
+   * Returns true if loading indicators are present
+   */
+  function isYouTubeLoading() {
+    // Check for continuation/loading spinners
+    const hasSpinner = !!document.querySelector(
+      'ytd-continuation-item-renderer, ' +
+      'tp-yt-paper-spinner, ' +
+      '#spinner, ' +
+      'ytd-ghost-grid-renderer, ' +  // Skeleton placeholders
+      'ytd-rich-grid-renderer[is-loading], ' +
+      '.ytd-ghost-grid-renderer'
+    );
+    
+    // Check for skeleton/placeholder items (empty video cards loading)
+    const skeletons = document.querySelectorAll(
+      'ytd-rich-item-renderer:empty, ' +
+      'ytd-video-renderer:empty, ' +
+      '#contents > .ytd-item-section-renderer:empty'
+    );
+    
+    return hasSpinner || skeletons.length > 0;
+  }
+  
+  /**
+   * Get current video count from YouTube's DOM
+   */
+  function getYouTubeVideoCount() {
+    const elements = document.querySelectorAll(
+      'ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model'
+    );
+    return elements.length;
+  }
+  
+  /**
+   * Start polling for content changes
+   * Calls onUpdate whenever new content is detected
+   */
+  function startContentPolling(onUpdate) {
+    stopContentPolling();
+    
+    lastVideoCount = 0;
+    lastPollTime = Date.now();
+    
+    function poll() {
+      const pageType = getPageType();
+      
+      // On watch pages, don't poll for videos
+      if (pageType === 'watch') {
+        stopContentPolling();
+        return;
+      }
+      
+      const currentCount = getYouTubeVideoCount();
+      const isLoading = isYouTubeLoading();
+      
+      // If video count changed and not currently loading, update
+      if (currentCount !== lastVideoCount && !isLoading) {
+        lastVideoCount = currentCount;
+        if (currentCount > 0) {
+          onUpdate();
+        }
+      }
+      
+      // Also update if we have videos and haven't updated in a while (fallback)
+      // This catches cases where loading indicators disappear but count didn't change
+      if (currentCount > 0 && !isLoading && Date.now() - lastPollTime > 1000) {
+        lastPollTime = Date.now();
+        // Only call onUpdate if this is truly new content
+        const currentScrapedCount = document.querySelectorAll('.vilify-video-item').length;
+        if (currentCount > currentScrapedCount) {
+          onUpdate();
+        }
+      }
+      
+      pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+    }
+    
+    poll();
+  }
+  
+  function stopContentPolling() {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+  }
+  
+  /**
+   * Wait for YouTube to finish initial content load
+   * Resolves when content is available and not loading
+   */
+  function waitForYouTubeContent(maxWait = 5000) {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      
+      function check() {
+        const pageType = getPageType();
+        
+        // On watch page, wait for video player
+        if (pageType === 'watch') {
+          const hasPlayer = document.querySelector('#movie_player video');
+          if (hasPlayer) {
+            resolve();
+            return;
+          }
+        } else {
+          // On listing pages, wait for videos and no loading indicators
+          const videoCount = getYouTubeVideoCount();
+          const isLoading = isYouTubeLoading();
+          
+          if (videoCount > 0 && !isLoading) {
+            resolve();
+            return;
+          }
+        }
+        
+        // Timeout fallback
+        if (Date.now() - startTime >= maxWait) {
+          resolve();
+          return;
+        }
+        
+        setTimeout(check, POLL_INTERVAL_MS);
+      }
+      
+      check();
+    });
+  }
+
+  // ============================================
   // Video Scraping
   // ============================================
-  const VIDEO_CACHE_MS = 2000;
-  let videoCache = null;
-  let videoCacheTime = 0;
-
+  // No caching - always scrape fresh to avoid stale data races
+  
   function scrapeVideos() {
-    // Return cached results if fresh
-    if (videoCache && Date.now() - videoCacheTime < VIDEO_CACHE_MS) {
-      return videoCache;
-    }
-
     const videos = [];
     const seen = new Set();
 
@@ -1371,16 +1507,7 @@
       }
     }
 
-    // Cache results
-    videoCache = videos;
-    videoCacheTime = Date.now();
-
     return videos;
-  }
-
-  function clearVideoCache() {
-    videoCache = null;
-    videoCacheTime = 0;
   }
 
   function getVideoDescription() {
@@ -3159,12 +3286,14 @@
     if (pageType === 'watch') {
       document.body.classList.add('vilify-watch-page');
       renderWatchPage();
+      // Stop polling on watch pages
+      stopContentPolling();
     } else {
       document.body.classList.remove('vilify-watch-page');
       const videos = scrapeVideos();
       renderVideoList(videos);
-      // Watch for more videos loading
-      setupVideoObserver();
+      // Start polling for more videos loading (replaces MutationObserver approach)
+      startContentPolling(onContentUpdate);
     }
 
     // Hide the loading screen now that our UI is ready
@@ -3173,6 +3302,7 @@
 
   function exitFocusMode() {
     focusModeActive = false;
+    stopContentPolling();
     document.body.classList.remove('vilify-focus-mode', 'vilify-watch-page');
     if (focusOverlay) {
       focusOverlay.remove();
@@ -3190,81 +3320,19 @@
     content.appendChild(div({ className: 'vilify-empty', textContent: 'Loading...' }));
   }
 
-  function waitForContent(callback, maxWait = 5000) {
-    const startTime = Date.now();
-    let lastVideoCount = 0;
-    let stableCount = 0;
-    
-    function check() {
-      const videoElements = document.querySelectorAll('ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model');
-      const hasPlayer = document.querySelector('#movie_player video');
-      const pageType = getPageType();
-      
-      // On watch page, wait for player
-      if (pageType === 'watch') {
-        if (hasPlayer) {
-          callback();
-        } else if (Date.now() - startTime < maxWait) {
-          setTimeout(check, 100);
-        } else {
-          callback();
-        }
-        return;
-      }
-      
-      // On listing pages, wait for videos to stabilize (stop loading more)
-      const currentCount = videoElements.length;
-      
-      if (currentCount > 0) {
-        if (currentCount === lastVideoCount) {
-          stableCount++;
-          // Wait for count to be stable for 3 checks (300ms)
-          if (stableCount >= 3) {
-            callback();
-            return;
-          }
-        } else {
-          stableCount = 0;
-          lastVideoCount = currentCount;
-        }
-      }
-      
-      if (Date.now() - startTime < maxWait) {
-        setTimeout(check, 100);
-      } else {
-        // Timeout - show what we have
-        callback();
-      }
-    }
-    
-    check();
-  }
-  
-  // Re-render video list when more videos load (lazy loading)
-  function setupVideoObserver() {
+  /**
+   * Handle content update from polling - re-render video list if needed
+   */
+  function onContentUpdate() {
+    if (!focusModeActive || filterActive || searchActive) return;
     if (getPageType() === 'watch') return;
     
-    let renderTimeout = null;
-    const videoObserver = new MutationObserver(() => {
-      if (!focusModeActive || filterActive || searchActive) return;
-      
-      // Debounce re-renders
-      clearTimeout(renderTimeout);
-      renderTimeout = setTimeout(() => {
-        const videos = scrapeVideos();
-        const currentItems = document.querySelectorAll('.vilify-video-item').length;
-        // Only re-render if we have more videos
-        if (videos.length > currentItems) {
-          clearVideoCache();
-          renderVideoList(scrapeVideos());
-        }
-      }, 500);
-    });
+    const videos = scrapeVideos();
+    const currentItems = document.querySelectorAll('.vilify-video-item').length;
     
-    // Watch for new video elements being added
-    const contentArea = document.querySelector('ytd-rich-grid-renderer, ytd-section-list-renderer, #contents');
-    if (contentArea) {
-      videoObserver.observe(contentArea, { childList: true, subtree: true });
+    // Only re-render if we have more videos than currently displayed
+    if (videos.length > currentItems) {
+      renderVideoList(videos);
     }
   }
 
@@ -3276,6 +3344,9 @@
   let settingsApplied = false;
 
   function onNavigate() {
+    // Stop any existing content polling
+    stopContentPolling();
+    
     if (isPaletteOpen()) {
       closePalette();
     }
@@ -3287,7 +3358,6 @@
       closeSearch();
     }
     settingsApplied = false;
-    clearVideoCache();
     selectedIdx = 0;
     watchPageRetryCount = 0;
     commentPage = 0;
@@ -3299,9 +3369,10 @@
     commentLoadAttempts = 0;
     
     if (focusModeActive) {
-      // Show loading in our overlay (not the initial loading screen - that's for first load only)
+      // Show loading in our overlay
       showLoading();
-      waitForContent(() => {
+      // Wait for YouTube to finish loading, then initialize
+      waitForYouTubeContent().then(() => {
         initFocusMode();
       });
     }
@@ -3346,7 +3417,8 @@
   function init() {
     injectStyles();
     setupObserver();
-    waitForContent(() => {
+    // Wait for YouTube to finish loading, then initialize
+    waitForYouTubeContent().then(() => {
       initFocusMode();
     });
   }
