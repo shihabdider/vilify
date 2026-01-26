@@ -2122,48 +2122,32 @@
   function createChapterPicker() {
     if (chapterOverlay) return;
 
-    chapterOverlay = createElement('div', { id: 'vilify-chapter-overlay', className: 'vilify-overlay' });
-    const modal = createElement('div', { id: 'vilify-chapter-modal', className: 'vilify-modal' });
-
-    // Header
-    const header = createElement('div', { id: 'vilify-chapter-header', className: 'vilify-modal-header' }, [
-      createElement('span', { id: 'vilify-chapter-header-title', className: 'vilify-modal-title', textContent: 'Jump to Chapter' })
-    ]);
-
-    // Input
-    chapterInputEl = createElement('input', {
-      id: 'vilify-chapter-input',
-      className: 'vilify-modal-input',
-      type: 'text',
-      placeholder: 'Filter chapters...',
-      autocomplete: 'off',
-      spellcheck: 'false'
+    chapterInputEl = input({
+      id: 'vilify-chapter-input', className: 'vilify-modal-input', type: 'text',
+      placeholder: 'Filter chapters...', autocomplete: 'off', spellcheck: 'false'
     });
-    const inputWrapper = createElement('div', { id: 'vilify-chapter-input-wrapper', className: 'vilify-modal-input-wrapper' }, [chapterInputEl]);
+    chapterListEl = div({ id: 'vilify-chapter-list', className: 'vilify-modal-list' });
 
-    // List
-    chapterListEl = createElement('div', { id: 'vilify-chapter-list', className: 'vilify-modal-list' });
-
-    // Footer
-    const footer = createElement('div', { id: 'vilify-chapter-footer', className: 'vilify-modal-footer' }, [
-      createFooterHint(['↑', '↓'], 'navigate'),
-      createFooterHint(['↵'], 'jump'),
-      createFooterHint(['esc'], 'close')
+    const modal = div({ id: 'vilify-chapter-modal', className: 'vilify-modal' }, [
+      div({ id: 'vilify-chapter-header', className: 'vilify-modal-header' }, [
+        span({ className: 'vilify-modal-title', textContent: 'Jump to Chapter' })
+      ]),
+      div({ className: 'vilify-modal-input-wrapper' }, [chapterInputEl]),
+      chapterListEl,
+      div({ className: 'vilify-modal-footer' }, [
+        createFooterHint(['↑', '↓'], 'navigate'),
+        createFooterHint(['↵'], 'jump'),
+        createFooterHint(['esc'], 'close')
+      ])
     ]);
 
-    modal.appendChild(header);
-    modal.appendChild(inputWrapper);
-    modal.appendChild(chapterListEl);
-    modal.appendChild(footer);
-    chapterOverlay.appendChild(modal);
-    document.body.appendChild(chapterOverlay);
-
-    // Event listeners
+    chapterOverlay = div({ id: 'vilify-chapter-overlay', className: 'vilify-overlay' }, [modal]);
     chapterOverlay.addEventListener('click', e => {
       if (e.target === chapterOverlay) closeChapterPicker();
     });
     chapterInputEl.addEventListener('input', onChapterInput);
     chapterInputEl.addEventListener('keydown', onChapterKeydown);
+    document.body.appendChild(chapterOverlay);
   }
 
   // Shared footer hint creator (used by chapter picker and command palette)
