@@ -1416,29 +1416,23 @@
   }
 
   let commentObserver = null;
+  let commentLoadAttempts = 0;
+  const MAX_COMMENT_LOAD_ATTEMPTS = 5;
+
   function setupCommentObserver() {
     if (commentObserver) return; // Already observing
     
     const commentsContainer = document.querySelector('ytd-comments, #comments');
     if (!commentsContainer) return;
     
+    // Trigger YouTube to load comments by scrolling the hidden page
+    triggerCommentLoad();
+    
     commentObserver = new MutationObserver(() => {
       const comments = scrapeComments();
       if (comments.length > 0) {
         // Found comments, update the UI
-        const commentsList = document.querySelector('.vilify-comments-list');
-        if (commentsList) {
-          while (commentsList.firstChild) {
-            commentsList.removeChild(commentsList.firstChild);
-          }
-          comments.forEach(comment => {
-            const commentEl = createElement('div', { className: 'vilify-comment' }, [
-              createElement('div', { className: 'vilify-comment-author', textContent: comment.author }),
-              createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
-            ]);
-            commentsList.appendChild(commentEl);
-          });
-        }
+        updateCommentsUI(comments);
         // Stop observing once we have comments
         commentObserver.disconnect();
         commentObserver = null;
@@ -1446,6 +1440,78 @@
     });
     
     commentObserver.observe(commentsContainer, { childList: true, subtree: true });
+  }
+
+  function triggerCommentLoad() {
+    // YouTube lazy-loads comments when the comments section scrolls into view
+    // Since we hide the YouTube UI, we need to programmatically trigger this
+    
+    // Method 1: Scroll the hidden YouTube page to trigger IntersectionObserver
+    const ytdApp = document.querySelector('ytd-app');
+    if (ytdApp) {
+      // Temporarily make it scrollable and scroll to comments area
+      const originalOverflow = document.body.style.overflow;
+      const commentsSection = document.querySelector('#comments, ytd-comments');
+      
+      if (commentsSection) {
+        // Scroll the comments section into "view" (even though it's hidden)
+        commentsSection.scrollIntoView({ behavior: 'instant', block: 'start' });
+        
+        // Also try dispatching scroll events on various containers
+        const scrollContainers = [
+          document.documentElement,
+          document.body,
+          document.querySelector('ytd-app'),
+          document.querySelector('ytd-watch-flexy'),
+          document.querySelector('#page-manager')
+        ];
+        
+        scrollContainers.forEach(container => {
+          if (container) {
+            container.dispatchEvent(new Event('scroll', { bubbles: true }));
+          }
+        });
+      }
+    }
+    
+    // Method 2: If comments still haven't loaded after a delay, try clicking the comments section
+    commentLoadAttempts++;
+    if (commentLoadAttempts < MAX_COMMENT_LOAD_ATTEMPTS) {
+      setTimeout(() => {
+        const comments = scrapeComments();
+        if (comments.length === 0) {
+          // Try scrolling again
+          triggerCommentLoad();
+        } else {
+          updateCommentsUI(comments);
+        }
+      }, 1000);
+    }
+  }
+
+  function updateCommentsUI(comments) {
+    const commentsList = document.querySelector('.vilify-comments-list');
+    if (!commentsList) return;
+    
+    while (commentsList.firstChild) {
+      commentsList.removeChild(commentsList.firstChild);
+    }
+    
+    if (comments.length === 0) {
+      commentsList.appendChild(createElement('div', { 
+        className: 'vilify-empty', 
+        textContent: 'No comments available' 
+      }));
+      return;
+    }
+    
+    comments.forEach(comment => {
+      const commentEl = createElement('div', { className: 'vilify-comment' }, [
+        createElement('div', { className: 'vilify-comment-author', textContent: comment.author }),
+        createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
+      ]);
+      commentsList.appendChild(commentEl);
+    });
   }
 
   function formatTimestamp(seconds) {
@@ -2879,6 +2945,7 @@
       commentObserver.disconnect();
       commentObserver = null;
     }
+    commentLoadAttempts = 0;
     
     if (focusModeActive) {
       showLoading();
