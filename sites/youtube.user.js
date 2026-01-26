@@ -240,6 +240,7 @@
       font-family: var(--font-main);
       color: var(--text-primary);
       outline: none;
+      box-sizing: border-box;
     }
 
     .vilify-modal-input:focus {
@@ -252,8 +253,26 @@
 
     .vilify-modal-list {
       flex: 1;
-      overflow-y: auto;
+      overflow-y: scroll;
       max-height: 400px;
+    }
+
+    /* Styled scrollbar for modal list */
+    .vilify-modal-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .vilify-modal-list::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    .vilify-modal-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .vilify-modal-list::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
     }
 
     .vilify-modal-footer {
