@@ -856,6 +856,138 @@
   const KEY_SEQ_TIMEOUT_MS = 500;
 
   // ============================================
+  // Selectors Registry
+  // ============================================
+  const SELECTORS = {
+    watch: {
+      title: [
+        'h1.ytd-watch-metadata yt-formatted-string',
+        'h1.ytd-watch-metadata',
+        '#title h1 yt-formatted-string',
+        '#title h1',
+        'ytd-watch-metadata h1',
+        'h1.ytd-video-primary-info-renderer',
+        '#info-contents h1 yt-formatted-string',
+        'yt-formatted-string.ytd-watch-metadata'
+      ],
+      channel: [
+        'ytd-video-owner-renderer #channel-name a',
+        'ytd-video-owner-renderer ytd-channel-name a',
+        'ytd-video-owner-renderer #channel-name yt-formatted-string a',
+        '#owner #channel-name a',
+        '#owner ytd-channel-name a',
+        '#channel-name a',
+        'ytd-channel-name#channel-name a',
+        '#upload-info #channel-name a',
+        '#top-row ytd-video-owner-renderer a.yt-simple-endpoint'
+      ],
+      subscribeButton: [
+        'ytd-subscribe-button-renderer button',
+        '#subscribe-button button',
+        'ytd-video-owner-renderer ytd-subscribe-button-renderer button',
+        '#owner ytd-subscribe-button-renderer button'
+      ],
+      likeButton: [
+        'like-button-view-model button',
+        '#segmented-like-button button'
+      ],
+      description: [
+        'ytd-watch-metadata #description-inner',
+        'ytd-watch-metadata ytd-text-inline-expander',
+        '#description ytd-text-inline-expander',
+        '#description-inner',
+        'ytd-text-inline-expander#description-inline-expander',
+        '#description .content',
+        'ytd-expandable-video-description-body-renderer #description-inner',
+        '#description yt-attributed-string'
+      ]
+    },
+    listing: {
+      newLayout: 'yt-lockup-view-model',
+      oldLayout: [
+        'ytd-rich-item-renderer',
+        'ytd-video-renderer',
+        'ytd-compact-video-renderer',
+        'ytd-grid-video-renderer',
+        'ytd-playlist-video-renderer'
+      ],
+      thumbnailLink: 'a.yt-lockup-view-model__content-image',
+      titleLink: 'a.yt-lockup-metadata-view-model__title',
+      channelNew: [
+        '.yt-content-metadata-view-model-wiz__metadata-text',
+        '.yt-content-metadata-view-model__metadata-text',
+        '.yt-content-metadata-view-model__metadata span.yt-core-attributed-string',
+        'ytd-channel-name a',
+        '#channel-name a',
+        '.ytd-channel-name'
+      ],
+      channelOld: [
+        '#channel-name #text',
+        '#channel-name a',
+        '.ytd-channel-name a',
+        '#text.ytd-channel-name',
+        'ytd-channel-name #text-container',
+        '[itemprop="author"] [itemprop="name"]'
+      ],
+      videoLink: 'a#video-title-link, a#video-title, a.ytd-thumbnail',
+      videoTitle: '#video-title'
+    },
+    comments: {
+      thread: [
+        'ytd-comment-thread-renderer',
+        'ytd-comment-view-model',
+        'ytd-comment-renderer'
+      ],
+      author: [
+        '#author-text',
+        '#author-text span',
+        'a#author-text',
+        '.ytd-comment-view-model #author-text',
+        '#header-author #author-text',
+        'h3 a'
+      ],
+      content: [
+        '#content-text',
+        '#content-text span',
+        'yt-attributed-string#content-text',
+        '.ytd-comment-view-model #content-text',
+        '#comment-content #content-text'
+      ]
+    },
+    channel: {
+      name: '#channel-name, #text.ytd-channel-name'
+    }
+  };
+
+  /**
+   * Query the first matching element from a list of selectors
+   * @param {string[]} selectors - Array of CSS selectors to try
+   * @param {Element} [context=document] - Context element to query within
+   * @returns {Element|null} - First matching element or null
+   */
+  function queryFirst(selectors, context = document) {
+    for (const sel of selectors) {
+      const el = context.querySelector(sel);
+      if (el?.textContent?.trim()) return el;
+    }
+    return null;
+  }
+
+  /**
+   * Query the first matching element (without text content check)
+   * @param {string[]} selectors - Array of CSS selectors to try
+   * @param {Element} [context=document] - Context element to query within
+   * @returns {Element|null} - First matching element or null
+   */
+  function queryFirstEl(selectors, context = document) {
+    for (const sel of selectors) {
+      const el = context.querySelector(sel);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  // ============================================
   // State
   // ============================================
   let overlay = null;
@@ -954,64 +1086,28 @@
       ctx.muted = video.muted;
     }
 
-    // Get title - try multiple selectors for different YouTube layouts
-    const titleSelectors = [
-      'h1.ytd-watch-metadata yt-formatted-string',
-      'h1.ytd-watch-metadata',
-      '#title h1 yt-formatted-string',
-      '#title h1',
-      'ytd-watch-metadata h1',
-      'h1.ytd-video-primary-info-renderer',
-      '#info-contents h1 yt-formatted-string',
-      'yt-formatted-string.ytd-watch-metadata'
-    ];
-    for (const sel of titleSelectors) {
-      const titleEl = document.querySelector(sel);
-      if (titleEl?.textContent?.trim()) {
-        ctx.title = titleEl.textContent.trim();
-        break;
-      }
+    // Get title
+    const titleEl = queryFirst(SELECTORS.watch.title);
+    if (titleEl) {
+      ctx.title = titleEl.textContent.trim();
     }
 
-    // Get channel name - try multiple selectors
-    const channelSelectors = [
-      'ytd-video-owner-renderer #channel-name a',
-      'ytd-video-owner-renderer ytd-channel-name a',
-      'ytd-video-owner-renderer #channel-name yt-formatted-string a',
-      '#owner #channel-name a',
-      '#owner ytd-channel-name a',
-      '#channel-name a',
-      'ytd-channel-name#channel-name a',
-      '#upload-info #channel-name a',
-      '#top-row ytd-video-owner-renderer a.yt-simple-endpoint'
-    ];
-    for (const sel of channelSelectors) {
-      const channelEl = document.querySelector(sel);
-      if (channelEl?.textContent?.trim()) {
-        ctx.channelName = channelEl.textContent.trim();
-        ctx.channelUrl = channelEl.href;
-        break;
-      }
+    // Get channel name
+    const channelEl = queryFirst(SELECTORS.watch.channel);
+    if (channelEl) {
+      ctx.channelName = channelEl.textContent.trim();
+      ctx.channelUrl = channelEl.href;
     }
 
-    // Check if subscribed - multiple possible button structures
-    const subButtonSelectors = [
-      'ytd-subscribe-button-renderer button',
-      '#subscribe-button button',
-      'ytd-video-owner-renderer ytd-subscribe-button-renderer button',
-      '#owner ytd-subscribe-button-renderer button'
-    ];
-    for (const sel of subButtonSelectors) {
-      const subButton = document.querySelector(sel);
-      if (subButton) {
-        const label = subButton.getAttribute('aria-label') || '';
-        ctx.isSubscribed = label.toLowerCase().includes('unsubscribe');
-        break;
-      }
+    // Check if subscribed
+    const subButton = queryFirstEl(SELECTORS.watch.subscribeButton);
+    if (subButton) {
+      const label = subButton.getAttribute('aria-label') || '';
+      ctx.isSubscribed = label.toLowerCase().includes('unsubscribe');
     }
 
     // Get like button state
-    const likeButton = document.querySelector('like-button-view-model button, #segmented-like-button button');
+    const likeButton = queryFirstEl(SELECTORS.watch.likeButton);
     if (likeButton) {
       ctx.isLiked = likeButton.getAttribute('aria-pressed') === 'true';
     }
@@ -1028,7 +1124,7 @@
     };
 
     // Get channel name
-    const nameEl = document.querySelector('#channel-name, #text.ytd-channel-name');
+    const nameEl = document.querySelector(SELECTORS.channel.name);
     if (nameEl) {
       ctx.name = nameEl.textContent.trim();
     }
@@ -1053,14 +1149,12 @@
     const seen = new Set();
 
     // New YouTube layout uses yt-lockup-view-model for video items
-    // Old layout used ytd-*-renderer elements
-    const newLayoutElements = document.querySelectorAll('yt-lockup-view-model');
+    const newLayoutElements = document.querySelectorAll(SELECTORS.listing.newLayout);
     
     // Try new layout first (yt-lockup-view-model)
     for (const el of newLayoutElements) {
-
       // Get thumbnail link (has video URL)
-      const thumbLink = el.querySelector('a.yt-lockup-view-model__content-image');
+      const thumbLink = el.querySelector(SELECTORS.listing.thumbnailLink);
       if (!thumbLink?.href) continue;
 
       // Extract video ID
@@ -1073,27 +1167,13 @@
       seen.add(videoId);
 
       // Get title from title link
-      const titleLink = el.querySelector('a.yt-lockup-metadata-view-model__title');
+      const titleLink = el.querySelector(SELECTORS.listing.titleLink);
       const title = titleLink?.textContent?.trim();
       if (!title) continue;
 
-      // Get channel name from metadata - try multiple selectors for different YT layouts
-      let channelName = '';
-      const channelSelectors = [
-        '.yt-content-metadata-view-model-wiz__metadata-text',
-        '.yt-content-metadata-view-model__metadata-text', 
-        '.yt-content-metadata-view-model__metadata span.yt-core-attributed-string',
-        'ytd-channel-name a',
-        '#channel-name a',
-        '.ytd-channel-name'
-      ];
-      for (const sel of channelSelectors) {
-        const channelEl = el.querySelector(sel);
-        if (channelEl?.textContent?.trim()) {
-          channelName = channelEl.textContent.trim();
-          break;
-        }
-      }
+      // Get channel name
+      const channelEl = queryFirst(SELECTORS.listing.channelNew, el);
+      const channelName = channelEl?.textContent?.trim() || '';
 
       videos.push({
         type: 'video',
@@ -1107,20 +1187,11 @@
 
     // Fall back to old layout selectors if no videos found
     if (videos.length === 0) {
-      const oldSelectors = [
-        'ytd-rich-item-renderer',           // Home, subscriptions grid
-        'ytd-video-renderer',               // Search results, channel videos
-        'ytd-compact-video-renderer',       // Sidebar recommendations
-        'ytd-grid-video-renderer',          // Channel videos grid
-        'ytd-playlist-video-renderer'       // Playlist items
-      ];
-
-      const oldElements = document.querySelectorAll(oldSelectors.join(','));
+      const oldElements = document.querySelectorAll(SELECTORS.listing.oldLayout.join(','));
 
       for (const el of oldElements) {
-
         // Get video link
-        const link = el.querySelector('a#video-title-link, a#video-title, a.ytd-thumbnail');
+        const link = el.querySelector(SELECTORS.listing.videoLink);
         if (!link?.href) continue;
 
         // Extract video ID
@@ -1133,27 +1204,13 @@
         seen.add(videoId);
 
         // Get title
-        const titleEl = el.querySelector('#video-title');
+        const titleEl = el.querySelector(SELECTORS.listing.videoTitle);
         const title = titleEl?.textContent?.trim();
         if (!title) continue;
 
-        // Get channel name - try multiple selectors
-        let channelName = '';
-        const channelSelectors = [
-          '#channel-name #text',
-          '#channel-name a',
-          '.ytd-channel-name a',
-          '#text.ytd-channel-name',
-          'ytd-channel-name #text-container',
-          '[itemprop="author"] [itemprop="name"]'
-        ];
-        for (const sel of channelSelectors) {
-          const channelEl = el.querySelector(sel);
-          if (channelEl?.textContent?.trim()) {
-            channelName = channelEl.textContent.trim();
-            break;
-          }
-        }
+        // Get channel name
+        const channelEl = queryFirst(SELECTORS.listing.channelOld, el);
+        const channelName = channelEl?.textContent?.trim() || '';
 
         videos.push({
           type: 'video',
@@ -1179,76 +1236,26 @@
   }
 
   function getVideoDescription() {
-    // Try multiple selectors for description - YouTube layout varies
-    const descSelectors = [
-      'ytd-watch-metadata #description-inner',
-      'ytd-watch-metadata ytd-text-inline-expander',
-      '#description ytd-text-inline-expander',
-      '#description-inner',
-      'ytd-text-inline-expander#description-inline-expander',
-      '#description .content',
-      'ytd-expandable-video-description-body-renderer #description-inner',
-      '#description yt-attributed-string'
-    ];
-    for (const sel of descSelectors) {
-      const descEl = document.querySelector(sel);
-      if (descEl?.textContent?.trim()) {
-        return descEl.textContent.trim();
-      }
-    }
-    return '';
+    const descEl = queryFirst(SELECTORS.watch.description);
+    return descEl?.textContent?.trim() || '';
   }
 
   function scrapeComments() {
     const comments = [];
-    // Try multiple selectors for different YouTube layouts
-    const commentSelectors = [
-      'ytd-comment-thread-renderer',
-      'ytd-comment-view-model',
-      'ytd-comment-renderer'
-    ];
     
+    // Find comment elements using selector list
     let commentEls = [];
-    for (const sel of commentSelectors) {
+    for (const sel of SELECTORS.comments.thread) {
       commentEls = document.querySelectorAll(sel);
       if (commentEls.length > 0) break;
     }
     
     for (const el of Array.from(commentEls).slice(0, 20)) {
-      // Try multiple author selectors
-      const authorSelectors = [
-        '#author-text',
-        '#author-text span',
-        'a#author-text',
-        '.ytd-comment-view-model #author-text',
-        '#header-author #author-text',
-        'h3 a'
-      ];
-      let author = '';
-      for (const sel of authorSelectors) {
-        const authorEl = el.querySelector(sel);
-        if (authorEl?.textContent?.trim()) {
-          author = authorEl.textContent.trim();
-          break;
-        }
-      }
+      const authorEl = queryFirst(SELECTORS.comments.author, el);
+      const contentEl = queryFirst(SELECTORS.comments.content, el);
       
-      // Try multiple content selectors
-      const contentSelectors = [
-        '#content-text',
-        '#content-text span',
-        'yt-attributed-string#content-text',
-        '.ytd-comment-view-model #content-text',
-        '#comment-content #content-text'
-      ];
-      let text = '';
-      for (const sel of contentSelectors) {
-        const textEl = el.querySelector(sel);
-        if (textEl?.textContent?.trim()) {
-          text = textEl.textContent.trim();
-          break;
-        }
-      }
+      const author = authorEl?.textContent?.trim() || '';
+      const text = contentEl?.textContent?.trim() || '';
       
       if (author && text) {
         comments.push({ author, text });
