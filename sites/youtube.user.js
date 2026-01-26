@@ -1844,25 +1844,27 @@
         notificationBtn.click();
         // Wait for dropdown to appear
         setTimeout(() => {
-          // Look for Unsubscribe anywhere in the page (dropdown menu)
-          const allElements = document.querySelectorAll('ytd-menu-service-item-renderer, tp-yt-paper-item, yt-formatted-string');
-          for (const item of allElements) {
-            const text = item.textContent?.toLowerCase() || '';
-            if (text.includes('unsubscribe') && !text.includes('unsubscribe from')) {
-              item.click();
-              // Handle confirmation dialog
-              setTimeout(() => {
-                // Use the exact selector from the HTML: #confirm-button button[aria-label="Unsubscribe"]
-                const confirmBtn = document.querySelector('#confirm-button button[aria-label="Unsubscribe"], yt-confirm-dialog-renderer #confirm-button button');
-                if (confirmBtn) {
-                  confirmBtn.click();
-                  showToast('Unsubscribed');
-                  setTimeout(() => updateSubscribeButton(false), 500);
-                } else {
-                  showToast('Could not confirm unsubscribe');
-                }
-              }, 300);
-              return;
+          // Find yt-formatted-string with "Unsubscribe" text, then click its parent menu item
+          const formattedStrings = document.querySelectorAll('tp-yt-paper-listbox yt-formatted-string');
+          for (const el of formattedStrings) {
+            if (el.textContent?.trim() === 'Unsubscribe') {
+              // Click the parent tp-yt-paper-item or ytd-menu-service-item-renderer
+              const clickable = el.closest('tp-yt-paper-item') || el.closest('ytd-menu-service-item-renderer');
+              if (clickable) {
+                clickable.click();
+                // Handle confirmation dialog
+                setTimeout(() => {
+                  const confirmBtn = document.querySelector('#confirm-button button[aria-label="Unsubscribe"], yt-confirm-dialog-renderer #confirm-button button');
+                  if (confirmBtn) {
+                    confirmBtn.click();
+                    showToast('Unsubscribed');
+                    setTimeout(() => updateSubscribeButton(false), 500);
+                  } else {
+                    showToast('Could not confirm unsubscribe');
+                  }
+                }, 300);
+                return;
+              }
             }
           }
           showToast('Unsubscribe option not found');
