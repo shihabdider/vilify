@@ -20,33 +20,33 @@
   // ============================================
   const CSS = `
     :root {
-      /* Solarized Dark */
-      --sol-base03: #002b36;
-      --sol-base02: #073642;
-      --sol-base01: #586e75;
-      --sol-base00: #657b83;
-      --sol-base0: #839496;
-      --sol-base1: #93a1a1;
-      --sol-blue: #268bd2;
-      --sol-cyan: #2aa198;
-      --sol-green: #859900;
-      --sol-red: #dc322f;
+      /* YouTube Dark Theme */
+      --yt-bg-primary: #0f0f0f;
+      --yt-bg-secondary: #272727;
+      --yt-bg-hover: #3f3f3f;
+      --yt-text-primary: #f1f1f1;
+      --yt-text-secondary: #aaaaaa;
+      --yt-border: #3f3f3f;
+      --yt-accent: #ff0000;
+      --yt-accent-hover: #cc0000;
+      --yt-blue: #3ea6ff;
       
       /* Semantic mappings */
-      --bg-primary: var(--sol-base03);
-      --bg-secondary: var(--sol-base02);
-      --bg-hover: var(--sol-base01);
-      --text-primary: var(--sol-base0);
-      --text-secondary: var(--sol-base00);
-      --text-emphasis: var(--sol-base1);
-      --border: var(--sol-base01);
-      --accent: var(--sol-blue);
-      --accent-alt: var(--sol-cyan);
-      --selection: var(--sol-green);
-      --error: var(--sol-red);
+      --bg-primary: var(--yt-bg-primary);
+      --bg-secondary: var(--yt-bg-secondary);
+      --bg-hover: var(--yt-bg-hover);
+      --text-primary: var(--yt-text-primary);
+      --text-secondary: var(--yt-text-secondary);
+      --text-emphasis: var(--yt-text-primary);
+      --border: var(--yt-border);
+      --accent: var(--yt-accent);
+      --accent-alt: var(--yt-blue);
+      --selection: var(--yt-accent);
+      --error: var(--yt-accent);
       
-      /* TUI font */
-      --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Consolas', monospace;
+      /* YouTube font stack */
+      --font-main: 'Roboto', 'Arial', sans-serif;
+      --font-mono: 'Roboto Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
     }
 
     /* Hide YouTube UI when focus mode is active */
@@ -77,7 +77,7 @@
       inset: 0;
       z-index: 9999;
       background: var(--bg-primary);
-      font-family: var(--font-mono);
+      font-family: var(--font-main);
       color: var(--text-primary);
       display: flex;
       flex-direction: column;
@@ -93,9 +93,16 @@
     }
 
     .vilify-logo {
-      color: var(--accent);
-      font-weight: bold;
-      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .vilify-logo-icon {
+      width: 90px;
+      height: 20px;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 20"><path fill="%23FF0000" d="M27.973 18.652c-.322.964-.994 1.723-1.858 2.099C23.835 21.6 15 21.6 15 21.6s-8.835 0-11.115-.849c-.864-.376-1.536-1.135-1.858-2.099C1.2 16.432 1.2 12 1.2 12s0-4.432.827-6.652c.322-.964.994-1.723 1.858-2.099C6.165 2.4 15 2.4 15 2.4s8.835 0 11.115.849c.864.376 1.536 1.135 1.858 2.099.827 2.22.827 6.652.827 6.652s0 4.432-.827 6.652z" transform="translate(0,-2)"/><path fill="%23FFF" d="M12 15.6l7.2-4.8L12 6v9.6z" transform="translate(0,-2)"/><text x="32" y="15" fill="%23FFF" font-family="Arial,sans-serif" font-size="14" font-weight="bold">YouTube</text></svg>') no-repeat center;
+      background-size: contain;
     }
 
     .vilify-mode {
@@ -159,9 +166,9 @@
       align-items: flex-start;
       padding: 12px 24px;
       cursor: pointer;
-      border-left: 3px solid transparent;
       max-width: 900px;
       margin: 0 auto;
+      border-radius: 12px;
     }
 
     .vilify-video-item:hover {
@@ -170,7 +177,8 @@
 
     .vilify-video-item.selected {
       background: var(--bg-secondary);
-      border-left-color: var(--selection);
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
     }
 
     .vilify-thumb-wrapper {
@@ -178,8 +186,9 @@
       height: 113px;
       margin-right: 16px;
       flex-shrink: 0;
-      border: 1px solid var(--border);
+      border-radius: 8px;
       overflow: hidden;
+      background: var(--bg-secondary);
     }
 
     .vilify-thumb {
@@ -196,8 +205,9 @@
 
     .vilify-video-title {
       color: var(--text-primary);
-      margin-bottom: 8px;
-      font-size: 16px;
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 500;
       line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -207,7 +217,7 @@
 
     .vilify-video-meta {
       color: var(--text-secondary);
-      font-size: 14px;
+      font-size: 12px;
     }
 
     .vilify-empty {
@@ -241,10 +251,11 @@
     }
 
     .vilify-watch-title {
-      font-size: 16px;
-      font-weight: normal;
-      color: var(--text-emphasis);
-      margin: 0 0 8px 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 12px 0;
+      line-height: 1.4;
     }
 
     .vilify-channel-row {
@@ -256,21 +267,33 @@
 
     .vilify-channel-name {
       color: var(--text-primary);
+      font-size: 16px;
+      font-weight: 500;
     }
 
     .vilify-subscribe-btn {
-      background: transparent;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      padding: 4px 12px;
-      font-family: var(--font-mono);
-      font-size: 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 18px;
+      color: white;
+      padding: 8px 16px;
+      font-family: var(--font-main);
+      font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
     }
 
     .vilify-subscribe-btn:hover {
-      background: var(--accent);
-      color: var(--bg-primary);
+      background: var(--accent-hover);
+    }
+
+    .vilify-subscribe-btn.subscribed {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .vilify-subscribe-btn.subscribed:hover {
+      background: var(--bg-hover);
     }
 
     .vilify-description {
@@ -278,25 +301,30 @@
     }
 
     .vilify-description-text {
-      color: var(--text-secondary);
-      font-size: 13px;
+      color: var(--text-primary);
+      font-size: 14px;
       line-height: 1.5;
       white-space: pre-wrap;
     }
 
     .vilify-description-text.collapsed {
-      max-height: 60px;
+      max-height: 80px;
       overflow: hidden;
     }
 
     .vilify-description-toggle {
       background: none;
       border: none;
-      color: var(--accent);
-      font-family: var(--font-mono);
+      color: var(--text-primary);
+      font-family: var(--font-main);
       font-size: 12px;
+      font-weight: 500;
       cursor: pointer;
-      padding: 4px 0;
+      padding: 8px 0;
+    }
+
+    .vilify-description-toggle:hover {
+      color: var(--text-secondary);
     }
 
     .vilify-comments {
@@ -315,14 +343,15 @@
     }
 
     .vilify-comment-author {
-      color: var(--accent-alt);
-      font-size: 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 500;
       margin-bottom: 4px;
     }
 
     .vilify-comment-text {
       color: var(--text-primary);
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.4;
     }
 
@@ -348,7 +377,7 @@
       max-height: 70vh;
       background: var(--bg-primary);
       border: 1px solid var(--border);
-      border-radius: 0;
+      border-radius: 12px;
       box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
       display: flex;
       flex-direction: column;
@@ -368,7 +397,7 @@
       width: 24px;
       height: 24px;
       background: var(--accent);
-      border-radius: 0;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -401,9 +430,9 @@
       padding: 10px 12px;
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 0;
+      border-radius: 8px;
       font-size: 14px;
-      font-family: var(--font-mono);
+      font-family: var(--font-main);
       color: var(--text-primary);
       outline: none;
     }
@@ -469,7 +498,7 @@
       font-size: 16px;
       color: var(--text-secondary);
       background: var(--bg-secondary);
-      border-radius: 0;
+      border-radius: 8px;
     }
 
     .keyring-item.selected .keyring-icon {
@@ -481,7 +510,7 @@
       width: 80px;
       height: 45px;
       margin-right: 12px;
-      border-radius: 0;
+      border-radius: 8px;
       background: var(--bg-secondary);
       object-fit: cover;
       flex-shrink: 0;
@@ -542,7 +571,7 @@
     .keyring-shortcut kbd {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 0;
+      border-radius: 4px;
       padding: 2px 6px;
       font-size: 11px;
       font-family: var(--font-mono);
@@ -562,7 +591,7 @@
     #keyring-footer kbd {
       background: var(--bg-primary);
       border: 1px solid var(--border);
-      border-radius: 0;
+      border-radius: 4px;
       padding: 2px 6px;
       margin: 0 4px;
       font-size: 11px;
@@ -579,18 +608,18 @@
       position: fixed;
       bottom: 32px;
       right: 32px;
-      background: var(--bg-primary);
+      background: var(--bg-secondary);
       color: var(--text-primary);
-      padding: 16px 24px;
-      border-radius: 0;
-      border: 1px solid var(--border);
-      font-size: 15px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
       font-weight: 500;
-      font-family: var(--font-mono);
+      font-family: var(--font-main);
       z-index: 10000000;
       opacity: 0;
       transition: opacity 0.2s;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     }
 
     .keyring-toast.show {
@@ -703,23 +732,60 @@
       ctx.muted = video.muted;
     }
 
-    // Get title
-    const titleEl = document.querySelector('h1.ytd-video-primary-info-renderer, h1.ytd-watch-metadata');
-    if (titleEl) {
-      ctx.title = titleEl.textContent.trim();
+    // Get title - try multiple selectors for different YouTube layouts
+    const titleSelectors = [
+      'h1.ytd-watch-metadata yt-formatted-string',
+      'h1.ytd-watch-metadata',
+      '#title h1 yt-formatted-string',
+      '#title h1',
+      'ytd-watch-metadata h1',
+      'h1.ytd-video-primary-info-renderer',
+      '#info-contents h1 yt-formatted-string',
+      'yt-formatted-string.ytd-watch-metadata'
+    ];
+    for (const sel of titleSelectors) {
+      const titleEl = document.querySelector(sel);
+      if (titleEl?.textContent?.trim()) {
+        ctx.title = titleEl.textContent.trim();
+        break;
+      }
     }
 
-    // Get channel name
-    const channelEl = document.querySelector('#channel-name a, ytd-video-owner-renderer a');
-    if (channelEl) {
-      ctx.channelName = channelEl.textContent.trim();
-      ctx.channelUrl = channelEl.href;
+    // Get channel name - try multiple selectors
+    const channelSelectors = [
+      'ytd-video-owner-renderer #channel-name a',
+      'ytd-video-owner-renderer ytd-channel-name a',
+      'ytd-video-owner-renderer #channel-name yt-formatted-string a',
+      '#owner #channel-name a',
+      '#owner ytd-channel-name a',
+      '#channel-name a',
+      'ytd-channel-name#channel-name a',
+      '#upload-info #channel-name a',
+      '#top-row ytd-video-owner-renderer a.yt-simple-endpoint'
+    ];
+    for (const sel of channelSelectors) {
+      const channelEl = document.querySelector(sel);
+      if (channelEl?.textContent?.trim()) {
+        ctx.channelName = channelEl.textContent.trim();
+        ctx.channelUrl = channelEl.href;
+        break;
+      }
     }
 
-    // Check if subscribed
-    const subButton = document.querySelector('ytd-subscribe-button-renderer button');
-    if (subButton) {
-      ctx.isSubscribed = subButton.getAttribute('aria-label')?.includes('Unsubscribe');
+    // Check if subscribed - multiple possible button structures
+    const subButtonSelectors = [
+      'ytd-subscribe-button-renderer button',
+      '#subscribe-button button',
+      'ytd-video-owner-renderer ytd-subscribe-button-renderer button',
+      '#owner ytd-subscribe-button-renderer button'
+    ];
+    for (const sel of subButtonSelectors) {
+      const subButton = document.querySelector(sel);
+      if (subButton) {
+        const label = subButton.getAttribute('aria-label') || '';
+        ctx.isSubscribed = label.toLowerCase().includes('unsubscribe');
+        break;
+      }
     }
 
     // Get like button state
@@ -891,8 +957,24 @@
   }
 
   function getVideoDescription() {
-    const descEl = document.querySelector('#description-inner, ytd-text-inline-expander #plain-snippet-text, #description .content');
-    return descEl?.textContent?.trim() || '';
+    // Try multiple selectors for description - YouTube layout varies
+    const descSelectors = [
+      'ytd-watch-metadata #description-inner',
+      'ytd-watch-metadata ytd-text-inline-expander',
+      '#description ytd-text-inline-expander',
+      '#description-inner',
+      'ytd-text-inline-expander#description-inline-expander',
+      '#description .content',
+      'ytd-expandable-video-description-body-renderer #description-inner',
+      '#description yt-attributed-string'
+    ];
+    for (const sel of descSelectors) {
+      const descEl = document.querySelector(sel);
+      if (descEl?.textContent?.trim()) {
+        return descEl.textContent.trim();
+      }
+    }
+    return '';
   }
 
   function scrapeComments() {
@@ -914,6 +996,10 @@
     return comments;
   }
 
+  let watchPageRetryCount = 0;
+  const WATCH_PAGE_MAX_RETRIES = 10;
+  const WATCH_PAGE_RETRY_DELAY = 500;
+
   function renderWatchPage() {
     const content = document.getElementById('vilify-content');
     if (!content) return;
@@ -924,10 +1010,27 @@
     }
     
     const ctx = getVideoContext();
+    
+    // If no context or missing critical data, retry
+    if (!ctx || (!ctx.title && !ctx.channelName)) {
+      if (watchPageRetryCount < WATCH_PAGE_MAX_RETRIES) {
+        watchPageRetryCount++;
+        content.appendChild(createElement('div', { 
+          className: 'vilify-empty', 
+          textContent: 'Loading video info...' 
+        }));
+        setTimeout(renderWatchPage, WATCH_PAGE_RETRY_DELAY);
+        return;
+      }
+    }
+    
+    // Reset retry count on successful render
+    watchPageRetryCount = 0;
+    
     if (!ctx) {
       content.appendChild(createElement('div', { 
         className: 'vilify-empty', 
-        textContent: 'Loading video...' 
+        textContent: 'Could not load video info' 
       }));
       return;
     }
@@ -950,11 +1053,11 @@
     
     // Subscribe button (proxy to YouTube's button)
     const subBtn = createElement('button', { 
-      className: 'vilify-subscribe-btn',
-      textContent: ctx.isSubscribed ? 'SUBSCRIBED' : 'SUBSCRIBE'
+      className: ctx.isSubscribed ? 'vilify-subscribe-btn subscribed' : 'vilify-subscribe-btn',
+      textContent: ctx.isSubscribed ? 'Subscribed' : 'Subscribe'
     });
     subBtn.addEventListener('click', () => {
-      const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button');
+      const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
       if (ytSubBtn) ytSubBtn.click();
     });
     channelRow.appendChild(subBtn);
@@ -1547,7 +1650,9 @@
     
     // Header with filter and search
     const header = createElement('div', { className: 'vilify-header' });
-    header.appendChild(createElement('span', { className: 'vilify-logo', textContent: 'VILIFY' }));
+    const logo = createElement('div', { className: 'vilify-logo' });
+    logo.appendChild(createElement('div', { className: 'vilify-logo-icon' }));
+    header.appendChild(logo);
     
     // Filter input (hidden by default)
     const filterWrapper = createElement('div', { className: 'vilify-filter-wrapper hidden', 'data-mode': 'filter' });
@@ -2212,6 +2317,7 @@
     settingsApplied = false;
     clearVideoCache();
     selectedIdx = 0;
+    watchPageRetryCount = 0;
     
     if (focusModeActive) {
       showLoading();

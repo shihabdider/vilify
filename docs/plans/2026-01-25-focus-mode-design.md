@@ -1,53 +1,51 @@
 # Focus Mode Design
 
-> Minimal TUI-style overlay for YouTube with Solarized Dark theme.
+> Minimal distraction-free overlay for YouTube, preserving YouTube's native look and feel.
 
 ## Overview
 
-Focus Mode provides a distraction-free YouTube experience by overlaying a minimal, terminal-inspired interface on top of YouTube's native UI. YouTube's functionality remains intact underneath (handling data loading, navigation, search), but users only see a clean single-column interface.
+Focus Mode provides a distraction-free YouTube experience by overlaying a minimal interface on top of YouTube's native UI. YouTube's functionality remains intact underneath (handling data loading, navigation, search), but users only see a clean single-column interface with YouTube's familiar branding and colors.
 
 ## Visual Design
 
-### Theme: Solarized Dark
+### Theme: YouTube Dark
+
+Keeps YouTube's native dark theme colors to feel familiar and site-specific:
 
 ```
-Background:     #002b36 (base03)
-Background HL:  #073642 (base02)
-Border:         #586e75 (base01)
-Text Primary:   #839496 (base0)
-Text Secondary: #657b83 (base00)
-Text Emphasis:  #93a1a1 (base1)
-Accent:         #268bd2 (blue)
-Accent Alt:     #2aa198 (cyan)
-Selection:      #859900 (green)
-Error:          #dc322f (red)
+Background:     #0f0f0f
+Background HL:  #272727  
+Hover:          #3f3f3f
+Text Primary:   #f1f1f1
+Text Secondary: #aaaaaa
+Border:         #3f3f3f
+Accent:         #ff0000 (YouTube red)
+Blue:           #3ea6ff
 ```
 
-### TUI Aesthetics
+### Design Principles
 
-- **Font:** Monospace (`'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace`)
-- **Borders:** Box drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`)
-- **Chrome:** No rounded corners, minimal padding
-- **Density:** Compact list items, more content per screen
+- **Font:** YouTube's native font stack (`Roboto`, `Arial`, sans-serif)
+- **Borders:** Rounded corners (8-12px) matching YouTube's modern UI
+- **Branding:** YouTube logo in header, not custom branding
+- **Density:** Clean, spacious layout matching YouTube's aesthetic
 
 ### Example Layout (Listing Page)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ VILIFY                                            [/] filter│
+│ [YouTube Logo]                          [/] filter [i] search│
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌──────────┐  Video Title Goes Here                        │
-│  │          │  channel name · 2 days ago · 124K views       │
-│  └──────────┘                                               │
+│  [thumbnail]  Video Title Goes Here                         │
+│               channel name                                   │
 │                                                             │
-│  ┌──────────┐  Another Video Title                          │
-│  │          │  another channel · 1 week ago · 50K views     │
-│  └──────────┘                                               │
+│  [thumbnail]  Another Video Title                           │
+│               another channel                                │
 │                                                             │
-│  ┌──────────┐  Third Video With Longer Title That Might     │
-│  │          │  Wrap to Two Lines                            │
-│  └──────────┘  some channel · 3 days ago · 89K views        │
+│  [thumbnail]  Third Video With Longer Title That Might      │
+│               Wrap to Two Lines                             │
+│               some channel                                   │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
 │ j/k navigate · enter select · shift+enter new tab · :q quit │
@@ -207,8 +205,6 @@ Continue using current DOM scraping approach:
 | Current | New |
 |---------|-----|
 | Palette is optional overlay | Focus mode is default UI |
-| YouTube theme (dark red) | Solarized Dark |
-| Rounded corners, YouTube fonts | Box drawing, monospace |
 | `gi` → history | `gy` → history |
 | No exit command | `:q` and `ZZ` to exit |
 
@@ -218,11 +214,11 @@ Continue using current DOM scraping approach:
 2. ~~Search behavior~~ → `/` filters, `i` searches YouTube, `:` commands
 3. ~~Focus mode toggle~~ → `:q` or `ZZ` to exit, refresh to re-enter
 4. ~~History shortcut~~ → `gy` (removed `gi`)
-5. ~~Theme~~ → Solarized Dark, TUI aesthetics
+5. ~~Theme~~ → YouTube Dark (keeps native site branding and colors)
 
 ## Future Considerations
 
 - Persist focus mode preference (localStorage)
-- Light mode toggle (Solarized Light)
+- Light mode toggle (YouTube Light theme)
 - Custom keybinding configuration
 - Thumbnail size options
