@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.2.1
+// @version      0.2.2
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
@@ -754,32 +754,61 @@
     }
 
     /* ====== Comments Panel (TUI Style) ====== */
+    /* Wrapper needed so label isn't clipped by overflow:hidden on inner container */
     .vilify-comments {
       position: relative;
       flex: 1;
-      overflow: hidden;
-      padding: 16px 16px 12px;
       margin: 12px;
-      border: 2px solid var(--bg-3);
       min-height: 0;
       display: flex;
       flex-direction: column;
     }
 
-    .vilify-comments-header {
+    /* Panel label on border */
+    .vilify-comments::before {
+      content: 'comments';
+      position: absolute;
+      top: -10px;
+      left: 10px;
+      background: var(--bg-1);
       color: var(--txt-3);
+      padding: 0 6px;
       font-size: 12px;
-      font-weight: 400;
-      text-transform: lowercase;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--bg-3);
-      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    /* Inner border and content - this gets overflow:hidden */
+    .vilify-comments::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 2px solid var(--bg-3);
+      pointer-events: none;
+    }
+
+    .vilify-comments-header {
+      display: none;  /* Hidden - using ::before pseudo-element instead */
     }
 
     .vilify-comments-list {
       flex: 1;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px 16px 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--bg-3) transparent;
+    }
+
+    .vilify-comments-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .vilify-comments-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .vilify-comments-list::-webkit-scrollbar-thumb {
+      background: var(--bg-3);
     }
 
     .vilify-comment {
@@ -812,8 +841,7 @@
       align-items: center;
       justify-content: center;
       gap: 12px;
-      padding: 10px 0 0;
-      margin-top: auto;
+      padding: 10px 16px;
       border-top: 1px solid var(--bg-3);
       font-size: 11px;
       color: var(--txt-3);
