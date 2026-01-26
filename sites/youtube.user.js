@@ -151,6 +151,11 @@
       flex: 1;
       overflow-y: auto;
       padding: 16px 0;
+      transition: background-color 0.15s ease-out;
+    }
+
+    #vilify-content.flash-end {
+      background-color: var(--bg-secondary);
     }
 
     .vilify-footer {
@@ -2305,15 +2310,23 @@
       e.preventDefault();
       const items = document.querySelectorAll('.vilify-video-item');
       if (items.length > 0) {
-        selectedIdx = (selectedIdx + 1) % items.length;
-        updateVideoSelection();
+        if (selectedIdx < items.length - 1) {
+          selectedIdx++;
+          updateVideoSelection();
+        } else {
+          flashEndOfList();
+        }
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       const items = document.querySelectorAll('.vilify-video-item');
       if (items.length > 0) {
-        selectedIdx = (selectedIdx - 1 + items.length) % items.length;
-        updateVideoSelection();
+        if (selectedIdx > 0) {
+          selectedIdx--;
+          updateVideoSelection();
+        } else {
+          flashEndOfList();
+        }
       }
     }
   }
@@ -2643,6 +2656,13 @@
     if (sel) sel.scrollIntoView({ block: 'nearest' });
   }
 
+  function flashEndOfList() {
+    const content = document.getElementById('vilify-content');
+    if (!content) return;
+    content.classList.add('flash-end');
+    setTimeout(() => content.classList.remove('flash-end'), 150);
+  }
+
   function executeVideoItem(idx, newTab) {
     const items = document.querySelectorAll('.vilify-video-item');
     const item = items[idx];
@@ -2894,8 +2914,12 @@
           e.preventDefault();
           const items = document.querySelectorAll('.vilify-video-item');
           if (items.length > 0) {
-            selectedIdx = (selectedIdx + 1) % items.length;
-            updateVideoSelection();
+            if (selectedIdx < items.length - 1) {
+              selectedIdx++;
+              updateVideoSelection();
+            } else {
+              flashEndOfList();
+            }
           }
           return;
         }
@@ -2903,8 +2927,12 @@
           e.preventDefault();
           const items = document.querySelectorAll('.vilify-video-item');
           if (items.length > 0) {
-            selectedIdx = (selectedIdx - 1 + items.length) % items.length;
-            updateVideoSelection();
+            if (selectedIdx > 0) {
+              selectedIdx--;
+              updateVideoSelection();
+            } else {
+              flashEndOfList();
+            }
           }
           return;
         }
