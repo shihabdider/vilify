@@ -72,6 +72,48 @@
       overflow: hidden !important;
     }
 
+    #vilify-focus {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: var(--bg-primary);
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      visibility: visible !important;
+    }
+
+    .vilify-header {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .vilify-logo {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .vilify-mode {
+      color: var(--text-secondary);
+    }
+
+    #vilify-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .vilify-footer {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
     #keyring-overlay {
       position: fixed;
       inset: 0;
@@ -358,6 +400,8 @@
   let listEl = null;
   let items = [];
   let selectedIdx = 0;
+  let focusModeActive = true;
+  let focusOverlay = null;
 
   // ============================================
   // Utilities
@@ -1138,6 +1182,30 @@
       }
     }
     return el;
+  }
+
+  function createFocusOverlay() {
+    if (focusOverlay) return;
+    
+    focusOverlay = createElement('div', { id: 'vilify-focus' });
+    
+    // Header
+    const header = createElement('div', { className: 'vilify-header' }, [
+      createElement('span', { className: 'vilify-logo', textContent: 'VILIFY' }),
+      createElement('span', { className: 'vilify-mode', textContent: '[/] filter' })
+    ]);
+    
+    // Content area (will be populated based on page type)
+    const content = createElement('div', { id: 'vilify-content' });
+    
+    // Footer
+    const footer = createElement('div', { className: 'vilify-footer', textContent: 'j/k navigate · enter select · shift+enter new tab · :q quit' });
+    
+    focusOverlay.appendChild(header);
+    focusOverlay.appendChild(content);
+    focusOverlay.appendChild(footer);
+    
+    document.body.appendChild(focusOverlay);
   }
 
   // Inject styles immediately so toasts work before palette is opened
