@@ -1563,6 +1563,7 @@
     if (comments.length === 0) return [0];
     
     const pageStarts = [0];
+    const COMMENT_MARGIN = 12; // margin-bottom on .vilify-comment (not included in offsetHeight)
     
     // Create a hidden measurement container
     const measureDiv = document.createElement('div');
@@ -1577,6 +1578,7 @@
     
     let currentHeight = 0;
     let pageStartIdx = 0;
+    let commentsOnPage = 0;
     
     for (let i = 0; i < comments.length; i++) {
       const comment = comments[i];
@@ -1587,17 +1589,19 @@
         createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
       ]);
       measureDiv.appendChild(commentEl);
-      const commentHeight = commentEl.offsetHeight;
+      const commentHeight = commentEl.offsetHeight + COMMENT_MARGIN; // Add margin
       measureDiv.removeChild(commentEl);
       
       // Check if this comment would overflow
-      if (currentHeight + commentHeight > containerHeight && i > pageStartIdx) {
+      if (currentHeight + commentHeight > containerHeight && commentsOnPage > 0) {
         // Start a new page
         pageStarts.push(i);
         pageStartIdx = i;
         currentHeight = commentHeight;
+        commentsOnPage = 1;
       } else {
         currentHeight += commentHeight;
+        commentsOnPage++;
       }
     }
     
