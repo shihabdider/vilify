@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.1.3
+// @version      0.2.0
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
@@ -137,52 +137,50 @@
   injectLoadingScreen();
 
   // ============================================
-  // Styles - YouTube Dark Theme
+  // Styles - TUI Solarized Dark Theme (re-start inspired)
   // ============================================
   const CSS = `
     :root {
-      /* Solarized Dark × YouTube Theme */
-      /* Base tones */
-      --sol-base03: #002b36;  /* background */
-      --sol-base02: #073642;  /* surface/cards */
-      --sol-base01: #586e75;  /* borders, de-emphasized */
-      --sol-base00: #657b83;  /* secondary text */
-      --sol-base0: #839496;   /* body text */
-      --sol-base1: #93a1a1;   /* emphasized text */
+      /* Solarized Dark - Background layers */
+      --bg-1: #002b36;            /* Base03 - Main background */
+      --bg-2: #073642;            /* Base02 - Panels, cards */
+      --bg-3: #094552;            /* Slightly lighter - Borders, hover */
       
-      /* Accent colors */
-      --sol-red: #dc322f;
-      --sol-orange: #cb4b16;
-      --sol-yellow: #b58900;
-      --sol-green: #859900;
-      --sol-cyan: #2aa198;
-      --sol-blue: #268bd2;
-      --sol-violet: #6c71c4;
-      --sol-magenta: #d33682;
+      /* Solarized Dark - Text hierarchy */
+      --txt-1: #93a1a1;           /* Base1 - Primary text, headings */
+      --txt-2: #839496;           /* Base0 - Body text */
+      --txt-3: #586e75;           /* Base01 - Secondary, muted */
+      --txt-4: #2aa198;           /* Cyan - Labels, decorative */
       
-      /* Hover state - slightly lighter than base02 */
-      --sol-hover: #094959;
+      /* Solarized Dark - Accent colors */
+      --txt-accent: #268bd2;      /* Blue - Links, interactive */
+      --txt-num: #b58900;         /* Yellow - Numbers, highlights */
+      --txt-green: #859900;       /* Green - Success */
+      --txt-orange: #cb4b16;      /* Orange - Warnings */
+      --txt-violet: #6c71c4;      /* Violet - Special */
+      --txt-magenta: #d33682;     /* Magenta - Emphasis */
+      --txt-err: #dc322f;         /* Red - Errors, YouTube accent */
       
-      /* Semantic mappings (YouTube roles → Solarized) */
-      --bg-primary: var(--sol-base03);
-      --bg-secondary: var(--sol-base02);
-      --bg-hover: var(--sol-hover);
-      --text-primary: var(--sol-base1);
-      --text-secondary: var(--sol-base00);
-      --text-emphasis: var(--sol-base1);
-      --border: var(--sol-base01);
-      --accent: var(--sol-red);
+      /* Legacy mappings for compatibility */
+      --bg-primary: var(--bg-1);
+      --bg-secondary: var(--bg-2);
+      --bg-hover: var(--bg-3);
+      --text-primary: var(--txt-1);
+      --text-secondary: var(--txt-3);
+      --text-emphasis: var(--txt-1);
+      --border: var(--txt-3);
+      --accent: var(--txt-err);
       --accent-hover: #bf1d1a;
-      --accent-alt: var(--sol-blue);
-      --selection: var(--sol-cyan);
-      --error: var(--sol-red);
+      --accent-alt: var(--txt-accent);
+      --selection: var(--txt-4);
+      --error: var(--txt-err);
       
-      /* YouTube font stack */
-      --font-main: 'Roboto', 'Arial', sans-serif;
-      --font-mono: 'Roboto Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+      /* Font - Monospace for TUI aesthetic */
+      --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+      --font-main: var(--font-mono);
     }
 
-    /* ====== Shared Modal Base Classes ====== */
+    /* ====== Shared Modal Base Classes (TUI Style) ====== */
     .vilify-overlay {
       position: fixed;
       inset: 0;
@@ -192,7 +190,9 @@
       justify-content: center;
       padding-top: 15vh;
       z-index: 9999999;
-      font-family: var(--font-main);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.5;
     }
 
     .vilify-overlay.open {
@@ -200,12 +200,11 @@
     }
 
     .vilify-modal {
+      position: relative;
       max-width: 90vw;
       max-height: 70vh;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+      background: var(--bg-1);
+      border: 2px solid var(--bg-3);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -213,90 +212,86 @@
 
     .vilify-modal-header {
       padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--bg-3);
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
     .vilify-modal-title {
-      font-size: 16px;
-      font-weight: 500;
-      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--txt-2);
     }
 
     .vilify-modal-input-wrapper {
       padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--bg-3);
     }
 
     .vilify-modal-input {
       width: 100%;
-      padding: 10px 12px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      padding: 8px 0;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--bg-3);
       font-size: 14px;
-      font-family: var(--font-main);
-      color: var(--text-primary);
+      font-family: var(--font-mono);
+      color: var(--txt-1);
       outline: none;
       box-sizing: border-box;
     }
 
     .vilify-modal-input:focus {
-      border-color: var(--accent);
+      border-bottom-color: var(--txt-3);
     }
 
     .vilify-modal-input::placeholder {
-      color: var(--text-secondary);
+      color: var(--txt-4);
     }
 
     .vilify-modal-list {
       flex: 1;
-      overflow-y: scroll;
+      overflow-y: auto;
       max-height: 400px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--bg-3) transparent;
     }
 
-    /* Styled scrollbar for modal list */
     .vilify-modal-list::-webkit-scrollbar {
-      width: 8px;
+      width: 6px;
     }
 
     .vilify-modal-list::-webkit-scrollbar-track {
-      background: var(--bg-primary);
+      background: transparent;
     }
 
     .vilify-modal-list::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 4px;
-    }
-
-    .vilify-modal-list::-webkit-scrollbar-thumb:hover {
-      background: var(--text-secondary);
+      background: var(--bg-3);
     }
 
     .vilify-modal-footer {
       display: flex;
       gap: 16px;
-      padding: 10px 16px;
-      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      border-top: 1px solid var(--bg-3);
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--txt-3);
     }
 
     .vilify-modal-footer kbd {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
+      background: transparent;
+      border: 1px solid var(--bg-3);
+      padding: 1px 5px;
       margin: 0 4px;
       font-size: 11px;
+      font-family: var(--font-mono);
     }
 
     .vilify-modal-empty {
       padding: 40px;
       text-align: center;
-      color: var(--text-secondary);
+      color: var(--txt-3);
       font-size: 14px;
     }
 
@@ -342,13 +337,14 @@
       overflow: hidden !important;
     }
 
+    /* ====== Focus Mode Overlay (TUI Style) ====== */
     #vilify-focus {
       position: fixed;
       inset: 0;
       z-index: 9999;
-      background: var(--bg-primary);
-      font-family: var(--font-main);
-      color: var(--text-primary);
+      background: var(--bg-1);
+      font-family: var(--font-mono);
+      color: var(--txt-2);
       display: flex;
       flex-direction: column;
       visibility: visible !important;
@@ -357,7 +353,7 @@
     .vilify-header {
       height: 48px;
       padding: 0 24px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid var(--bg-3);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -380,8 +376,8 @@
     }
 
     .vilify-mode {
-      color: var(--text-secondary);
-      font-size: 14px;
+      color: var(--txt-3);
+      font-size: 12px;
     }
 
     .vilify-filter-wrapper,
@@ -389,8 +385,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      color: var(--accent);
-      font-size: 16px;
+      color: var(--txt-4);
+      font-size: 14px;
     }
 
     .vilify-filter-wrapper.hidden,
@@ -402,10 +398,10 @@
     #vilify-search {
       background: transparent;
       border: none;
-      border-bottom: 1px solid var(--border);
-      color: var(--text-primary);
+      border-bottom: 1px solid var(--bg-3);
+      color: var(--txt-1);
       font-family: var(--font-mono);
-      font-size: 16px;
+      font-size: 14px;
       padding: 4px 8px;
       width: 300px;
       outline: none;
@@ -413,12 +409,12 @@
 
     #vilify-filter:focus,
     #vilify-search:focus {
-      border-bottom-color: var(--accent);
+      border-bottom-color: var(--txt-3);
     }
 
     #vilify-filter::placeholder,
     #vilify-search::placeholder {
-      color: var(--text-secondary);
+      color: var(--txt-3);
     }
 
     #vilify-content {
@@ -426,6 +422,20 @@
       overflow-y: auto;
       padding: 16px 0;
       transition: background-color 0.15s ease-out;
+      scrollbar-width: thin;
+      scrollbar-color: var(--bg-3) transparent;
+    }
+
+    #vilify-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #vilify-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #vilify-content::-webkit-scrollbar-thumb {
+      background: var(--bg-3);
     }
 
     /* Watch page: no padding, content fills space, transparent for video */
@@ -436,14 +446,14 @@
     }
 
     #vilify-content.flash-end {
-      background-color: var(--bg-secondary);
+      background-color: var(--bg-2);
     }
 
     .vilify-footer {
       height: 40px;
       padding: 0 24px;
-      border-top: 1px solid var(--border);
-      color: var(--text-secondary);
+      border-top: 2px solid var(--bg-3);
+      color: var(--txt-3);
       font-size: 12px;
       display: flex;
       align-items: center;
@@ -451,6 +461,7 @@
       box-sizing: border-box;
     }
 
+    /* ====== Video Items (TUI Style) ====== */
     .vilify-video-item {
       display: flex;
       align-items: flex-start;
@@ -458,17 +469,16 @@
       cursor: pointer;
       max-width: 900px;
       margin: 0 auto;
-      border-radius: 12px;
     }
 
     .vilify-video-item:hover {
-      background: var(--bg-secondary);
+      background: var(--bg-2);
     }
 
     .vilify-video-item.selected {
-      background: var(--bg-secondary);
-      outline: 2px solid var(--accent);
-      outline-offset: -2px;
+      background: var(--bg-2);
+      outline: 1px solid var(--txt-4);
+      outline-offset: -1px;
     }
 
     .vilify-thumb-wrapper {
@@ -476,9 +486,13 @@
       height: 113px;
       margin-right: 16px;
       flex-shrink: 0;
-      border-radius: 8px;
       overflow: hidden;
-      background: var(--bg-secondary);
+      background: var(--bg-2);
+      border: 1px solid var(--bg-3);
+    }
+
+    .vilify-video-item.selected .vilify-thumb-wrapper {
+      border-color: var(--txt-4);
     }
 
     .vilify-thumb {
@@ -494,10 +508,10 @@
     }
 
     .vilify-video-title {
-      color: var(--text-primary);
+      color: var(--txt-2);
       margin-bottom: 4px;
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 400;
       line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -505,16 +519,20 @@
       overflow: hidden;
     }
 
+    .vilify-video-item.selected .vilify-video-title {
+      color: var(--txt-1);
+    }
+
     .vilify-video-meta {
-      color: var(--text-secondary);
+      color: var(--txt-3);
       font-size: 12px;
     }
 
     .vilify-empty {
       padding: 40px;
       text-align: center;
-      color: var(--text-secondary);
-      font-size: 16px;
+      color: var(--txt-3);
+      font-size: 14px;
     }
 
     /* Watch page - sidebar layout: overlay only covers sidebar, not video */
@@ -522,7 +540,8 @@
       left: auto;
       right: 0;
       width: 350px;
-      background: var(--bg-primary);
+      background: var(--bg-1);
+      border-left: 2px solid var(--bg-3);
     }
     
     /* Header spans full width on watch page, positioned separately */
@@ -533,7 +552,7 @@
       right: 0;
       width: 100%;
       z-index: 10001;
-      background: var(--bg-primary);
+      background: var(--bg-1);
     }
     
     /* Footer spans full width on watch page */
@@ -544,7 +563,7 @@
       right: 0;
       width: 100%;
       z-index: 10001;
-      background: var(--bg-primary);
+      background: var(--bg-1);
     }
     
     /* Adjust content area to account for fixed header */
@@ -582,22 +601,37 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      background: var(--bg-primary);
+      background: var(--bg-1);
       overflow: hidden;
     }
 
+    /* ====== Watch Page Info Panel (TUI Style) ====== */
     .vilify-watch-info {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
+      position: relative;
+      padding: 16px 16px 12px;
+      border: 2px solid var(--bg-3);
+      margin: 12px;
       flex-shrink: 0;
     }
 
+    /* Panel label */
+    .vilify-watch-info::before {
+      content: 'video';
+      position: absolute;
+      top: -10px;
+      left: 10px;
+      background: var(--bg-1);
+      color: var(--txt-4);
+      padding: 0 6px;
+      font-size: 12px;
+    }
+
     .vilify-watch-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--txt-1);
       margin: 0 0 8px 0;
-      line-height: 1.3;
+      line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
@@ -612,58 +646,71 @@
     }
 
     .vilify-channel-name {
-      color: var(--text-primary);
-      font-size: 14px;
-      font-weight: 500;
+      color: var(--txt-2);
+      font-size: 13px;
+      font-weight: 400;
     }
 
     .vilify-subscribe-btn {
-      background: var(--accent);
-      border: none;
-      border-radius: 18px;
-      color: white;
-      padding: 6px 14px;
-      font-family: var(--font-main);
-      font-size: 13px;
-      font-weight: 500;
+      background: transparent;
+      border: 1px solid var(--txt-err);
+      color: var(--txt-err);
+      padding: 4px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 400;
       cursor: pointer;
     }
 
     .vilify-subscribe-btn:hover {
-      background: var(--accent-hover);
+      background: var(--txt-err);
+      color: var(--bg-1);
     }
 
     .vilify-subscribe-btn.subscribed {
-      background: var(--bg-secondary);
-      color: var(--text-primary);
+      border-color: var(--txt-3);
+      color: var(--txt-3);
     }
 
     .vilify-subscribe-btn.subscribed:hover {
-      background: var(--bg-hover);
+      background: var(--bg-3);
     }
 
     .vilify-description-hint {
-      color: var(--text-secondary);
+      color: var(--txt-3);
       font-size: 11px;
     }
 
     .vilify-description-hint kbd {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 3px;
+      background: transparent;
+      border: 1px solid var(--bg-3);
       padding: 1px 5px;
       font-size: 10px;
       margin: 0 2px;
+      font-family: var(--font-mono);
     }
 
-    /* Description Modal - extends .vilify-overlay, .vilify-modal */
+    /* ====== Description Modal (TUI Style) ====== */
     #vilify-desc-overlay {
       padding-top: 10vh;
     }
 
     #vilify-desc-modal {
+      position: relative;
       width: 700px;
       max-height: 80vh;
+    }
+
+    #vilify-desc-modal::before {
+      content: 'description';
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      background: var(--bg-1);
+      color: var(--txt-4);
+      padding: 0 6px;
+      font-size: 12px;
+      z-index: 1;
     }
 
     #vilify-desc-header {
@@ -673,28 +720,30 @@
 
     #vilify-desc-close {
       background: none;
-      border: none;
-      color: var(--text-secondary);
-      font-size: 20px;
+      border: 1px solid var(--bg-3);
+      color: var(--txt-3);
+      font-size: 14px;
       cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: var(--font-mono);
     }
 
     #vilify-desc-close:hover {
-      background: var(--bg-secondary);
-      color: var(--text-primary);
+      border-color: var(--txt-3);
+      color: var(--txt-1);
     }
 
     #vilify-desc-content {
       flex: 1;
       overflow-y: auto;
       padding: 20px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--bg-3) transparent;
     }
 
     #vilify-desc-text {
-      color: var(--text-primary);
-      font-size: 14px;
+      color: var(--txt-2);
+      font-size: 13px;
       line-height: 1.6;
       white-space: pre-wrap;
     }
@@ -703,23 +752,32 @@
       padding: 12px 20px;
     }
 
+    /* ====== Comments Panel (TUI Style) ====== */
     .vilify-comments {
+      position: relative;
       flex: 1;
       overflow: hidden;
-      padding: 12px 16px;
-      min-height: 0;  /* allow flex shrinking */
+      padding: 16px 16px 12px;
+      margin: 0 12px 12px;
+      border: 2px solid var(--bg-3);
+      min-height: 0;
       display: flex;
       flex-direction: column;
     }
 
+    .vilify-comments::before {
+      content: 'comments';
+      position: absolute;
+      top: -10px;
+      left: 10px;
+      background: var(--bg-1);
+      color: var(--txt-4);
+      padding: 0 6px;
+      font-size: 12px;
+    }
+
     .vilify-comments-header {
-      color: var(--text-emphasis);
-      font-size: 13px;
-      font-weight: 500;
-      margin-bottom: 10px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      display: none;  /* Label is now ::before pseudo-element */
     }
 
     .vilify-comments-list {
@@ -730,7 +788,7 @@
     .vilify-comment {
       margin-bottom: 12px;
       padding-bottom: 12px;
-      border-bottom: 1px solid var(--bg-secondary);
+      border-bottom: 1px solid var(--bg-3);
     }
 
     .vilify-comment:last-child {
@@ -740,15 +798,15 @@
     }
 
     .vilify-comment-author {
-      color: var(--accent-alt);
+      color: var(--txt-accent);
       font-size: 12px;
-      font-weight: 500;
+      font-weight: 400;
       margin-bottom: 4px;
     }
 
     .vilify-comment-text {
-      color: var(--text-primary);
-      font-size: 13px;
+      color: var(--txt-2);
+      font-size: 12px;
       line-height: 1.4;
     }
 
@@ -757,20 +815,20 @@
       align-items: center;
       justify-content: center;
       gap: 12px;
-      padding: 10px 0;
+      padding: 10px 0 0;
       margin-top: auto;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-secondary);
+      border-top: 1px solid var(--bg-3);
+      font-size: 11px;
+      color: var(--txt-3);
       flex-shrink: 0;
     }
 
     .vilify-comments-pagination kbd {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
-      font-size: 11px;
+      background: transparent;
+      border: 1px solid var(--bg-3);
+      padding: 1px 5px;
+      font-size: 10px;
+      font-family: var(--font-mono);
     }
 
     .vilify-comments-page-info {
@@ -778,9 +836,22 @@
       text-align: center;
     }
 
-    /* Chapter Picker - extends .vilify-overlay, .vilify-modal */
+    /* ====== Chapter Picker (TUI Style) ====== */
     #vilify-chapter-modal {
+      position: relative;
       width: 500px;
+    }
+
+    #vilify-chapter-modal::before {
+      content: 'chapters';
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      background: var(--bg-1);
+      color: var(--txt-4);
+      padding: 0 6px;
+      font-size: 12px;
+      z-index: 1;
     }
 
     .vilify-chapter-item {
@@ -792,22 +863,26 @@
     }
 
     .vilify-chapter-item:hover {
-      background: var(--bg-secondary);
+      background: var(--bg-2);
     }
 
     .vilify-chapter-item.selected {
-      background: var(--bg-secondary);
-      outline: 2px solid var(--accent);
-      outline-offset: -2px;
+      background: var(--bg-2);
+      outline: 1px solid var(--txt-4);
+      outline-offset: -1px;
     }
 
     .vilify-chapter-thumb {
       width: 80px;
       height: 45px;
-      border-radius: 6px;
-      background: var(--bg-hover);
+      background: var(--bg-3);
       object-fit: cover;
       flex-shrink: 0;
+      border: 1px solid var(--bg-3);
+    }
+
+    .vilify-chapter-item.selected .vilify-chapter-thumb {
+      border-color: var(--txt-4);
     }
 
     .vilify-chapter-info {
@@ -816,120 +891,126 @@
     }
 
     .vilify-chapter-title {
-      font-size: 14px;
-      color: var(--text-primary);
+      font-size: 13px;
+      color: var(--txt-2);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    .vilify-chapter-item.selected .vilify-chapter-title {
+      color: var(--txt-1);
+    }
+
     .vilify-chapter-time {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--txt-num);
       margin-top: 2px;
     }
 
-    /* Command Palette - extends .vilify-overlay, .vilify-modal */
+    /* ====== Command Palette (TUI Style) ====== */
     #keyring-overlay {
       font-family: var(--font-mono);
     }
 
     #keyring-modal {
+      position: relative;
       width: 560px;
     }
 
+    #keyring-modal::before {
+      content: 'commands';
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      background: var(--bg-1);
+      color: var(--txt-4);
+      padding: 0 6px;
+      font-size: 12px;
+      z-index: 1;
+    }
+
     #keyring-header {
-      background: var(--bg-secondary);
-    }
-
-    #keyring-header-logo {
-      width: 24px;
-      height: 24px;
-      background: var(--accent);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #keyring-header-logo::before {
-      content: '';
-      width: 0;
-      height: 0;
-      border-left: 8px solid white;
-      border-top: 5px solid transparent;
-      border-bottom: 5px solid transparent;
-      margin-left: 2px;
+      display: none;  /* Hide old header, using ::before label */
     }
 
     .keyring-group-label {
-      padding: 12px 16px 8px;
-      font-size: 11px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-secondary);
-      background: var(--bg-primary);
+      padding: 16px 16px 8px;
+      font-size: 12px;
+      font-weight: 400;
+      text-transform: lowercase;
+      letter-spacing: 0;
+      color: var(--txt-4);
+      background: var(--bg-1);
     }
 
     .keyring-item {
       display: flex;
       align-items: center;
-      padding: 10px 16px;
+      padding: 8px 16px;
       cursor: pointer;
       font-size: 14px;
-      color: var(--text-primary);
-      background: var(--bg-primary);
+      color: var(--txt-2);
+      background: transparent;
     }
 
     .keyring-item:hover {
-      background: var(--bg-hover);
+      background: var(--bg-2);
     }
 
     .keyring-item.selected {
-      background: var(--accent);
+      background: var(--bg-2);
+      outline: 1px solid var(--txt-4);
+      outline-offset: -1px;
+    }
+
+    .keyring-item.selected .keyring-label {
+      color: var(--txt-1);
     }
 
     .keyring-item.selected .keyring-shortcut kbd {
-      background: rgba(255, 255, 255, 0.2);
-      border-color: rgba(255, 255, 255, 0.3);
+      border-color: var(--txt-3);
+      color: var(--txt-num);
     }
 
     .keyring-item.selected .keyring-meta {
-      color: rgba(255, 255, 255, 0.8);
+      color: var(--txt-3);
     }
 
+    /* Terminal-style icon prefix */
     .keyring-icon {
-      width: 32px;
-      height: 32px;
-      margin-right: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      color: var(--text-secondary);
-      background: var(--bg-secondary);
-      border-radius: 8px;
+      width: auto;
+      margin-right: 8px;
+      font-size: 14px;
+      color: var(--txt-3);
+      background: transparent;
+    }
+
+    .keyring-icon::before {
+      content: '>';
+    }
+
+    /* Hide emoji, show prefix */
+    .keyring-icon:not(:empty)::before {
+      content: none;
     }
 
     .keyring-item.selected .keyring-icon {
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
+      color: var(--txt-4);
     }
 
     .keyring-thumbnail {
       width: 80px;
       height: 45px;
       margin-right: 12px;
-      border-radius: 8px;
-      background: var(--bg-secondary);
+      background: var(--bg-2);
       object-fit: cover;
       flex-shrink: 0;
+      border: 1px solid var(--bg-3);
     }
 
     .keyring-item.selected .keyring-thumbnail {
-      outline: 2px solid white;
-      outline-offset: -2px;
+      border-color: var(--txt-4);
     }
 
     .keyring-item .keyring-label {
@@ -969,7 +1050,7 @@
 
     .keyring-meta {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--txt-3);
       margin-left: 8px;
     }
 
@@ -980,40 +1061,37 @@
     }
 
     .keyring-shortcut kbd {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
+      background: transparent;
+      border: 1px solid var(--bg-3);
       padding: 2px 6px;
       font-size: 11px;
       font-family: var(--font-mono);
-      color: var(--text-secondary);
+      color: var(--txt-3);
     }
 
     #keyring-footer {
-      gap: 20px;
-      background: var(--bg-secondary);
+      gap: 16px;
     }
 
     #keyring-footer kbd {
-      background: var(--bg-primary);
+      background: transparent;
     }
 
+    /* ====== Toast Notifications (TUI Style) ====== */
     .keyring-toast {
       position: fixed;
       bottom: 32px;
       right: 32px;
-      background: var(--bg-secondary);
-      color: var(--text-primary);
+      background: var(--bg-2);
+      color: var(--txt-2);
       padding: 12px 20px;
-      border-radius: 8px;
-      border: none;
+      border: 2px solid var(--bg-3);
       font-size: 14px;
-      font-weight: 500;
-      font-family: var(--font-main);
+      font-weight: 400;
+      font-family: var(--font-mono);
       z-index: 10000000;
       opacity: 0;
       transition: opacity 0.2s;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     }
 
     .keyring-toast.show {
