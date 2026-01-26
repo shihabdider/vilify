@@ -1630,9 +1630,12 @@
     }
     
     if (filtered.length === 0) {
+      const message = filterQuery 
+        ? `No videos matching "${filterQuery}"` 
+        : 'No videos found. Try scrolling to load more.';
       content.appendChild(createElement('div', { 
         className: 'vilify-empty', 
-        textContent: 'No videos found' 
+        textContent: message 
       }));
       return;
     }
@@ -2001,6 +2004,18 @@
     showToast('Focus mode off (refresh to re-enable)');
   }
 
+  function showLoading() {
+    const content = document.getElementById('vilify-content');
+    if (!content) return;
+    while (content.firstChild) {
+      content.removeChild(content.firstChild);
+    }
+    content.appendChild(createElement('div', { 
+      className: 'vilify-empty', 
+      textContent: 'Loading...' 
+    }));
+  }
+
   function waitForContent(callback, maxWait = 5000) {
     const startTime = Date.now();
     
@@ -2033,18 +2048,19 @@
   let settingsApplied = false;
 
   function onNavigate() {
-    // Close palette on navigation
     if (isPaletteOpen()) {
       closePalette();
     }
-    // Reset settings flag so they get applied on new video
+    if (filterActive) {
+      filterQuery = '';
+      closeFilter();
+    }
     settingsApplied = false;
-    // Clear video cache
     clearVideoCache();
-    // Reset selection
     selectedIdx = 0;
-    // Re-initialize focus mode for new page
+    
     if (focusModeActive) {
+      showLoading();
       waitForContent(() => {
         initFocusMode();
       });
