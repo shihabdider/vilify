@@ -1263,6 +1263,15 @@
   // ============================================
   function scrapeChapters() {
     const chapters = [];
+    const seenTimes = new Set();
+    
+    function addChapter(title, time, timeText, thumbnailUrl) {
+      // Deduplicate by time (rounded to nearest second)
+      const timeKey = Math.round(time);
+      if (seenTimes.has(timeKey)) return;
+      seenTimes.add(timeKey);
+      chapters.push({ title, time, timeText, thumbnailUrl });
+    }
     
     // Method 1: From chapter markers in progress bar
     const chapterMarkers = document.querySelectorAll('.ytp-chapter-hover-container');
@@ -1271,11 +1280,7 @@
         const title = marker.querySelector('.ytp-chapter-title')?.textContent?.trim();
         const timeText = marker.dataset.startTime || marker.getAttribute('data-start-time');
         if (title && timeText) {
-          chapters.push({
-            title,
-            time: parseFloat(timeText),
-            thumbnailUrl: null
-          });
+          addChapter(title, parseFloat(timeText), null, null);
         }
       }
     }
@@ -1291,12 +1296,7 @@
         if (titleEl && timeEl) {
           const timeText = timeEl.textContent.trim();
           const time = parseTimestamp(timeText);
-          chapters.push({
-            title: titleEl.textContent.trim(),
-            time,
-            timeText,
-            thumbnailUrl: thumbEl?.src || null
-          });
+          addChapter(titleEl.textContent.trim(), time, timeText, thumbEl?.src || null);
         }
       }
     }
@@ -1312,12 +1312,7 @@
         if (titleEl && timeEl) {
           const timeText = timeEl.textContent.trim();
           const time = parseTimestamp(timeText);
-          chapters.push({
-            title: titleEl.textContent.trim(),
-            time,
-            timeText,
-            thumbnailUrl: thumbEl?.src || null
-          });
+          addChapter(titleEl.textContent.trim(), time, timeText, thumbEl?.src || null);
         }
       }
     }
