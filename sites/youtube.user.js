@@ -85,7 +85,7 @@
     }
 
     .vilify-header {
-      padding: 8px 16px;
+      padding: 12px 24px;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
@@ -95,17 +95,20 @@
     .vilify-logo {
       color: var(--accent);
       font-weight: bold;
+      font-size: 18px;
     }
 
     .vilify-mode {
       color: var(--text-secondary);
+      font-size: 14px;
     }
 
     .vilify-filter-wrapper {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 8px;
       color: var(--accent);
+      font-size: 16px;
     }
 
     .vilify-filter-wrapper.hidden {
@@ -118,9 +121,9 @@
       border-bottom: 1px solid var(--border);
       color: var(--text-primary);
       font-family: var(--font-mono);
-      font-size: 14px;
-      padding: 2px 4px;
-      width: 200px;
+      font-size: 16px;
+      padding: 4px 8px;
+      width: 300px;
       outline: none;
     }
 
@@ -135,22 +138,25 @@
     #vilify-content {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 0;
+      padding: 16px 0;
     }
 
     .vilify-footer {
-      padding: 8px 16px;
+      padding: 12px 24px;
       border-top: 1px solid var(--border);
       color: var(--text-secondary);
+      font-size: 14px;
       font-size: 12px;
     }
 
     .vilify-video-item {
       display: flex;
       align-items: flex-start;
-      padding: 8px 16px;
+      padding: 12px 24px;
       cursor: pointer;
-      border-left: 2px solid transparent;
+      border-left: 3px solid transparent;
+      max-width: 900px;
+      margin: 0 auto;
     }
 
     .vilify-video-item:hover {
@@ -163,9 +169,9 @@
     }
 
     .vilify-thumb-wrapper {
-      width: 120px;
-      height: 68px;
-      margin-right: 12px;
+      width: 200px;
+      height: 113px;
+      margin-right: 16px;
       flex-shrink: 0;
       border: 1px solid var(--border);
       overflow: hidden;
@@ -180,11 +186,14 @@
     .vilify-video-info {
       flex: 1;
       min-width: 0;
+      padding-top: 4px;
     }
 
     .vilify-video-title {
       color: var(--text-primary);
-      margin-bottom: 4px;
+      margin-bottom: 8px;
+      font-size: 16px;
+      line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -193,13 +202,14 @@
 
     .vilify-video-meta {
       color: var(--text-secondary);
-      font-size: 12px;
+      font-size: 14px;
     }
 
     .vilify-empty {
       padding: 40px;
       text-align: center;
       color: var(--text-secondary);
+      font-size: 16px;
     }
 
     /* Watch page - player positioning */
@@ -1106,23 +1116,43 @@
   function focusSearchBox() {
     const searchInput = getSearchInput();
     if (searchInput) {
+      // Temporarily hide focus mode overlay to show YouTube's search
+      if (focusModeActive && focusOverlay) {
+        focusOverlay.style.display = 'none';
+        document.body.classList.remove('vilify-focus-mode');
+      }
+      
       // Attach Escape handler directly to the input if not already done
-      if (!searchInput.dataset.keyringEscapeHandler) {
-        searchInput.dataset.keyringEscapeHandler = 'true';
+      if (!searchInput.dataset.vilifyEscapeHandler) {
+        searchInput.dataset.vilifyEscapeHandler = 'true';
         searchInput.addEventListener('keydown', e => {
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
             searchInput.blur();
+            // Restore focus mode overlay
+            if (focusModeActive && focusOverlay) {
+              focusOverlay.style.display = '';
+              document.body.classList.add('vilify-focus-mode');
+            }
             showToast('Exited search');
           }
         }, true);
+        
+        // Also restore on blur (e.g., clicking elsewhere)
+        searchInput.addEventListener('blur', () => {
+          if (focusModeActive && focusOverlay) {
+            focusOverlay.style.display = '';
+            document.body.classList.add('vilify-focus-mode');
+          }
+        });
       }
+      
       searchInput.focus();
       // Small delay before select to ensure focus completes
       setTimeout(() => searchInput.select(), 10);
-      showToast('Search focused (Esc to exit)');
+      showToast('Search (Esc to return)');
     }
   }
 
