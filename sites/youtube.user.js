@@ -1246,9 +1246,7 @@
     }
   }
 
-  function isDescriptionModalOpen() {
-    return descOverlay?.classList.contains('open');
-  }
+  const isDescriptionModalOpen = () => isOverlayOpen(descOverlay);
 
   // Aliases for command palette and key sequences
   const toggleDescriptionOpen = openDescriptionModal;
@@ -1981,6 +1979,9 @@
     if (sel) sel.scrollIntoView({ block: 'nearest' });
   }
 
+  // Check if an overlay element is open
+  const isOverlayOpen = (overlay) => overlay?.classList.contains('open');
+
   function createFocusOverlay() {
     if (focusOverlay) return;
     
@@ -2213,9 +2214,7 @@
     chapterPickerActive = false;
   }
 
-  function isChapterPickerOpen() {
-    return chapterOverlay?.classList.contains('open');
-  }
+  const isChapterPickerOpen = () => isOverlayOpen(chapterOverlay);
 
   function renderChapterList(filter = '') {
     while (chapterListEl.firstChild) {
@@ -2484,9 +2483,7 @@
     if (overlay) overlay.classList.remove('open');
   }
 
-  function isPaletteOpen() {
-    return overlay?.classList.contains('open');
-  }
+  const isPaletteOpen = () => isOverlayOpen(overlay);
 
   // ============================================
   // Input Handling
