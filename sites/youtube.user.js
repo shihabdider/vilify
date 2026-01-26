@@ -1319,10 +1319,16 @@
   
   /**
    * Get current video count from YouTube's DOM
+   * Counts all video-like elements across different page layouts
    */
   function getYouTubeVideoCount() {
     const elements = document.querySelectorAll(
-      'ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model'
+      'ytd-rich-item-renderer, ' +
+      'ytd-video-renderer, ' +
+      'ytd-compact-video-renderer, ' +
+      'ytd-grid-video-renderer, ' +
+      'ytd-playlist-video-renderer, ' +
+      'yt-lockup-view-model'
     );
     return elements.length;
   }
@@ -1431,34 +1437,13 @@
   function scrapeVideos() {
     const videos = [];
     const seen = new Set();
-
-    // New YouTube layout uses yt-lockup-view-model for video items
-    const newLayoutElements = document.querySelectorAll(SELECTORS.listing.newLayout);
     
-    // Try new layout first (yt-lockup-view-model)
-    for (const el of newLayoutElements) {
-      // Get thumbnail link (has video URL)
-      const thumbLink = el.querySelector(SELECTORS.listing.thumbnailLink);
-      if (!thumbLink?.href) continue;
-
-      // Extract video ID
-      const match = thumbLink.href.match(/\/watch\?v=([^&]+)/);
-      if (!match) continue;
-      const videoId = match[1];
-
-      // Skip duplicates
-      if (seen.has(videoId)) continue;
+    /**
+     * Helper to add a video if not already seen
+     */
+    function addVideo(videoId, title, channelName) {
+      if (seen.has(videoId)) return;
       seen.add(videoId);
-
-      // Get title from title link
-      const titleLink = el.querySelector(SELECTORS.listing.titleLink);
-      const title = titleLink?.textContent?.trim();
-      if (!title) continue;
-
-      // Get channel name
-      const channelEl = queryFirst(SELECTORS.listing.channelNew, el);
-      const channelName = channelEl?.textContent?.trim() || '';
-
       videos.push({
         type: 'video',
         videoId,
@@ -1468,42 +1453,114 @@
         url: `/watch?v=${videoId}`
       });
     }
+    
+    /**
+     * Extract video ID from a URL
+     */
+    function extractVideoId(url) {
+      if (!url) return null;
+      const match = url.match(/\/watch\?v=([^&]+)/);
+      return match ? match[1] : null;
+    }
 
-    // Fall back to old layout selectors if no videos found
+    // Strategy 1: New YouTube layout (yt-lockup-view-model)
+    const newLayoutElements = document.querySelectorAll(SELECTORS.listing.newLayout);
+    for (const el of newLayoutElements) {
+      const thumbLink = el.querySelector(SELECTORS.listing.thumbnailLink);
+      const videoId = extractVideoId(thumbLink?.href);
+      if (!videoId) continue;
+
+      const titleLink = el.querySelector(SELECTORS.listing.titleLink);
+      const title = titleLink?.textContent?.trim();
+      if (!title) continue;
+
+      const channelEl = queryFirst(SELECTORS.listing.channelNew, el);
+      const channelName = channelEl?.textContent?.trim() || '';
+
+      addVideo(videoId, title, channelName);
+    }
+
+    // Strategy 2: Old layout selectors (always try, not just fallback)
+    const oldElements = document.querySelectorAll(SELECTORS.listing.oldLayout.join(','));
+    for (const el of oldElements) {
+      const link = el.querySelector(SELECTORS.listing.videoLink);
+      const videoId = extractVideoId(link?.href);
+      if (!videoId) continue;
+
+      const titleEl = el.querySelector(SELECTORS.listing.videoTitle);
+      const title = titleEl?.textContent?.trim();
+      if (!title) continue;
+
+      const channelEl = queryFirst(SELECTORS.listing.channelOld, el);
+      const channelName = channelEl?.textContent?.trim() || '';
+
+      addVideo(videoId, title, channelName);
+    }
+    
+    // Strategy 3: Search results - ytd-video-renderer with different structure
+    // Search pages use ytd-video-renderer but with slightly different internal structure
+    const searchVideoElements = document.querySelectorAll('ytd-video-renderer');
+    for (const el of searchVideoElements) {
+      // Try multiple ways to find the video link
+      const link = el.querySelector('a#video-title') || 
+                   el.querySelector('a.ytd-thumbnail') ||
+                   el.querySelector('a[href*="/watch?v="]');
+      const videoId = extractVideoId(link?.href);
+      if (!videoId) continue;
+
+      // Try multiple ways to find the title
+      const titleEl = el.querySelector('#video-title') ||
+                      el.querySelector('h3 a') ||
+                      el.querySelector('yt-formatted-string#video-title');
+      const title = titleEl?.textContent?.trim();
+      if (!title) continue;
+
+      // Channel name
+      const channelEl = el.querySelector('ytd-channel-name a') ||
+                        el.querySelector('#channel-name a') ||
+                        el.querySelector('.ytd-channel-name');
+      const channelName = channelEl?.textContent?.trim() || '';
+
+      addVideo(videoId, title, channelName);
+    }
+    
+    // Strategy 4: Playlist renderers (for playlist pages and search results)
+    const playlistVideoElements = document.querySelectorAll('ytd-playlist-video-renderer');
+    for (const el of playlistVideoElements) {
+      const link = el.querySelector('a#video-title') ||
+                   el.querySelector('a[href*="/watch?v="]');
+      const videoId = extractVideoId(link?.href);
+      if (!videoId) continue;
+
+      const titleEl = el.querySelector('#video-title');
+      const title = titleEl?.textContent?.trim();
+      if (!title) continue;
+
+      const channelEl = el.querySelector('#channel-name a') ||
+                        el.querySelector('ytd-channel-name a');
+      const channelName = channelEl?.textContent?.trim() || '';
+
+      addVideo(videoId, title, channelName);
+    }
+    
+    // Strategy 5: Generic fallback - find any link to a video with a title nearby
+    // This catches edge cases we might have missed
     if (videos.length === 0) {
-      const oldElements = document.querySelectorAll(SELECTORS.listing.oldLayout.join(','));
-
-      for (const el of oldElements) {
-        // Get video link
-        const link = el.querySelector(SELECTORS.listing.videoLink);
-        if (!link?.href) continue;
-
-        // Extract video ID
-        const match = link.href.match(/\/watch\?v=([^&]+)/);
-        if (!match) continue;
-        const videoId = match[1];
-
-        // Skip duplicates
-        if (seen.has(videoId)) continue;
-        seen.add(videoId);
-
-        // Get title
-        const titleEl = el.querySelector(SELECTORS.listing.videoTitle);
-        const title = titleEl?.textContent?.trim();
-        if (!title) continue;
-
-        // Get channel name
-        const channelEl = queryFirst(SELECTORS.listing.channelOld, el);
-        const channelName = channelEl?.textContent?.trim() || '';
-
-        videos.push({
-          type: 'video',
-          videoId,
-          title,
-          channelName,
-          thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
-          url: `/watch?v=${videoId}`
-        });
+      const allVideoLinks = document.querySelectorAll('a[href*="/watch?v="]');
+      for (const link of allVideoLinks) {
+        const videoId = extractVideoId(link.href);
+        if (!videoId) continue;
+        
+        // Look for a title in the link itself or nearby
+        const title = link.textContent?.trim() ||
+                      link.getAttribute('title') ||
+                      link.closest('[class*="renderer"]')?.querySelector('#video-title, h3, [id*="title"]')?.textContent?.trim();
+        if (!title || title.length < 3) continue;
+        
+        // Skip if this looks like a channel link or other non-video link
+        if (link.href.includes('/channel/') || link.href.includes('/@')) continue;
+        
+        addVideo(videoId, title, '');
       }
     }
 
