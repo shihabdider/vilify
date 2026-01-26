@@ -269,10 +269,11 @@
       transition: background-color 0.15s ease-out;
     }
 
-    /* Watch page: no padding, content fills space */
+    /* Watch page: no padding, content fills space, transparent for video */
     body.vilify-watch-page #vilify-content {
       padding: 0;
       overflow: hidden;
+      background: transparent;
     }
 
     #vilify-content.flash-end {
@@ -368,19 +369,25 @@
       left: 0 !important;
       width: calc(100% - 350px) !important;
       height: calc(100vh - 48px - 40px) !important;  /* viewport minus header and footer */
-      z-index: 1 !important;
+      z-index: 10000 !important;  /* above #vilify-focus (9999) */
+      visibility: visible !important;
+    }
+    
+    /* Ensure video element inside player is visible */
+    body.vilify-focus-mode.vilify-watch-page #movie_player video {
+      visibility: visible !important;
     }
 
     .vilify-watch-layout {
       display: flex;
-      height: calc(100vh - 48px - 40px);  /* viewport minus header and footer */
-      margin-top: 48px;  /* below header */
+      height: 100%;
     }
 
     .vilify-watch-video-area {
       flex: 1;
       min-width: 0;
-      /* This area is behind the fixed player, acts as spacer */
+      /* Transparent spacer - actual player shows through at higher z-index */
+      background: transparent;
     }
 
     .vilify-watch-sidebar {
