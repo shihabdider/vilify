@@ -1499,7 +1499,7 @@
   
   // Comment pagination state
   let commentPage = 0;
-  const COMMENTS_PER_PAGE = 5;
+  const COMMENTS_PER_PAGE = 8;
 
   function setupCommentObserver() {
     if (commentObserver) return; // Already observing
@@ -1626,7 +1626,8 @@
       commentPage++;
       updateCommentsUI(comments);
     } else {
-      showToast('Last page of comments');
+      // At last page - try to load more comments from YouTube
+      loadMoreComments();
     }
   }
 
@@ -1640,7 +1641,69 @@
     }
   }
 
-
+  function loadMoreComments() {
+    if (getPageType() !== 'watch') return;
+    
+    showToast('Loading more comments...');
+    
+    // Method 1: Find and click the continuation spinner/button
+    const continuationTriggers = [
+      'ytd-comments ytd-continuation-item-renderer',
+      'ytd-comments #continuations',
+      'ytd-comments tp-yt-paper-spinner',
+      '#comments ytd-continuation-item-renderer'
+    ];
+    
+    for (const selector of continuationTriggers) {
+      const el = document.querySelector(selector);
+      if (el) {
+        // Scroll it into view to trigger IntersectionObserver
+        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+        // Also try clicking if it's a button
+        if (el.click) el.click();
+      }
+    }
+    
+    // Method 2: Scroll the main page to trigger lazy loading
+    const scrollTargets = [
+      document.querySelector('ytd-comments'),
+      document.querySelector('#comments'),
+      document.documentElement
+    ];
+    
+    for (const target of scrollTargets) {
+      if (target) {
+        // Scroll down to trigger loading
+        if (target === document.documentElement) {
+          window.scrollBy(0, 1000);
+        } else {
+          target.scrollTop += 500;
+        }
+      }
+    }
+    
+    // Method 3: Dispatch scroll events to trigger observers
+    const scrollEvent = new Event('scroll', { bubbles: true });
+    document.dispatchEvent(scrollEvent);
+    window.dispatchEvent(scrollEvent);
+    
+    // Check for new comments after delay
+    setTimeout(() => {
+      const comments = scrapeComments();
+      const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
+      const currentTotal = document.querySelectorAll('.vilify-comment').length + 
+                          (commentPage * COMMENTS_PER_PAGE);
+      
+      if (comments.length > currentTotal) {
+        // New comments loaded - go to next page
+        commentPage++;
+        updateCommentsUI(comments);
+        showToast(`Loaded more comments (page ${commentPage + 1}/${totalPages})`);
+      } else {
+        showToast('No more comments available');
+      }
+    }, 1500);
+  }
 
   function formatTimestamp(seconds) {
     if (!seconds || !isFinite(seconds)) return '0:00';
