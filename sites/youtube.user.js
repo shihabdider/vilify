@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.2.0
+// @version      0.2.1
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
@@ -137,29 +137,30 @@
   injectLoadingScreen();
 
   // ============================================
-  // Styles - TUI Solarized Dark Theme (re-start inspired)
+  // Styles - TUI Theme (Solarized Dark BG + YouTube Colors)
+  // ============================================
+  // Uses Solarized Dark backgrounds for that nice dark blue-green,
+  // but with brighter YouTube-style text (white/gray) and red accents.
   // ============================================
   const CSS = `
     :root {
       /* Solarized Dark - Background layers */
       --bg-1: #002b36;            /* Base03 - Main background */
       --bg-2: #073642;            /* Base02 - Panels, cards */
-      --bg-3: #094552;            /* Slightly lighter - Borders, hover */
+      --bg-3: #0a4a5c;            /* Lighter - Borders, hover */
       
-      /* Solarized Dark - Text hierarchy */
-      --txt-1: #93a1a1;           /* Base1 - Primary text, headings */
-      --txt-2: #839496;           /* Base0 - Body text */
-      --txt-3: #586e75;           /* Base01 - Secondary, muted */
-      --txt-4: #2aa198;           /* Cyan - Labels, decorative */
+      /* YouTube-style text hierarchy (brighter than pure Solarized) */
+      --txt-1: #f1f1f1;           /* Primary text - near white */
+      --txt-2: #aaaaaa;           /* Body text - light gray */
+      --txt-3: #717171;           /* Secondary, muted */
+      --txt-4: #3ea6ff;           /* YouTube blue - links, labels */
       
-      /* Solarized Dark - Accent colors */
-      --txt-accent: #268bd2;      /* Blue - Links, interactive */
-      --txt-num: #b58900;         /* Yellow - Numbers, highlights */
-      --txt-green: #859900;       /* Green - Success */
-      --txt-orange: #cb4b16;      /* Orange - Warnings */
-      --txt-violet: #6c71c4;      /* Violet - Special */
-      --txt-magenta: #d33682;     /* Magenta - Emphasis */
-      --txt-err: #dc322f;         /* Red - Errors, YouTube accent */
+      /* YouTube accent colors */
+      --yt-red: #ff0000;          /* Pure YouTube red */
+      --yt-red-hover: #cc0000;    /* Darker red for hover */
+      --txt-accent: var(--txt-4); /* Blue for links */
+      --txt-num: #f1f1f1;         /* Numbers in white */
+      --txt-err: var(--yt-red);   /* Errors in red */
       
       /* Legacy mappings for compatibility */
       --bg-primary: var(--bg-1);
@@ -168,12 +169,12 @@
       --text-primary: var(--txt-1);
       --text-secondary: var(--txt-3);
       --text-emphasis: var(--txt-1);
-      --border: var(--txt-3);
-      --accent: var(--txt-err);
-      --accent-hover: #bf1d1a;
-      --accent-alt: var(--txt-accent);
-      --selection: var(--txt-4);
-      --error: var(--txt-err);
+      --border: var(--bg-3);
+      --accent: var(--yt-red);
+      --accent-hover: var(--yt-red-hover);
+      --accent-alt: var(--txt-4);
+      --selection: var(--yt-red);
+      --error: var(--yt-red);
       
       /* Font - Monospace for TUI aesthetic */
       --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
@@ -477,8 +478,8 @@
 
     .vilify-video-item.selected {
       background: var(--bg-2);
-      outline: 1px solid var(--txt-4);
-      outline-offset: -1px;
+      outline: 2px solid var(--yt-red);
+      outline-offset: -2px;
     }
 
     .vilify-thumb-wrapper {
@@ -492,7 +493,7 @@
     }
 
     .vilify-video-item.selected .vilify-thumb-wrapper {
-      border-color: var(--txt-4);
+      border-color: var(--yt-red);
     }
 
     .vilify-thumb {
@@ -621,7 +622,7 @@
       top: -10px;
       left: 10px;
       background: var(--bg-1);
-      color: var(--txt-4);
+      color: var(--txt-3);
       padding: 0 6px;
       font-size: 12px;
     }
@@ -707,7 +708,7 @@
       top: -10px;
       left: 12px;
       background: var(--bg-1);
-      color: var(--txt-4);
+      color: var(--txt-3);
       padding: 0 6px;
       font-size: 12px;
       z-index: 1;
@@ -758,26 +759,22 @@
       flex: 1;
       overflow: hidden;
       padding: 16px 16px 12px;
-      margin: 0 12px 12px;
+      margin: 12px;
       border: 2px solid var(--bg-3);
       min-height: 0;
       display: flex;
       flex-direction: column;
     }
 
-    .vilify-comments::before {
-      content: 'comments';
-      position: absolute;
-      top: -10px;
-      left: 10px;
-      background: var(--bg-1);
-      color: var(--txt-4);
-      padding: 0 6px;
-      font-size: 12px;
-    }
-
     .vilify-comments-header {
-      display: none;  /* Label is now ::before pseudo-element */
+      color: var(--txt-3);
+      font-size: 12px;
+      font-weight: 400;
+      text-transform: lowercase;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--bg-3);
+      flex-shrink: 0;
     }
 
     .vilify-comments-list {
@@ -848,7 +845,7 @@
       top: -10px;
       left: 12px;
       background: var(--bg-1);
-      color: var(--txt-4);
+      color: var(--txt-3);
       padding: 0 6px;
       font-size: 12px;
       z-index: 1;
@@ -868,8 +865,8 @@
 
     .vilify-chapter-item.selected {
       background: var(--bg-2);
-      outline: 1px solid var(--txt-4);
-      outline-offset: -1px;
+      outline: 2px solid var(--yt-red);
+      outline-offset: -2px;
     }
 
     .vilify-chapter-thumb {
@@ -882,7 +879,7 @@
     }
 
     .vilify-chapter-item.selected .vilify-chapter-thumb {
-      border-color: var(--txt-4);
+      border-color: var(--yt-red);
     }
 
     .vilify-chapter-info {
@@ -904,7 +901,7 @@
 
     .vilify-chapter-time {
       font-size: 12px;
-      color: var(--txt-num);
+      color: var(--txt-3);
       margin-top: 2px;
     }
 
@@ -924,7 +921,7 @@
       top: -10px;
       left: 12px;
       background: var(--bg-1);
-      color: var(--txt-4);
+      color: var(--txt-3);
       padding: 0 6px;
       font-size: 12px;
       z-index: 1;
@@ -940,7 +937,7 @@
       font-weight: 400;
       text-transform: lowercase;
       letter-spacing: 0;
-      color: var(--txt-4);
+      color: var(--txt-3);
       background: var(--bg-1);
     }
 
@@ -960,8 +957,8 @@
 
     .keyring-item.selected {
       background: var(--bg-2);
-      outline: 1px solid var(--txt-4);
-      outline-offset: -1px;
+      outline: 2px solid var(--yt-red);
+      outline-offset: -2px;
     }
 
     .keyring-item.selected .keyring-label {
@@ -970,11 +967,11 @@
 
     .keyring-item.selected .keyring-shortcut kbd {
       border-color: var(--txt-3);
-      color: var(--txt-num);
+      color: var(--txt-1);
     }
 
     .keyring-item.selected .keyring-meta {
-      color: var(--txt-3);
+      color: var(--txt-2);
     }
 
     /* Terminal-style icon prefix */
@@ -996,7 +993,7 @@
     }
 
     .keyring-item.selected .keyring-icon {
-      color: var(--txt-4);
+      color: var(--yt-red);
     }
 
     .keyring-thumbnail {
@@ -1010,7 +1007,7 @@
     }
 
     .keyring-item.selected .keyring-thumbnail {
-      border-color: var(--txt-4);
+      border-color: var(--yt-red);
     }
 
     .keyring-item .keyring-label {
