@@ -563,9 +563,11 @@
 
     .vilify-comments {
       flex: 1;
-      overflow-y: auto;
+      overflow: hidden;
       padding: 12px 16px;
       min-height: 0;  /* allow flex shrinking */
+      display: flex;
+      flex-direction: column;
     }
 
     .vilify-comments-header {
@@ -575,6 +577,12 @@
       margin-bottom: 10px;
       padding-bottom: 6px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .vilify-comments-list {
+      flex: 1;
+      overflow: hidden;
     }
 
     .vilify-comment {
@@ -600,6 +608,32 @@
       color: var(--text-primary);
       font-size: 13px;
       line-height: 1.4;
+    }
+
+    .vilify-comments-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 10px 0;
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .vilify-comments-pagination kbd {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+    }
+
+    .vilify-comments-page-info {
+      min-width: 50px;
+      text-align: center;
     }
 
     /* Chapter Picker - extends .vilify-overlay, .vilify-modal */
@@ -1413,10 +1447,27 @@
     const comments = scrapeComments();
     const commentsList = div({ className: 'vilify-comments-list' });
     
+    // Pagination footer
+    const totalPages = comments.length > 0 ? Math.ceil(comments.length / COMMENTS_PER_PAGE) : 0;
+    const paginationEl = div({ 
+      className: 'vilify-comments-pagination',
+      style: totalPages > 1 ? '' : 'display: none'
+    }, [
+      createElement('kbd', { textContent: 'ctrl+b' }),
+      span({ className: 'vilify-comments-page-info', textContent: `${commentPage + 1} / ${totalPages}` }),
+      createElement('kbd', { textContent: 'ctrl+f' })
+    ]);
+    
     if (comments.length === 0) {
       commentsList.appendChild(div({ className: 'vilify-empty', textContent: 'Loading comments...' }));
     } else {
-      comments.forEach(comment => {
+      // Reset to first page when re-rendering watch page
+      commentPage = 0;
+      const startIdx = 0;
+      const endIdx = Math.min(COMMENTS_PER_PAGE, comments.length);
+      const pageComments = comments.slice(startIdx, endIdx);
+      
+      pageComments.forEach(comment => {
         commentsList.appendChild(div({ className: 'vilify-comment' }, [
           div({ className: 'vilify-comment-author', textContent: '@' + comment.author.replace(/^@/, '') }),
           div({ className: 'vilify-comment-text', textContent: comment.text })
@@ -1426,7 +1477,8 @@
     
     const commentsSection = div({ className: 'vilify-comments' }, [
       div({ className: 'vilify-comments-header', textContent: 'Comments' }),
-      commentsList
+      commentsList,
+      paginationEl
     ]);
     
     sidebar.appendChild(commentsSection);
@@ -1442,6 +1494,10 @@
   let commentObserver = null;
   let commentLoadAttempts = 0;
   const MAX_COMMENT_LOAD_ATTEMPTS = 5;
+  
+  // Comment pagination state
+  let commentPage = 0;
+  const COMMENTS_PER_PAGE = 5;
 
   function setupCommentObserver() {
     if (commentObserver) return; // Already observing
@@ -1515,6 +1571,7 @@
 
   function updateCommentsUI(comments) {
     const commentsList = document.querySelector('.vilify-comments-list');
+    const paginationEl = document.querySelector('.vilify-comments-pagination');
     if (!commentsList) return;
     clearElement(commentsList);
     
@@ -1523,16 +1580,63 @@
         className: 'vilify-empty', 
         textContent: 'No comments available' 
       }));
+      if (paginationEl) paginationEl.style.display = 'none';
       return;
     }
     
-    comments.forEach(comment => {
+    // Calculate pagination
+    const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
+    // Ensure current page is valid
+    if (commentPage >= totalPages) commentPage = totalPages - 1;
+    if (commentPage < 0) commentPage = 0;
+    
+    const startIdx = commentPage * COMMENTS_PER_PAGE;
+    const endIdx = Math.min(startIdx + COMMENTS_PER_PAGE, comments.length);
+    const pageComments = comments.slice(startIdx, endIdx);
+    
+    pageComments.forEach(comment => {
       const commentEl = createElement('div', { className: 'vilify-comment' }, [
-        createElement('div', { className: 'vilify-comment-author', textContent: comment.author }),
+        createElement('div', { className: 'vilify-comment-author', textContent: '@' + comment.author.replace(/^@/, '') }),
         createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
       ]);
       commentsList.appendChild(commentEl);
     });
+    
+    // Update pagination display
+    if (paginationEl) {
+      if (totalPages > 1) {
+        paginationEl.style.display = '';
+        const pageInfo = paginationEl.querySelector('.vilify-comments-page-info');
+        if (pageInfo) {
+          pageInfo.textContent = `${commentPage + 1} / ${totalPages}`;
+        }
+      } else {
+        paginationEl.style.display = 'none';
+      }
+    }
+  }
+
+  function nextCommentPage() {
+    const comments = scrapeComments();
+    const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
+    
+    if (commentPage < totalPages - 1) {
+      commentPage++;
+      updateCommentsUI(comments);
+    } else {
+      // At last page - try to load more comments from YouTube
+      loadMoreComments();
+    }
+  }
+
+  function prevCommentPage() {
+    if (commentPage > 0) {
+      commentPage--;
+      const comments = scrapeComments();
+      updateCommentsUI(comments);
+    } else {
+      showToast('Already at first page');
+    }
   }
 
   function loadMoreComments() {
@@ -1559,9 +1663,14 @@
     
     showToast('Loading more comments...');
     
-    // Re-scrape comments after a delay
+    // Re-scrape comments after a delay and go to the new page
     setTimeout(() => {
       const comments = scrapeComments();
+      const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
+      // If we now have more pages, go to the next one
+      if (commentPage < totalPages - 1) {
+        commentPage++;
+      }
       updateCommentsUI(comments);
     }, 1500);
   }
@@ -1811,7 +1920,8 @@
       cmds.push({ label: 'Toggle mute', icon: videoCtx.muted ? '🔇' : '🔊', action: toggleMute, keys: 'M' });
       cmds.push({ label: 'Show description', icon: '📖', action: toggleDescriptionOpen, keys: 'Z O' });
       cmds.push({ label: 'Close description', icon: '📕', action: toggleDescriptionClose, keys: 'Z C' });
-      cmds.push({ label: 'Load more comments', icon: '💬', action: loadMoreComments, keys: 'Ctrl+F' });
+      cmds.push({ label: 'Next comment page', icon: '💬', action: nextCommentPage, keys: 'Ctrl+F' });
+      cmds.push({ label: 'Prev comment page', icon: '💬', action: prevCommentPage, keys: 'Ctrl+B' });
       cmds.push({ label: 'Jump to chapter', icon: '📑', action: openChapterPicker, keys: 'F' });
 
       cmds.push({ group: 'Copy' });
@@ -2636,12 +2746,16 @@
       }
     }
 
-    // Ctrl+f/b for loading more comments on watch page
+    // Ctrl+f/b for comment pagination on watch page
     if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
       if (e.key === 'f' || e.key === 'b') {
-        if (focusModeActive && getPageType() === 'watch' && !isPaletteOpen() && !isChapterPickerOpen()) {
+        if (focusModeActive && getPageType() === 'watch' && !isPaletteOpen() && !isChapterPickerOpen() && !isDescriptionModalOpen()) {
           e.preventDefault();
-          loadMoreComments();
+          if (e.key === 'f') {
+            nextCommentPage();
+          } else {
+            prevCommentPage();
+          }
           return;
         }
       }
@@ -2883,6 +2997,7 @@
     clearVideoCache();
     selectedIdx = 0;
     watchPageRetryCount = 0;
+    commentPage = 0;
     // Clean up comment observer
     if (commentObserver) {
       commentObserver.disconnect();
