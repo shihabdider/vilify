@@ -165,6 +165,7 @@
       visibility: hidden !important;
     }
 
+    /* Base player visibility for non-watch pages */
     body.vilify-focus-mode #movie_player {
       visibility: visible !important;
       position: fixed !important;
@@ -176,6 +177,24 @@
 
     body.vilify-focus-mode ytd-watch-flexy {
       visibility: hidden !important;
+    }
+    
+    /* On watch page, make player and ALL its ancestors visible */
+    body.vilify-focus-mode.vilify-watch-page ytd-watch-flexy {
+      visibility: visible !important;
+    }
+    
+    body.vilify-focus-mode.vilify-watch-page ytd-watch-flexy > * {
+      visibility: hidden !important;
+    }
+    
+    body.vilify-focus-mode.vilify-watch-page #player-container,
+    body.vilify-focus-mode.vilify-watch-page #player-container-outer,
+    body.vilify-focus-mode.vilify-watch-page #player-container-inner,
+    body.vilify-focus-mode.vilify-watch-page #player,
+    body.vilify-focus-mode.vilify-watch-page #movie_player,
+    body.vilify-focus-mode.vilify-watch-page #movie_player * {
+      visibility: visible !important;
     }
 
     /* Prevent scrolling on YouTube's hidden content */
