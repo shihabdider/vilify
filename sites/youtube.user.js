@@ -3099,7 +3099,12 @@
         // Only re-render if we have more videos
         if (videos.length > currentItems) {
           clearVideoCache();
+          // Preserve selection index relative to current position
+          const prevSelectedIdx = selectedIdx;
           renderVideoList(scrapeVideos());
+          // Restore selection and scroll it into view
+          selectedIdx = prevSelectedIdx;
+          updateVideoSelection();
         }
       }, 500);
     });
