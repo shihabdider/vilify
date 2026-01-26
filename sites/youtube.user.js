@@ -1812,6 +1812,65 @@
   }
 
   // ============================================
+  // Focus Mode Initialization
+  // ============================================
+  function initFocusMode() {
+    if (!focusModeActive) return;
+    
+    // Add focus mode class to body
+    document.body.classList.add('vilify-focus-mode');
+    
+    // Create overlay if needed
+    createFocusOverlay();
+    
+    // Route to appropriate renderer
+    const pageType = getPageType();
+    
+    if (pageType === 'watch') {
+      document.body.classList.add('vilify-watch-page');
+      renderWatchPage();
+    } else {
+      document.body.classList.remove('vilify-watch-page');
+      const videos = scrapeVideos();
+      renderVideoList(videos);
+    }
+  }
+
+  function exitFocusMode() {
+    focusModeActive = false;
+    document.body.classList.remove('vilify-focus-mode', 'vilify-watch-page');
+    if (focusOverlay) {
+      focusOverlay.remove();
+      focusOverlay = null;
+    }
+    showToast('Focus mode off (refresh to re-enable)');
+  }
+
+  function waitForContent(callback, maxWait = 5000) {
+    const startTime = Date.now();
+    
+    function check() {
+      const hasVideos = document.querySelector('ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model');
+      const hasPlayer = document.querySelector('#movie_player video');
+      const pageType = getPageType();
+      
+      // On watch page, wait for player; otherwise wait for videos
+      const ready = pageType === 'watch' ? hasPlayer : hasVideos;
+      
+      if (ready) {
+        callback();
+      } else if (Date.now() - startTime < maxWait) {
+        setTimeout(check, 100);
+      } else {
+        // Timeout - show anyway
+        callback();
+      }
+    }
+    
+    check();
+  }
+
+  // ============================================
   // SPA Navigation Detection
   // ============================================
   // YouTube is an SPA - detect navigation without full page loads
@@ -1827,7 +1886,15 @@
     settingsApplied = false;
     // Clear video cache
     clearVideoCache();
-    console.log('[Keyring] Navigated to:', location.pathname);
+    // Reset selection
+    selectedIdx = 0;
+    // Re-initialize focus mode for new page
+    if (focusModeActive) {
+      waitForContent(() => {
+        initFocusMode();
+      });
+    }
+    console.log('[Vilify] Navigated to:', location.pathname);
   }
 
   // Watch for URL changes and apply settings when video is ready
@@ -1856,6 +1923,23 @@
     }
   });
 
-  console.log('[Keyring] YouTube palette loaded');
+  // ============================================
+  // Initialization
+  // ============================================
+  function init() {
+    injectStyles();
+    waitForContent(() => {
+      initFocusMode();
+    });
+  }
+
+  // Run on initial load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  console.log('[Vilify] YouTube focus mode loaded');
 
 })();
