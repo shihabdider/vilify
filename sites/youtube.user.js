@@ -1844,35 +1844,25 @@
         notificationBtn.click();
         // Wait for dropdown to appear
         setTimeout(() => {
-          // Look for Unsubscribe in the popup menu
-          const popup = document.querySelector('ytd-menu-popup-renderer, tp-yt-iron-dropdown');
-          if (popup) {
-            const menuItems = popup.querySelectorAll('ytd-menu-service-item-renderer, tp-yt-paper-item');
-            for (const item of menuItems) {
-              if (item.textContent?.toLowerCase().includes('unsubscribe')) {
-                item.click();
-                // Handle confirmation dialog
-                setTimeout(() => {
-                  // Find the blue "Unsubscribe" button in the confirmation modal
-                  const dialogBtns = document.querySelectorAll('yt-confirm-dialog-renderer button, tp-yt-paper-dialog button, yt-button-renderer button');
-                  for (const btn of dialogBtns) {
-                    if (btn.textContent?.toLowerCase().trim() === 'unsubscribe') {
-                      btn.click();
-                      showToast('Unsubscribed');
-                      setTimeout(() => updateSubscribeButton(false), 500);
-                      return;
-                    }
-                  }
-                  // Fallback: try aria-label
-                  const confirmBtn = document.querySelector('[aria-label="Unsubscribe"]');
-                  if (confirmBtn) {
-                    confirmBtn.click();
-                    showToast('Unsubscribed');
-                    setTimeout(() => updateSubscribeButton(false), 500);
-                  }
-                }, 300);
-                return;
-              }
+          // Look for Unsubscribe anywhere in the page (dropdown menu)
+          const allElements = document.querySelectorAll('ytd-menu-service-item-renderer, tp-yt-paper-item, yt-formatted-string');
+          for (const item of allElements) {
+            const text = item.textContent?.toLowerCase() || '';
+            if (text.includes('unsubscribe') && !text.includes('unsubscribe from')) {
+              item.click();
+              // Handle confirmation dialog
+              setTimeout(() => {
+                // Use the exact selector from the HTML: #confirm-button button[aria-label="Unsubscribe"]
+                const confirmBtn = document.querySelector('#confirm-button button[aria-label="Unsubscribe"], yt-confirm-dialog-renderer #confirm-button button');
+                if (confirmBtn) {
+                  confirmBtn.click();
+                  showToast('Unsubscribed');
+                  setTimeout(() => updateSubscribeButton(false), 500);
+                } else {
+                  showToast('Could not confirm unsubscribe');
+                }
+              }, 300);
+              return;
             }
           }
           showToast('Unsubscribe option not found');
