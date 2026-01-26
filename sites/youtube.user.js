@@ -1445,37 +1445,16 @@
     
     sidebar.appendChild(videoInfo);
     
-    // Comments section
-    const comments = scrapeComments();
+    // Comments section - build structure first, populate after DOM ready
     const commentsList = div({ className: 'vilify-comments-list' });
-    
-    // Pagination footer
-    const totalPages = comments.length > 0 ? Math.ceil(comments.length / COMMENTS_PER_PAGE) : 0;
     const paginationEl = div({ 
       className: 'vilify-comments-pagination',
-      style: totalPages > 1 ? '' : 'display: none'
+      style: 'display: none'
     }, [
       createElement('kbd', { textContent: 'ctrl+b' }),
-      span({ className: 'vilify-comments-page-info', textContent: `${commentPage + 1} / ${totalPages}` }),
+      span({ className: 'vilify-comments-page-info', textContent: '1 / 1' }),
       createElement('kbd', { textContent: 'ctrl+f' })
     ]);
-    
-    if (comments.length === 0) {
-      commentsList.appendChild(div({ className: 'vilify-empty', textContent: 'Loading comments...' }));
-    } else {
-      // Reset to first page when re-rendering watch page
-      commentPage = 0;
-      const startIdx = 0;
-      const endIdx = Math.min(COMMENTS_PER_PAGE, comments.length);
-      const pageComments = comments.slice(startIdx, endIdx);
-      
-      pageComments.forEach(comment => {
-        commentsList.appendChild(div({ className: 'vilify-comment' }, [
-          div({ className: 'vilify-comment-author', textContent: '@' + comment.author.replace(/^@/, '') }),
-          div({ className: 'vilify-comment-text', textContent: comment.text })
-        ]));
-      });
-    }
     
     const commentsSection = div({ className: 'vilify-comments' }, [
       div({ className: 'vilify-comments-header', textContent: 'Comments' }),
@@ -1484,12 +1463,19 @@
     ]);
     
     sidebar.appendChild(commentsSection);
-    
     content.appendChild(sidebar);
     
-    // If no comments yet, set up observer to re-render when they load
+    // Now that DOM is ready, populate comments with proper height calculation
+    const comments = scrapeComments();
+    commentPage = 0;
+    commentPageStarts = [0];
+    
     if (comments.length === 0) {
+      commentsList.appendChild(div({ className: 'vilify-empty', textContent: 'Loading comments...' }));
       setupCommentObserver();
+    } else {
+      // Use updateCommentsUI which calculates proper pagination based on height
+      updateCommentsUI(comments);
     }
   }
 
@@ -1499,7 +1485,7 @@
   
   // Comment pagination state
   let commentPage = 0;
-  const COMMENTS_PER_PAGE = 8;
+  let commentPageStarts = [0]; // Array of starting indices for each page
 
   function setupCommentObserver() {
     if (commentObserver) return; // Already observing
@@ -1571,6 +1557,54 @@
     }
   }
 
+  function calculateCommentPages(comments, containerHeight) {
+    // Calculate which comments fit on each page based on height
+    // Returns array of starting indices for each page
+    if (comments.length === 0) return [0];
+    
+    const pageStarts = [0];
+    
+    // Create a hidden measurement container
+    const measureDiv = document.createElement('div');
+    measureDiv.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      width: 318px;
+      padding: 0 16px;
+      font-family: var(--font-main);
+    `;
+    document.body.appendChild(measureDiv);
+    
+    let currentHeight = 0;
+    let pageStartIdx = 0;
+    
+    for (let i = 0; i < comments.length; i++) {
+      const comment = comments[i];
+      
+      // Create a comment element to measure
+      const commentEl = createElement('div', { className: 'vilify-comment' }, [
+        createElement('div', { className: 'vilify-comment-author', textContent: '@' + comment.author.replace(/^@/, '') }),
+        createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
+      ]);
+      measureDiv.appendChild(commentEl);
+      const commentHeight = commentEl.offsetHeight;
+      measureDiv.removeChild(commentEl);
+      
+      // Check if this comment would overflow
+      if (currentHeight + commentHeight > containerHeight && i > pageStartIdx) {
+        // Start a new page
+        pageStarts.push(i);
+        pageStartIdx = i;
+        currentHeight = commentHeight;
+      } else {
+        currentHeight += commentHeight;
+      }
+    }
+    
+    document.body.removeChild(measureDiv);
+    return pageStarts;
+  }
+
   function updateCommentsUI(comments) {
     const commentsList = document.querySelector('.vilify-comments-list');
     const paginationEl = document.querySelector('.vilify-comments-pagination');
@@ -1586,14 +1620,25 @@
       return;
     }
     
-    // Calculate pagination
-    const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
+    // Get available height for comments list
+    const commentsContainer = document.querySelector('.vilify-comments');
+    const headerEl = document.querySelector('.vilify-comments-header');
+    const paginationHeight = paginationEl ? paginationEl.offsetHeight : 50;
+    const headerHeight = headerEl ? headerEl.offsetHeight : 30;
+    const containerHeight = commentsContainer ? commentsContainer.offsetHeight : 400;
+    const availableHeight = containerHeight - headerHeight - paginationHeight - 24; // 24px for padding
+    
+    // Calculate page boundaries based on height
+    commentPageStarts = calculateCommentPages(comments, availableHeight);
+    const totalPages = commentPageStarts.length;
+    
     // Ensure current page is valid
     if (commentPage >= totalPages) commentPage = totalPages - 1;
     if (commentPage < 0) commentPage = 0;
     
-    const startIdx = commentPage * COMMENTS_PER_PAGE;
-    const endIdx = Math.min(startIdx + COMMENTS_PER_PAGE, comments.length);
+    // Get comments for current page
+    const startIdx = commentPageStarts[commentPage];
+    const endIdx = commentPage < totalPages - 1 ? commentPageStarts[commentPage + 1] : comments.length;
     const pageComments = comments.slice(startIdx, endIdx);
     
     pageComments.forEach(comment => {
@@ -1620,7 +1665,7 @@
 
   function nextCommentPage() {
     const comments = scrapeComments();
-    const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
+    const totalPages = commentPageStarts.length;
     
     if (commentPage < totalPages - 1) {
       commentPage++;
@@ -1688,16 +1733,15 @@
     window.dispatchEvent(scrollEvent);
     
     // Check for new comments after delay
+    const oldCommentCount = scrapeComments().length;
     setTimeout(() => {
       const comments = scrapeComments();
-      const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
-      const currentTotal = document.querySelectorAll('.vilify-comment').length + 
-                          (commentPage * COMMENTS_PER_PAGE);
       
-      if (comments.length > currentTotal) {
+      if (comments.length > oldCommentCount) {
         // New comments loaded - go to next page
         commentPage++;
         updateCommentsUI(comments);
+        const totalPages = commentPageStarts.length;
         showToast(`Loaded more comments (page ${commentPage + 1}/${totalPages})`);
       } else {
         showToast('No more comments available');
