@@ -1258,7 +1258,7 @@
       if (commentEls.length > 0) break;
     }
     
-    for (const el of Array.from(commentEls).slice(0, 20)) {
+    for (const el of Array.from(commentEls)) {
       const authorEl = queryFirst(SELECTORS.comments.author, el);
       const contentEl = queryFirst(SELECTORS.comments.content, el);
       
@@ -1626,7 +1626,7 @@
     const paginationHeight = paginationEl ? paginationEl.offsetHeight : 50;
     const headerHeight = headerEl ? headerEl.offsetHeight : 30;
     const containerHeight = commentsContainer ? commentsContainer.offsetHeight : 400;
-    const availableHeight = containerHeight - headerHeight - paginationHeight - 24; // 24px for padding
+    const availableHeight = containerHeight - headerHeight - paginationHeight - 40; // padding + safety margin
     
     // Calculate page boundaries based on height
     commentPageStarts = calculateCommentPages(comments, availableHeight);
@@ -1738,15 +1738,21 @@
       const comments = scrapeComments();
       
       if (comments.length > oldCommentCount) {
-        // New comments loaded - go to next page
-        commentPage++;
-        updateCommentsUI(comments);
+        // New comments loaded - recalculate pages first
+        const oldPageCount = commentPageStarts.length;
+        updateCommentsUI(comments); // This recalculates commentPageStarts
+        
+        // If we have more pages now, advance to next page
+        if (commentPageStarts.length > oldPageCount) {
+          commentPage++;
+          updateCommentsUI(comments);
+        }
         const totalPages = commentPageStarts.length;
-        showToast(`Loaded more comments (page ${commentPage + 1}/${totalPages})`);
+        showToast(`Loaded ${comments.length - oldCommentCount} more (page ${commentPage + 1}/${totalPages})`);
       } else {
         showToast('No more comments available');
       }
-    }, 1500);
+    }, 2000);
   }
 
   function formatTimestamp(seconds) {
