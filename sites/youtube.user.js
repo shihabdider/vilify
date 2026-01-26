@@ -1260,10 +1260,7 @@
     const content = document.getElementById('vilify-content');
     if (!content) return;
     
-    // Clear content
-    while (content.firstChild) {
-      content.removeChild(content.firstChild);
-    }
+    clearElement(content);
     
     const ctx = getVideoContext();
     
@@ -1414,10 +1411,7 @@
   function updateCommentsUI(comments) {
     const commentsList = document.querySelector('.vilify-comments-list');
     if (!commentsList) return;
-    
-    while (commentsList.firstChild) {
-      commentsList.removeChild(commentsList.firstChild);
-    }
+    clearElement(commentsList);
     
     if (comments.length === 0) {
       commentsList.appendChild(createElement('div', { 
@@ -1852,9 +1846,7 @@
   // Rendering
   // ============================================
   function render() {
-    while (listEl.firstChild) {
-      listEl.removeChild(listEl.firstChild);
-    }
+    clearElement(listEl);
 
     let idx = 0;
 
@@ -1981,6 +1973,9 @@
 
   // Check if an overlay element is open
   const isOverlayOpen = (overlay) => overlay?.classList.contains('open');
+
+  // Clear all children from an element
+  const clearElement = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
 
   function createFocusOverlay() {
     if (focusOverlay) return;
@@ -2217,9 +2212,7 @@
   const isChapterPickerOpen = () => isOverlayOpen(chapterOverlay);
 
   function renderChapterList(filter = '') {
-    while (chapterListEl.firstChild) {
-      chapterListEl.removeChild(chapterListEl.firstChild);
-    }
+    clearElement(chapterListEl);
 
     let filtered = chapterItems;
     if (filter) {
@@ -2320,11 +2313,7 @@
   function renderVideoList(videos, filterQuery = '') {
     const content = document.getElementById('vilify-content');
     if (!content) return;
-    
-    // Clear content
-    while (content.firstChild) {
-      content.removeChild(content.firstChild);
-    }
+    clearElement(content);
     
     // Filter videos if query provided
     let filtered = videos;
@@ -2731,13 +2720,8 @@
   function showLoading() {
     const content = document.getElementById('vilify-content');
     if (!content) return;
-    while (content.firstChild) {
-      content.removeChild(content.firstChild);
-    }
-    content.appendChild(createElement('div', { 
-      className: 'vilify-empty', 
-      textContent: 'Loading...' 
-    }));
+    clearElement(content);
+    content.appendChild(div({ className: 'vilify-empty', textContent: 'Loading...' }));
   }
 
   function waitForContent(callback, maxWait = 5000) {
