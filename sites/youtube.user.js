@@ -1311,10 +1311,7 @@
     if (!ctx || (!ctx.title && !ctx.channelName)) {
       if (watchPageRetryCount < WATCH_PAGE_MAX_RETRIES) {
         watchPageRetryCount++;
-        content.appendChild(createElement('div', { 
-          className: 'vilify-empty', 
-          textContent: 'Loading video info...' 
-        }));
+        content.appendChild(div({ className: 'vilify-empty', textContent: 'Loading video info...' }));
         setTimeout(renderWatchPage, WATCH_PAGE_RETRY_DELAY);
         return;
       }
@@ -1324,31 +1321,12 @@
     watchPageRetryCount = 0;
     
     if (!ctx) {
-      content.appendChild(createElement('div', { 
-        className: 'vilify-empty', 
-        textContent: 'Could not load video info' 
-      }));
+      content.appendChild(div({ className: 'vilify-empty', textContent: 'Could not load video info' }));
       return;
     }
     
     // Video info section
-    const videoInfo = createElement('div', { className: 'vilify-watch-info' });
-    
-    // Title
-    videoInfo.appendChild(createElement('h1', { 
-      className: 'vilify-watch-title', 
-      textContent: ctx.title || 'Untitled' 
-    }));
-    
-    // Channel row
-    const channelRow = createElement('div', { className: 'vilify-channel-row' });
-    channelRow.appendChild(createElement('span', { 
-      className: 'vilify-channel-name', 
-      textContent: ctx.channelName || 'Unknown channel' 
-    }));
-    
-    // Subscribe button (proxy to YouTube's button)
-    const subBtn = createElement('button', { 
+    const subBtn = button({ 
       className: ctx.isSubscribed ? 'vilify-subscribe-btn subscribed' : 'vilify-subscribe-btn',
       textContent: ctx.isSubscribed ? 'Subscribed' : 'Subscribe'
     });
@@ -1356,43 +1334,39 @@
       const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
       if (ytSubBtn) ytSubBtn.click();
     });
-    channelRow.appendChild(subBtn);
     
-    videoInfo.appendChild(channelRow);
-    
-    // Description hint
-    const descHint = createElement('div', { className: 'vilify-description-hint' });
-    descHint.appendChild(document.createTextNode('Press '));
-    descHint.appendChild(createElement('kbd', { textContent: 'zo' }));
-    descHint.appendChild(document.createTextNode(' for description'));
-    videoInfo.appendChild(descHint);
+    const videoInfo = div({ className: 'vilify-watch-info' }, [
+      createElement('h1', { className: 'vilify-watch-title', textContent: ctx.title || 'Untitled' }),
+      div({ className: 'vilify-channel-row' }, [
+        span({ className: 'vilify-channel-name', textContent: ctx.channelName || 'Unknown channel' }),
+        subBtn
+      ]),
+      div({ className: 'vilify-description-hint' }, [
+        'Press ', createElement('kbd', { textContent: 'zo' }), ' for description'
+      ])
+    ]);
     
     content.appendChild(videoInfo);
     
     // Comments section
-    const commentsSection = createElement('div', { className: 'vilify-comments' });
-    commentsSection.appendChild(createElement('div', { 
-      className: 'vilify-comments-header', 
-      textContent: 'Comments' 
-    }));
-    
-    const commentsList = createElement('div', { className: 'vilify-comments-list' });
     const comments = scrapeComments();
+    const commentsList = div({ className: 'vilify-comments-list' });
     
     if (comments.length === 0) {
-      commentsList.appendChild(createElement('div', { 
-        className: 'vilify-empty', 
-        textContent: 'Loading comments...' 
-      }));
+      commentsList.appendChild(div({ className: 'vilify-empty', textContent: 'Loading comments...' }));
     } else {
       comments.forEach(comment => {
-        const commentEl = createElement('div', { className: 'vilify-comment' }, [
-          createElement('div', { className: 'vilify-comment-author', textContent: comment.author }),
-          createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
-        ]);
-        commentsList.appendChild(commentEl);
+        commentsList.appendChild(div({ className: 'vilify-comment' }, [
+          div({ className: 'vilify-comment-author', textContent: comment.author }),
+          div({ className: 'vilify-comment-text', textContent: comment.text })
+        ]));
       });
     }
+    
+    const commentsSection = div({ className: 'vilify-comments' }, [
+      div({ className: 'vilify-comments-header', textContent: 'Comments' }),
+      commentsList
+    ]);
     
     commentsSection.appendChild(commentsList);
     content.appendChild(commentsSection);
@@ -2071,62 +2045,52 @@
     return el;
   }
 
+  // Shorthand element creators
+  const div = (attrs, children) => createElement('div', attrs, children);
+  const span = (attrs, children) => createElement('span', attrs, children);
+  const img = (attrs) => createElement('img', attrs);
+  const input = (attrs) => createElement('input', attrs);
+  const button = (attrs, children) => createElement('button', attrs, children);
+
   function createFocusOverlay() {
     if (focusOverlay) return;
     
-    focusOverlay = createElement('div', { id: 'vilify-focus' });
+    focusOverlay = div({ id: 'vilify-focus' });
     
     // Header with filter and search
-    const header = createElement('div', { className: 'vilify-header' });
-    const logo = createElement('div', { className: 'vilify-logo' });
-    logo.appendChild(createElement('div', { className: 'vilify-logo-icon' }));
-    header.appendChild(logo);
+    const header = div({ className: 'vilify-header' }, [
+      div({ className: 'vilify-logo' }, [div({ className: 'vilify-logo-icon' })])
+    ]);
     
     // Filter input (hidden by default)
-    const filterWrapper = createElement('div', { className: 'vilify-filter-wrapper hidden', 'data-mode': 'filter' });
-    const filterInput = createElement('input', {
-      id: 'vilify-filter',
-      type: 'text',
-      placeholder: 'filter videos...',
-      autocomplete: 'off',
-      spellcheck: 'false'
+    const filterInput = input({
+      id: 'vilify-filter', type: 'text', placeholder: 'filter videos...',
+      autocomplete: 'off', spellcheck: 'false'
     });
-    filterWrapper.appendChild(createElement('span', { textContent: '/' }));
-    filterWrapper.appendChild(filterInput);
-    header.appendChild(filterWrapper);
+    header.appendChild(div({ className: 'vilify-filter-wrapper hidden', 'data-mode': 'filter' }, [
+      span({ textContent: '/' }), filterInput
+    ]));
     
     // Search input (hidden by default)
-    const searchWrapper = createElement('div', { className: 'vilify-search-wrapper hidden', 'data-mode': 'search' });
-    const searchInput = createElement('input', {
-      id: 'vilify-search',
-      type: 'text',
-      placeholder: 'search youtube...',
-      autocomplete: 'off',
-      spellcheck: 'false'
+    const searchInput = input({
+      id: 'vilify-search', type: 'text', placeholder: 'search youtube...',
+      autocomplete: 'off', spellcheck: 'false'
     });
-    searchWrapper.appendChild(createElement('span', { textContent: '?' }));
-    searchWrapper.appendChild(searchInput);
-    header.appendChild(searchWrapper);
+    header.appendChild(div({ className: 'vilify-search-wrapper hidden', 'data-mode': 'search' }, [
+      span({ textContent: '?' }), searchInput
+    ]));
     
-    header.appendChild(createElement('span', { className: 'vilify-mode', textContent: '[/] filter  [i] search  [:] commands' }));
-    
-    // Content area
-    const content = createElement('div', { id: 'vilify-content' });
-    
-    // Footer
-    const footer = createElement('div', { className: 'vilify-footer', textContent: 'j/k navigate · enter select · shift+enter new tab · :q quit' });
+    header.appendChild(span({ className: 'vilify-mode', textContent: '[/] filter  [i] search  [:] commands' }));
     
     focusOverlay.appendChild(header);
-    focusOverlay.appendChild(content);
-    focusOverlay.appendChild(footer);
+    focusOverlay.appendChild(div({ id: 'vilify-content' }));
+    focusOverlay.appendChild(div({ className: 'vilify-footer', textContent: 'j/k navigate · enter select · shift+enter new tab · :q quit' }));
     
     document.body.appendChild(focusOverlay);
     
-    // Filter input event listeners
+    // Event listeners
     filterInput.addEventListener('input', onFilterInput);
     filterInput.addEventListener('keydown', onFilterKeydown);
-    
-    // Search input event listeners
     searchInput.addEventListener('keydown', onSearchKeydown);
   }
 
@@ -2466,37 +2430,25 @@
       const message = filterQuery 
         ? `No videos matching "${filterQuery}"` 
         : 'No videos found. Try scrolling to load more.';
-      content.appendChild(createElement('div', { 
-        className: 'vilify-empty', 
-        textContent: message 
-      }));
+      content.appendChild(div({ className: 'vilify-empty', textContent: message }));
       return;
     }
     
     filtered.forEach((video, idx) => {
-      const item = createElement('div', {
+      const item = div({
         className: `vilify-video-item ${idx === selectedIdx ? 'selected' : ''}`,
         'data-idx': String(idx),
         'data-url': video.url
-      });
-      
-      // Thumbnail with box border
-      const thumbWrapper = createElement('div', { className: 'vilify-thumb-wrapper' }, [
-        createElement('img', { 
-          className: 'vilify-thumb', 
-          src: video.thumbnailUrl,
-          alt: ''
-        })
+      }, [
+        div({ className: 'vilify-thumb-wrapper' }, [
+          img({ className: 'vilify-thumb', src: video.thumbnailUrl, alt: '' })
+        ]),
+        div({ className: 'vilify-video-info' }, [
+          div({ className: 'vilify-video-title', textContent: video.title }),
+          div({ className: 'vilify-video-meta', textContent: video.channelName || '' })
+        ])
       ]);
       
-      // Video info
-      const info = createElement('div', { className: 'vilify-video-info' }, [
-        createElement('div', { className: 'vilify-video-title', textContent: video.title }),
-        createElement('div', { className: 'vilify-video-meta', textContent: video.channelName || '' })
-      ]);
-      
-      item.appendChild(thumbWrapper);
-      item.appendChild(info);
       content.appendChild(item);
       
       // Event listeners
