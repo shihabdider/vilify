@@ -9,11 +9,132 @@
 // @match        https://www.youtube.com/*
 // @match        https://youtube.com/*
 // @grant        GM_setClipboard
-// @run-at       document-end
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
+
+  // ============================================
+  // Early Loading Screen
+  // ============================================
+  // Inject loading styles immediately to prevent flash of YouTube UI
+  // This runs at document-start, before YouTube renders anything
+  const LOADING_CSS = `
+    /* Hide YouTube UI immediately during loading */
+    body.vilify-loading ytd-app,
+    body.vilify-loading #content,
+    body.vilify-loading ytd-browse,
+    body.vilify-loading ytd-watch-flexy,
+    body.vilify-loading ytd-search {
+      visibility: hidden !important;
+    }
+
+    /* Loading overlay */
+    #vilify-loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 99999999;
+      background: #002b36;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Roboto', 'Arial', sans-serif;
+    }
+
+    #vilify-loading-overlay.hidden {
+      display: none;
+    }
+
+    .vilify-loading-logo {
+      width: 120px;
+      height: 27px;
+      margin-bottom: 24px;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 20"><path fill="%23dc322f" d="M27.973 18.652c-.322.964-.994 1.723-1.858 2.099C23.835 21.6 15 21.6 15 21.6s-8.835 0-11.115-.849c-.864-.376-1.536-1.135-1.858-2.099C1.2 16.432 1.2 12 1.2 12s0-4.432.827-6.652c.322-.964.994-1.723 1.858-2.099C6.165 2.4 15 2.4 15 2.4s8.835 0 11.115.849c.864.376 1.536 1.135 1.858 2.099.827 2.22.827 6.652.827 6.652s0 4.432-.827 6.652z" transform="translate(0,-2)"/><path fill="%23FFF" d="M12 15.6l7.2-4.8L12 6v9.6z" transform="translate(0,-2)"/><text x="32" y="15" fill="%2393a1a1" font-family="Arial,sans-serif" font-size="14" font-weight="bold">YouTube</text></svg>') no-repeat center;
+      background-size: contain;
+    }
+
+    .vilify-loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #073642;
+      border-top-color: #dc322f;
+      border-radius: 50%;
+      animation: vilify-spin 0.8s linear infinite;
+    }
+
+    @keyframes vilify-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .vilify-loading-text {
+      margin-top: 16px;
+      color: #657b83;
+      font-size: 14px;
+    }
+  `;
+
+  function injectLoadingScreen() {
+    // Inject loading CSS into head (or html if head not ready)
+    const style = document.createElement('style');
+    style.id = 'vilify-loading-styles';
+    style.textContent = LOADING_CSS;
+    (document.head || document.documentElement).appendChild(style);
+
+    // Add loading class to body (or html if body not ready)
+    const target = document.body || document.documentElement;
+    target.classList.add('vilify-loading');
+
+    // Create loading overlay as soon as we can
+    function createOverlay() {
+      if (document.getElementById('vilify-loading-overlay')) return;
+      
+      const overlay = document.createElement('div');
+      overlay.id = 'vilify-loading-overlay';
+      
+      // Use DOM methods instead of innerHTML (YouTube uses Trusted Types)
+      const logo = document.createElement('div');
+      logo.className = 'vilify-loading-logo';
+      
+      const spinner = document.createElement('div');
+      spinner.className = 'vilify-loading-spinner';
+      
+      const text = document.createElement('div');
+      text.className = 'vilify-loading-text';
+      text.textContent = 'Loading...';
+      
+      overlay.appendChild(logo);
+      overlay.appendChild(spinner);
+      overlay.appendChild(text);
+      
+      // Append to body if available, otherwise wait
+      if (document.body) {
+        document.body.appendChild(overlay);
+      } else {
+        document.addEventListener('DOMContentLoaded', () => {
+          document.body.appendChild(overlay);
+          document.body.classList.add('vilify-loading');
+        }, { once: true });
+      }
+    }
+
+    createOverlay();
+  }
+
+  function hideLoadingScreen() {
+    const overlay = document.getElementById('vilify-loading-overlay');
+    if (overlay) {
+      overlay.classList.add('hidden');
+      // Remove after transition
+      setTimeout(() => overlay.remove(), 300);
+    }
+    document.body?.classList.remove('vilify-loading');
+    document.documentElement.classList.remove('vilify-loading');
+  }
+
+  // Inject loading screen immediately (runs at document-start)
+  injectLoadingScreen();
 
   // ============================================
   // Styles - YouTube Dark Theme
@@ -2668,6 +2789,11 @@
       return;
     }
     
+    // Clamp selectedIdx to valid range
+    if (selectedIdx >= filtered.length) {
+      selectedIdx = Math.max(0, filtered.length - 1);
+    }
+    
     filtered.forEach((video, idx) => {
       const item = div({
         className: `vilify-video-item ${idx === selectedIdx ? 'selected' : ''}`,
@@ -2692,6 +2818,9 @@
         updateVideoSelection();
       });
     });
+    
+    // Scroll selected item into view
+    updateVideoSelection();
   }
 
   function updateVideoSelection() {
@@ -2988,7 +3117,11 @@
   // Focus Mode Initialization
   // ============================================
   function initFocusMode() {
-    if (!focusModeActive) return;
+    if (!focusModeActive) {
+      // Still need to hide loading screen even if focus mode is disabled
+      hideLoadingScreen();
+      return;
+    }
     
     // Add focus mode class to body
     document.body.classList.add('vilify-focus-mode');
@@ -3014,6 +3147,9 @@
       // Watch for more videos loading
       setupVideoObserver();
     }
+
+    // Hide the loading screen now that our UI is ready
+    hideLoadingScreen();
   }
 
   function exitFocusMode() {
@@ -3023,6 +3159,8 @@
       focusOverlay.remove();
       focusOverlay = null;
     }
+    // Hide loading screen in case it's still visible
+    hideLoadingScreen();
     showToast('Focus mode off (refresh to re-enable)');
   }
 
@@ -3099,12 +3237,7 @@
         // Only re-render if we have more videos
         if (videos.length > currentItems) {
           clearVideoCache();
-          // Preserve selection index relative to current position
-          const prevSelectedIdx = selectedIdx;
           renderVideoList(scrapeVideos());
-          // Restore selection and scroll it into view
-          selectedIdx = prevSelectedIdx;
-          updateVideoSelection();
         }
       }, 500);
     });
@@ -3147,6 +3280,7 @@
     commentLoadAttempts = 0;
     
     if (focusModeActive) {
+      // Show loading in our overlay (not the initial loading screen - that's for first load only)
       showLoading();
       waitForContent(() => {
         initFocusMode();
@@ -3156,22 +3290,28 @@
   }
 
   // Watch for URL changes and apply settings when video is ready
-  const observer = new MutationObserver(() => {
-    if (location.href !== lastUrl) {
-      lastUrl = location.href;
-      onNavigate();
-    }
-    // Apply default settings when on watch page and not yet applied
-    if (!settingsApplied && getPageType() === 'watch') {
-      const video = getVideo();
-      if (video && video.readyState >= 1) {
-        applyDefaultSettings();
-        settingsApplied = true;
+  let observer = null;
+  
+  function setupObserver() {
+    if (observer || !document.body) return;
+    
+    observer = new MutationObserver(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        onNavigate();
       }
-    }
-  });
+      // Apply default settings when on watch page and not yet applied
+      if (!settingsApplied && getPageType() === 'watch') {
+        const video = getVideo();
+        if (video && video.readyState >= 1) {
+          applyDefaultSettings();
+          settingsApplied = true;
+        }
+      }
+    });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
   // Also handle popstate (back/forward)
   window.addEventListener('popstate', () => {
@@ -3186,12 +3326,13 @@
   // ============================================
   function init() {
     injectStyles();
+    setupObserver();
     waitForContent(() => {
       initFocusMode();
     });
   }
 
-  // Run on initial load
+  // Run on initial load - wait for DOM to be ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
