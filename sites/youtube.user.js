@@ -2233,9 +2233,9 @@
 
     // Footer
     const footer = createElement('div', { id: 'vilify-chapter-footer', className: 'vilify-modal-footer' }, [
-      createChapterFooterHint(['↑', '↓'], 'navigate'),
-      createChapterFooterHint(['↵'], 'jump'),
-      createChapterFooterHint(['esc'], 'close')
+      createFooterHint(['↑', '↓'], 'navigate'),
+      createFooterHint(['↵'], 'jump'),
+      createFooterHint(['esc'], 'close')
     ]);
 
     modal.appendChild(header);
@@ -2253,13 +2253,9 @@
     chapterInputEl.addEventListener('keydown', onChapterKeydown);
   }
 
-  function createChapterFooterHint(keys, label) {
-    const span = createElement('span');
-    for (const key of keys) {
-      span.appendChild(createElement('kbd', { textContent: key }));
-    }
-    span.appendChild(document.createTextNode(' ' + label));
-    return span;
+  // Shared footer hint creator (used by chapter picker and command palette)
+  function createFooterHint(keys, label) {
+    return span({}, [...keys.map(k => createElement('kbd', { textContent: k })), ' ' + label]);
   }
 
   function openChapterPicker() {
@@ -2550,15 +2546,6 @@
     });
     inputEl.addEventListener('input', onInput);
     inputEl.addEventListener('keydown', onInputKeydown);
-  }
-
-  function createFooterHint(keys, label) {
-    const span = createElement('span');
-    for (const key of keys) {
-      span.appendChild(createElement('kbd', { textContent: key }));
-    }
-    span.appendChild(document.createTextNode(' ' + label));
-    return span;
   }
 
   // ============================================
