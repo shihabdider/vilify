@@ -412,6 +412,8 @@
       margin-top: 48px;
       margin-bottom: 40px;
       height: calc(100vh - 48px - 40px);
+      display: flex;
+      flex-direction: column;
     }
 
     body.vilify-focus-mode.vilify-watch-page #movie_player {
@@ -1624,8 +1626,7 @@
       commentPage++;
       updateCommentsUI(comments);
     } else {
-      // At last page - try to load more comments from YouTube
-      loadMoreComments();
+      showToast('Last page of comments');
     }
   }
 
@@ -1639,41 +1640,7 @@
     }
   }
 
-  function loadMoreComments() {
-    if (getPageType() !== 'watch') return;
-    
-    // Scroll the hidden YouTube comments section to trigger loading more
-    const commentsContainer = document.querySelector('ytd-comments #contents, ytd-comments');
-    if (commentsContainer) {
-      // Scroll down within the comments
-      commentsContainer.scrollTop += 500;
-      
-      // Also scroll the main page
-      const ytdApp = document.querySelector('ytd-app');
-      if (ytdApp) {
-        window.scrollBy(0, 500);
-      }
-    }
-    
-    // Also try to click "Show more" button if it exists
-    const showMoreBtn = document.querySelector('ytd-comments ytd-button-renderer#more-replies button, ytd-comments [aria-label*="more"]');
-    if (showMoreBtn) {
-      showMoreBtn.click();
-    }
-    
-    showToast('Loading more comments...');
-    
-    // Re-scrape comments after a delay and go to the new page
-    setTimeout(() => {
-      const comments = scrapeComments();
-      const totalPages = Math.ceil(comments.length / COMMENTS_PER_PAGE);
-      // If we now have more pages, go to the next one
-      if (commentPage < totalPages - 1) {
-        commentPage++;
-      }
-      updateCommentsUI(comments);
-    }, 1500);
-  }
+
 
   function formatTimestamp(seconds) {
     if (!seconds || !isFinite(seconds)) return '0:00';
