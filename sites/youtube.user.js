@@ -20,29 +20,41 @@
   // ============================================
   const CSS = `
     :root {
-      /* YouTube Dark Theme */
-      --yt-bg-primary: #0f0f0f;
-      --yt-bg-secondary: #272727;
-      --yt-bg-hover: #3f3f3f;
-      --yt-text-primary: #f1f1f1;
-      --yt-text-secondary: #aaaaaa;
-      --yt-border: #3f3f3f;
-      --yt-accent: #ff0000;
-      --yt-accent-hover: #cc0000;
-      --yt-blue: #3ea6ff;
+      /* Solarized Dark × YouTube Theme */
+      /* Base tones */
+      --sol-base03: #002b36;  /* background */
+      --sol-base02: #073642;  /* surface/cards */
+      --sol-base01: #586e75;  /* borders, de-emphasized */
+      --sol-base00: #657b83;  /* secondary text */
+      --sol-base0: #839496;   /* body text */
+      --sol-base1: #93a1a1;   /* emphasized text */
       
-      /* Semantic mappings */
-      --bg-primary: var(--yt-bg-primary);
-      --bg-secondary: var(--yt-bg-secondary);
-      --bg-hover: var(--yt-bg-hover);
-      --text-primary: var(--yt-text-primary);
-      --text-secondary: var(--yt-text-secondary);
-      --text-emphasis: var(--yt-text-primary);
-      --border: var(--yt-border);
-      --accent: var(--yt-accent);
-      --accent-alt: var(--yt-blue);
-      --selection: var(--yt-accent);
-      --error: var(--yt-accent);
+      /* Accent colors */
+      --sol-red: #dc322f;
+      --sol-orange: #cb4b16;
+      --sol-yellow: #b58900;
+      --sol-green: #859900;
+      --sol-cyan: #2aa198;
+      --sol-blue: #268bd2;
+      --sol-violet: #6c71c4;
+      --sol-magenta: #d33682;
+      
+      /* Hover state - slightly lighter than base02 */
+      --sol-hover: #094959;
+      
+      /* Semantic mappings (YouTube roles → Solarized) */
+      --bg-primary: var(--sol-base03);
+      --bg-secondary: var(--sol-base02);
+      --bg-hover: var(--sol-hover);
+      --text-primary: var(--sol-base1);
+      --text-secondary: var(--sol-base00);
+      --text-emphasis: var(--sol-base1);
+      --border: var(--sol-base01);
+      --accent: var(--sol-red);
+      --accent-hover: #bf1d1a;
+      --accent-alt: var(--sol-blue);
+      --selection: var(--sol-cyan);
+      --error: var(--sol-red);
       
       /* YouTube font stack */
       --font-main: 'Roboto', 'Arial', sans-serif;
@@ -184,11 +196,14 @@
     }
 
     .vilify-header {
-      padding: 12px 24px;
+      height: 48px;
+      padding: 0 24px;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0;
+      box-sizing: border-box;
     }
 
     .vilify-logo {
@@ -200,7 +215,8 @@
     .vilify-logo-icon {
       width: 90px;
       height: 20px;
-      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 20"><path fill="%23FF0000" d="M27.973 18.652c-.322.964-.994 1.723-1.858 2.099C23.835 21.6 15 21.6 15 21.6s-8.835 0-11.115-.849c-.864-.376-1.536-1.135-1.858-2.099C1.2 16.432 1.2 12 1.2 12s0-4.432.827-6.652c.322-.964.994-1.723 1.858-2.099C6.165 2.4 15 2.4 15 2.4s8.835 0 11.115.849c.864.376 1.536 1.135 1.858 2.099.827 2.22.827 6.652.827 6.652s0 4.432-.827 6.652z" transform="translate(0,-2)"/><path fill="%23FFF" d="M12 15.6l7.2-4.8L12 6v9.6z" transform="translate(0,-2)"/><text x="32" y="15" fill="%23FFF" font-family="Arial,sans-serif" font-size="14" font-weight="bold">YouTube</text></svg>') no-repeat center;
+      /* Solarized red (#dc322f) for the play button */
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 20"><path fill="%23dc322f" d="M27.973 18.652c-.322.964-.994 1.723-1.858 2.099C23.835 21.6 15 21.6 15 21.6s-8.835 0-11.115-.849c-.864-.376-1.536-1.135-1.858-2.099C1.2 16.432 1.2 12 1.2 12s0-4.432.827-6.652c.322-.964.994-1.723 1.858-2.099C6.165 2.4 15 2.4 15 2.4s8.835 0 11.115.849c.864.376 1.536 1.135 1.858 2.099.827 2.22.827 6.652.827 6.652s0 4.432-.827 6.652z" transform="translate(0,-2)"/><path fill="%23FFF" d="M12 15.6l7.2-4.8L12 6v9.6z" transform="translate(0,-2)"/><text x="32" y="15" fill="%2393a1a1" font-family="Arial,sans-serif" font-size="14" font-weight="bold">YouTube</text></svg>') no-repeat center;
       background-size: contain;
     }
 
@@ -253,16 +269,26 @@
       transition: background-color 0.15s ease-out;
     }
 
+    /* Watch page: no padding, content fills space */
+    body.vilify-watch-page #vilify-content {
+      padding: 0;
+      overflow: hidden;
+    }
+
     #vilify-content.flash-end {
       background-color: var(--bg-secondary);
     }
 
     .vilify-footer {
-      padding: 12px 24px;
+      height: 40px;
+      padding: 0 24px;
       border-top: 1px solid var(--border);
       color: var(--text-secondary);
-      font-size: 14px;
       font-size: 12px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      box-sizing: border-box;
     }
 
     .vilify-video-item {
@@ -331,47 +357,70 @@
       font-size: 16px;
     }
 
-    /* Watch page - player positioning */
+    /* Watch page - sidebar layout */
     body.vilify-focus-mode.vilify-watch-page #vilify-focus {
-      top: 56.25vw; /* 16:9 aspect ratio */
-      max-top: 70vh;
-    }
-
-    @media (min-width: 1200px) {
-      body.vilify-focus-mode.vilify-watch-page #vilify-focus {
-        top: 70vh;
-      }
+      top: 0;
     }
 
     body.vilify-focus-mode.vilify-watch-page #movie_player {
-      height: 56.25vw !important;
-      max-height: 70vh !important;
-      width: 100% !important;
+      position: fixed !important;
+      top: 48px !important;  /* below header */
+      left: 0 !important;
+      width: calc(100% - 350px) !important;
+      height: calc(100vh - 48px - 40px) !important;  /* viewport minus header and footer */
+      z-index: 1 !important;
+    }
+
+    .vilify-watch-layout {
+      display: flex;
+      height: calc(100vh - 48px - 40px);  /* viewport minus header and footer */
+      margin-top: 48px;  /* below header */
+    }
+
+    .vilify-watch-video-area {
+      flex: 1;
+      min-width: 0;
+      /* This area is behind the fixed player, acts as spacer */
+    }
+
+    .vilify-watch-sidebar {
+      width: 350px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+      background: var(--bg-primary);
+      overflow: hidden;
     }
 
     .vilify-watch-info {
-      padding: 16px;
+      padding: 12px 16px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
     .vilify-watch-title {
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 600;
       color: var(--text-primary);
-      margin: 0 0 12px 0;
-      line-height: 1.4;
+      margin: 0 0 8px 0;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .vilify-channel-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .vilify-channel-name {
       color: var(--text-primary);
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 500;
     }
 
@@ -380,9 +429,9 @@
       border: none;
       border-radius: 18px;
       color: white;
-      padding: 8px 16px;
+      padding: 6px 14px;
       font-family: var(--font-main);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       cursor: pointer;
     }
@@ -401,17 +450,16 @@
     }
 
     .vilify-description-hint {
-      margin-top: 8px;
       color: var(--text-secondary);
-      font-size: 12px;
+      font-size: 11px;
     }
 
     .vilify-description-hint kbd {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
-      font-size: 11px;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
       margin: 0 2px;
     }
 
@@ -463,30 +511,43 @@
     }
 
     .vilify-comments {
-      padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      min-height: 0;  /* allow flex shrinking */
     }
 
     .vilify-comments-header {
       color: var(--text-emphasis);
-      margin-bottom: 12px;
-      padding-bottom: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
       border-bottom: 1px solid var(--border);
     }
 
     .vilify-comment {
-      margin-bottom: 16px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--bg-secondary);
+    }
+
+    .vilify-comment:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
     }
 
     .vilify-comment-author {
-      color: var(--text-primary);
-      font-size: 13px;
+      color: var(--accent-alt);
+      font-size: 12px;
       font-weight: 500;
       margin-bottom: 4px;
     }
 
     .vilify-comment-text {
       color: var(--text-primary);
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.4;
     }
 
@@ -1270,6 +1331,16 @@
       return;
     }
     
+    // Create sidebar layout
+    const layout = div({ className: 'vilify-watch-layout' });
+    
+    // Left side: video area (spacer - actual player is fixed positioned)
+    const videoArea = div({ className: 'vilify-watch-video-area' });
+    layout.appendChild(videoArea);
+    
+    // Right side: sidebar with info and comments
+    const sidebar = div({ className: 'vilify-watch-sidebar' });
+    
     // Video info section
     const subBtn = button({ 
       className: ctx.isSubscribed ? 'vilify-subscribe-btn subscribed' : 'vilify-subscribe-btn',
@@ -1287,11 +1358,12 @@
         subBtn
       ]),
       div({ className: 'vilify-description-hint' }, [
-        'Press ', createElement('kbd', { textContent: 'zo' }), ' for description'
+        createElement('kbd', { textContent: 'zo' }), ' description  ',
+        createElement('kbd', { textContent: 'f' }), ' chapters'
       ])
     ]);
     
-    content.appendChild(videoInfo);
+    sidebar.appendChild(videoInfo);
     
     // Comments section
     const comments = scrapeComments();
@@ -1302,7 +1374,7 @@
     } else {
       comments.forEach(comment => {
         commentsList.appendChild(div({ className: 'vilify-comment' }, [
-          div({ className: 'vilify-comment-author', textContent: comment.author }),
+          div({ className: 'vilify-comment-author', textContent: '@' + comment.author.replace(/^@/, '') }),
           div({ className: 'vilify-comment-text', textContent: comment.text })
         ]));
       });
@@ -1313,8 +1385,10 @@
       commentsList
     ]);
     
-    commentsSection.appendChild(commentsList);
-    content.appendChild(commentsSection);
+    sidebar.appendChild(commentsSection);
+    layout.appendChild(sidebar);
+    
+    content.appendChild(layout);
     
     // If no comments yet, set up observer to re-render when they load
     if (comments.length === 0) {
