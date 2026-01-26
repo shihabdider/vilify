@@ -1122,37 +1122,35 @@
         document.body.classList.remove('vilify-focus-mode');
       }
       
-      // Attach Escape handler directly to the input if not already done
+      // Attach handlers if not already done
       if (!searchInput.dataset.vilifyEscapeHandler) {
         searchInput.dataset.vilifyEscapeHandler = 'true';
+        
+        // Escape cancels search and restores focus mode
         searchInput.addEventListener('keydown', e => {
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
             searchInput.blur();
-            // Restore focus mode overlay
+            searchInput.value = '';
+            // Restore focus mode overlay (user cancelled)
             if (focusModeActive && focusOverlay) {
               focusOverlay.style.display = '';
               document.body.classList.add('vilify-focus-mode');
             }
-            showToast('Exited search');
+            showToast('Search cancelled');
           }
         }, true);
         
-        // Also restore on blur (e.g., clicking elsewhere)
-        searchInput.addEventListener('blur', () => {
-          if (focusModeActive && focusOverlay) {
-            focusOverlay.style.display = '';
-            document.body.classList.add('vilify-focus-mode');
-          }
-        });
+        // Don't restore on blur - let navigation handler deal with it
+        // This allows search submission to work properly
       }
       
       searchInput.focus();
       // Small delay before select to ensure focus completes
       setTimeout(() => searchInput.select(), 10);
-      showToast('Search (Esc to return)');
+      showToast('Search (Enter to search, Esc to cancel)');
     }
   }
 
@@ -2010,6 +2008,11 @@
     
     // Create overlay if needed
     createFocusOverlay();
+    
+    // Ensure overlay is visible (may have been hidden for search)
+    if (focusOverlay) {
+      focusOverlay.style.display = '';
+    }
     
     // Route to appropriate renderer
     const pageType = getPageType();
