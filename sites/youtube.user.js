@@ -114,6 +114,63 @@
       font-size: 12px;
     }
 
+    .vilify-video-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+    }
+
+    .vilify-video-item:hover {
+      background: var(--bg-secondary);
+    }
+
+    .vilify-video-item.selected {
+      background: var(--bg-secondary);
+      border-left-color: var(--selection);
+    }
+
+    .vilify-thumb-wrapper {
+      width: 120px;
+      height: 68px;
+      margin-right: 12px;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .vilify-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .vilify-video-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .vilify-video-title {
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .vilify-video-meta {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .vilify-empty {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+
     #keyring-overlay {
       position: fixed;
       inset: 0;
@@ -1206,6 +1263,93 @@
     focusOverlay.appendChild(footer);
     
     document.body.appendChild(focusOverlay);
+  }
+
+  // ============================================
+  // Video List Rendering (Focus Mode)
+  // ============================================
+  function renderVideoList(videos, filterQuery = '') {
+    const content = document.getElementById('vilify-content');
+    if (!content) return;
+    
+    // Clear content
+    while (content.firstChild) {
+      content.removeChild(content.firstChild);
+    }
+    
+    // Filter videos if query provided
+    let filtered = videos;
+    if (filterQuery) {
+      const q = filterQuery.toLowerCase();
+      filtered = videos.filter(v => 
+        v.title.toLowerCase().includes(q) ||
+        (v.channelName && v.channelName.toLowerCase().includes(q))
+      );
+    }
+    
+    if (filtered.length === 0) {
+      content.appendChild(createElement('div', { 
+        className: 'vilify-empty', 
+        textContent: 'No videos found' 
+      }));
+      return;
+    }
+    
+    filtered.forEach((video, idx) => {
+      const item = createElement('div', {
+        className: `vilify-video-item ${idx === selectedIdx ? 'selected' : ''}`,
+        'data-idx': String(idx),
+        'data-url': video.url
+      });
+      
+      // Thumbnail with box border
+      const thumbWrapper = createElement('div', { className: 'vilify-thumb-wrapper' }, [
+        createElement('img', { 
+          className: 'vilify-thumb', 
+          src: video.thumbnailUrl,
+          alt: ''
+        })
+      ]);
+      
+      // Video info
+      const info = createElement('div', { className: 'vilify-video-info' }, [
+        createElement('div', { className: 'vilify-video-title', textContent: video.title }),
+        createElement('div', { className: 'vilify-video-meta', textContent: video.channelName || '' })
+      ]);
+      
+      item.appendChild(thumbWrapper);
+      item.appendChild(info);
+      content.appendChild(item);
+      
+      // Event listeners
+      item.addEventListener('click', () => executeVideoItem(idx, false));
+      item.addEventListener('mouseenter', () => {
+        selectedIdx = idx;
+        updateVideoSelection();
+      });
+    });
+  }
+
+  function updateVideoSelection() {
+    const items = document.querySelectorAll('.vilify-video-item');
+    items.forEach((el, i) => {
+      el.classList.toggle('selected', i === selectedIdx);
+    });
+    const sel = document.querySelector('.vilify-video-item.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+
+  function executeVideoItem(idx, newTab) {
+    const items = document.querySelectorAll('.vilify-video-item');
+    const item = items[idx];
+    if (!item) return;
+    
+    const url = item.dataset.url;
+    if (newTab) {
+      openInNewTab(url);
+    } else {
+      navigateTo(url);
+    }
   }
 
   // Inject styles immediately so toasts work before palette is opened
