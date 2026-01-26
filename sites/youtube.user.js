@@ -1892,7 +1892,6 @@
   // Rendering
   // ============================================
   function render() {
-    // Clear list using DOM API (YouTube blocks innerHTML due to Trusted Types CSP)
     while (listEl.firstChild) {
       listEl.removeChild(listEl.firstChild);
     }
@@ -1901,77 +1900,42 @@
 
     for (const item of items) {
       if (item.group) {
-        listEl.appendChild(createElement('div', { 
-          className: 'keyring-group-label', 
-          textContent: item.group 
-        }));
+        listEl.appendChild(div({ className: 'keyring-group-label', textContent: item.group }));
       } else {
         const isVideo = item.type === 'video';
-        const itemEl = createElement('div', {
-          className: `keyring-item ${idx === selectedIdx ? 'selected' : ''}`,
-          'data-idx': String(idx),
-          'data-type': item.type || 'command'
-        });
+        const children = [];
 
         if (isVideo) {
-          // Video item with thumbnail
-          const img = createElement('img', {
-            className: 'keyring-thumbnail',
-            src: item.thumbnailUrl,
-            alt: ''
-          });
-          itemEl.appendChild(img);
-
-          const meta = createElement('div', { className: 'keyring-video-meta' });
-          meta.appendChild(createElement('span', {
-            className: 'keyring-label',
-            textContent: item.title
-          }));
+          children.push(img({ className: 'keyring-thumbnail', src: item.thumbnailUrl, alt: '' }));
+          const metaChildren = [span({ className: 'keyring-label', textContent: item.title })];
           if (item.channelName) {
-            meta.appendChild(createElement('span', {
-              className: 'keyring-meta',
-              textContent: item.channelName
-            }));
+            metaChildren.push(span({ className: 'keyring-meta', textContent: item.channelName }));
           }
-          itemEl.appendChild(meta);
+          children.push(div({ className: 'keyring-video-meta' }, metaChildren));
         } else {
-          // Command item with icon
-          itemEl.appendChild(createElement('span', {
-            className: 'keyring-icon',
-            textContent: item.icon || '▸'
-          }));
-
-          itemEl.appendChild(createElement('span', {
-            className: 'keyring-label',
-            textContent: item.label
-          }));
-
+          children.push(span({ className: 'keyring-icon', textContent: item.icon || '▸' }));
+          children.push(span({ className: 'keyring-label', textContent: item.label }));
           if (item.meta) {
-            itemEl.appendChild(createElement('span', {
-              className: 'keyring-meta',
-              textContent: item.meta
-            }));
+            children.push(span({ className: 'keyring-meta', textContent: item.meta }));
           }
-
           if (item.keys) {
-            const shortcut = createElement('span', { className: 'keyring-shortcut' });
-            for (const key of item.keys.split(' ')) {
-              shortcut.appendChild(createElement('kbd', { textContent: key }));
-            }
-            itemEl.appendChild(shortcut);
+            children.push(span({ className: 'keyring-shortcut' }, 
+              item.keys.split(' ').map(k => createElement('kbd', { textContent: k }))
+            ));
           }
         }
 
-        listEl.appendChild(itemEl);
+        listEl.appendChild(div({
+          className: `keyring-item ${idx === selectedIdx ? 'selected' : ''}`,
+          'data-idx': String(idx),
+          'data-type': item.type || 'command'
+        }, children));
         idx++;
       }
     }
 
     if (idx === 0) {
-      listEl.appendChild(createElement('div', { 
-        className: 'vilify-modal-empty', 
-        textContent: 'No matching commands' 
-      }));
+      listEl.appendChild(div({ className: 'vilify-modal-empty', textContent: 'No matching commands' }));
     }
 
     bindItemEvents();
@@ -2300,7 +2264,7 @@
     }
 
     if (filtered.length === 0) {
-      chapterListEl.appendChild(createElement('div', {
+      chapterListEl.appendChild(div({
         className: 'vilify-modal-empty',
         textContent: filter ? `No chapters matching "${filter}"` : 'No chapters found'
       }));
@@ -2308,29 +2272,20 @@
     }
 
     filtered.forEach((chapter, idx) => {
-      const item = createElement('div', {
+      const children = [];
+      if (chapter.thumbnailUrl) {
+        children.push(img({ className: 'vilify-chapter-thumb', src: chapter.thumbnailUrl, alt: '' }));
+      }
+      children.push(div({ className: 'vilify-chapter-info' }, [
+        div({ className: 'vilify-chapter-title', textContent: chapter.title }),
+        div({ className: 'vilify-chapter-time', textContent: chapter.timeText || formatTimestamp(chapter.time) })
+      ]));
+
+      const item = div({
         className: `vilify-chapter-item ${idx === chapterSelectedIdx ? 'selected' : ''}`,
         'data-idx': String(idx),
         'data-time': String(chapter.time)
-      });
-
-      // Thumbnail (if available)
-      if (chapter.thumbnailUrl) {
-        item.appendChild(createElement('img', {
-          className: 'vilify-chapter-thumb',
-          src: chapter.thumbnailUrl,
-          alt: ''
-        }));
-      }
-
-      // Info
-      const info = createElement('div', { className: 'vilify-chapter-info' });
-      info.appendChild(createElement('div', { className: 'vilify-chapter-title', textContent: chapter.title }));
-      info.appendChild(createElement('div', { 
-        className: 'vilify-chapter-time', 
-        textContent: chapter.timeText || formatTimestamp(chapter.time) 
-      }));
-      item.appendChild(info);
+      }, children);
 
       chapterListEl.appendChild(item);
 
