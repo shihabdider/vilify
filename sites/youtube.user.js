@@ -171,6 +171,115 @@
       color: var(--text-secondary);
     }
 
+    /* Watch page - player positioning */
+    body.vilify-focus-mode.vilify-watch-page #vilify-focus {
+      top: 56.25vw; /* 16:9 aspect ratio */
+      max-top: 70vh;
+    }
+
+    @media (min-width: 1200px) {
+      body.vilify-focus-mode.vilify-watch-page #vilify-focus {
+        top: 70vh;
+      }
+    }
+
+    body.vilify-focus-mode.vilify-watch-page #movie_player {
+      height: 56.25vw !important;
+      max-height: 70vh !important;
+      width: 100% !important;
+    }
+
+    .vilify-watch-info {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .vilify-watch-title {
+      font-size: 16px;
+      font-weight: normal;
+      color: var(--text-emphasis);
+      margin: 0 0 8px 0;
+    }
+
+    .vilify-channel-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .vilify-channel-name {
+      color: var(--text-primary);
+    }
+
+    .vilify-subscribe-btn {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 4px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .vilify-subscribe-btn:hover {
+      background: var(--accent);
+      color: var(--bg-primary);
+    }
+
+    .vilify-description {
+      margin-top: 12px;
+    }
+
+    .vilify-description-text {
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .vilify-description-text.collapsed {
+      max-height: 60px;
+      overflow: hidden;
+    }
+
+    .vilify-description-toggle {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+
+    .vilify-comments {
+      padding: 16px;
+    }
+
+    .vilify-comments-header {
+      color: var(--text-emphasis);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .vilify-comment {
+      margin-bottom: 16px;
+    }
+
+    .vilify-comment-author {
+      color: var(--accent-alt);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .vilify-comment-text {
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     #keyring-overlay {
       position: fixed;
       inset: 0;
@@ -731,6 +840,127 @@
   function clearVideoCache() {
     videoCache = null;
     videoCacheTime = 0;
+  }
+
+  function getVideoDescription() {
+    const descEl = document.querySelector('#description-inner, ytd-text-inline-expander #plain-snippet-text, #description .content');
+    return descEl?.textContent?.trim() || '';
+  }
+
+  function scrapeComments() {
+    const comments = [];
+    const commentEls = document.querySelectorAll('ytd-comment-thread-renderer');
+    
+    for (const el of Array.from(commentEls).slice(0, 20)) {
+      const authorEl = el.querySelector('#author-text');
+      const textEl = el.querySelector('#content-text');
+      
+      if (authorEl && textEl) {
+        comments.push({
+          author: authorEl.textContent.trim(),
+          text: textEl.textContent.trim()
+        });
+      }
+    }
+    
+    return comments;
+  }
+
+  function renderWatchPage() {
+    const content = document.getElementById('vilify-content');
+    if (!content) return;
+    
+    // Clear content
+    while (content.firstChild) {
+      content.removeChild(content.firstChild);
+    }
+    
+    const ctx = getVideoContext();
+    if (!ctx) {
+      content.appendChild(createElement('div', { 
+        className: 'vilify-empty', 
+        textContent: 'Loading video...' 
+      }));
+      return;
+    }
+    
+    // Video info section
+    const videoInfo = createElement('div', { className: 'vilify-watch-info' });
+    
+    // Title
+    videoInfo.appendChild(createElement('h1', { 
+      className: 'vilify-watch-title', 
+      textContent: ctx.title || 'Untitled' 
+    }));
+    
+    // Channel row
+    const channelRow = createElement('div', { className: 'vilify-channel-row' });
+    channelRow.appendChild(createElement('span', { 
+      className: 'vilify-channel-name', 
+      textContent: ctx.channelName || 'Unknown channel' 
+    }));
+    
+    // Subscribe button (proxy to YouTube's button)
+    const subBtn = createElement('button', { 
+      className: 'vilify-subscribe-btn',
+      textContent: ctx.isSubscribed ? 'SUBSCRIBED' : 'SUBSCRIBE'
+    });
+    subBtn.addEventListener('click', () => {
+      const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button');
+      if (ytSubBtn) ytSubBtn.click();
+    });
+    channelRow.appendChild(subBtn);
+    
+    videoInfo.appendChild(channelRow);
+    
+    // Description
+    const description = getVideoDescription();
+    const descEl = createElement('div', { className: 'vilify-description' });
+    const descText = createElement('div', { 
+      className: 'vilify-description-text collapsed',
+      textContent: description || 'No description'
+    });
+    const descToggle = createElement('button', { 
+      className: 'vilify-description-toggle',
+      textContent: '[show more]'
+    });
+    descToggle.addEventListener('click', () => {
+      const isCollapsed = descText.classList.toggle('collapsed');
+      descToggle.textContent = isCollapsed ? '[show more]' : '[show less]';
+    });
+    descEl.appendChild(descText);
+    descEl.appendChild(descToggle);
+    videoInfo.appendChild(descEl);
+    
+    content.appendChild(videoInfo);
+    
+    // Comments section
+    const commentsSection = createElement('div', { className: 'vilify-comments' });
+    commentsSection.appendChild(createElement('div', { 
+      className: 'vilify-comments-header', 
+      textContent: 'Comments' 
+    }));
+    
+    const commentsList = createElement('div', { className: 'vilify-comments-list' });
+    const comments = scrapeComments();
+    
+    if (comments.length === 0) {
+      commentsList.appendChild(createElement('div', { 
+        className: 'vilify-empty', 
+        textContent: 'Loading comments...' 
+      }));
+    } else {
+      comments.forEach(comment => {
+        const commentEl = createElement('div', { className: 'vilify-comment' }, [
+          createElement('div', { className: 'vilify-comment-author', textContent: comment.author }),
+          createElement('div', { className: 'vilify-comment-text', textContent: comment.text })
+        ]);
+        commentsList.appendChild(commentEl);
+      });
+    }
+    
+    commentsSection.appendChild(commentsList);
+    content.appendChild(commentsSection);
   }
 
   function formatTimestamp(seconds) {
