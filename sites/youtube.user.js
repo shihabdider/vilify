@@ -2556,29 +2556,21 @@
 
       // j/k/arrow navigation in focus mode (listing pages only)
       if (focusModeActive && !isPaletteOpen() && !filterActive && getPageType() !== 'watch') {
+        const items = document.querySelectorAll('.vilify-video-item');
+        const count = items.length;
         if (e.key === 'j' || e.key === 'ArrowDown') {
           e.preventDefault();
-          const items = document.querySelectorAll('.vilify-video-item');
-          if (items.length > 0) {
-            if (selectedIdx < items.length - 1) {
-              selectedIdx++;
-              updateVideoSelection();
-            } else {
-              flashEndOfList();
-            }
+          if (count > 0) {
+            if (selectedIdx < count - 1) { selectedIdx++; updateVideoSelection(); }
+            else { flashEndOfList(); }
           }
           return;
         }
         if (e.key === 'k' || e.key === 'ArrowUp') {
           e.preventDefault();
-          const items = document.querySelectorAll('.vilify-video-item');
-          if (items.length > 0) {
-            if (selectedIdx > 0) {
-              selectedIdx--;
-              updateVideoSelection();
-            } else {
-              flashEndOfList();
-            }
+          if (count > 0) {
+            if (selectedIdx > 0) { selectedIdx--; updateVideoSelection(); }
+            else { flashEndOfList(); }
           }
           return;
         }
