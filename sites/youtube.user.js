@@ -20,15 +20,33 @@
   // ============================================
   const CSS = `
     :root {
-      --yt-bg-primary: #0f0f0f;
-      --yt-bg-secondary: #272727;
-      --yt-bg-hover: #3f3f3f;
-      --yt-text-primary: #f1f1f1;
-      --yt-text-secondary: #aaaaaa;
-      --yt-red: #ff0000;
-      --yt-red-hover: #cc0000;
-      --yt-border: #3f3f3f;
-      --yt-font: 'Roboto', 'Arial', sans-serif;
+      /* Solarized Dark */
+      --sol-base03: #002b36;
+      --sol-base02: #073642;
+      --sol-base01: #586e75;
+      --sol-base00: #657b83;
+      --sol-base0: #839496;
+      --sol-base1: #93a1a1;
+      --sol-blue: #268bd2;
+      --sol-cyan: #2aa198;
+      --sol-green: #859900;
+      --sol-red: #dc322f;
+      
+      /* Semantic mappings */
+      --bg-primary: var(--sol-base03);
+      --bg-secondary: var(--sol-base02);
+      --bg-hover: var(--sol-base01);
+      --text-primary: var(--sol-base0);
+      --text-secondary: var(--sol-base00);
+      --text-emphasis: var(--sol-base1);
+      --border: var(--sol-base01);
+      --accent: var(--sol-blue);
+      --accent-alt: var(--sol-cyan);
+      --selection: var(--sol-green);
+      --error: var(--sol-red);
+      
+      /* TUI font */
+      --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Consolas', monospace;
     }
 
     #keyring-overlay {
@@ -40,7 +58,7 @@
       justify-content: center;
       padding-top: 15vh;
       z-index: 9999999;
-      font-family: var(--yt-font);
+      font-family: var(--font-mono);
     }
 
     #keyring-overlay.open {
@@ -51,9 +69,9 @@
       width: 560px;
       max-width: 90vw;
       max-height: 70vh;
-      background: var(--yt-bg-primary);
-      border: 1px solid var(--yt-border);
-      border-radius: 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 0;
       box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
       display: flex;
       flex-direction: column;
@@ -61,19 +79,19 @@
     }
 
     #keyring-header {
-      background: var(--yt-bg-secondary);
+      background: var(--bg-secondary);
       padding: 12px 16px;
       display: flex;
       align-items: center;
       gap: 12px;
-      border-bottom: 1px solid var(--yt-border);
+      border-bottom: 1px solid var(--border);
     }
 
     #keyring-header-logo {
       width: 24px;
       height: 24px;
-      background: var(--yt-red);
-      border-radius: 4px;
+      background: var(--accent);
+      border-radius: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -92,33 +110,33 @@
     #keyring-header-title {
       font-size: 14px;
       font-weight: 500;
-      color: var(--yt-text-primary);
+      color: var(--text-primary);
     }
 
     #keyring-input-wrapper {
       padding: 12px 16px;
-      background: var(--yt-bg-primary);
-      border-bottom: 1px solid var(--yt-border);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
     }
 
     #keyring-input {
       width: 100%;
       padding: 10px 12px;
-      background: var(--yt-bg-secondary);
-      border: 1px solid var(--yt-border);
-      border-radius: 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0;
       font-size: 14px;
-      font-family: var(--yt-font);
-      color: var(--yt-text-primary);
+      font-family: var(--font-mono);
+      color: var(--text-primary);
       outline: none;
     }
 
     #keyring-input::placeholder {
-      color: var(--yt-text-secondary);
+      color: var(--text-secondary);
     }
 
     #keyring-input:focus {
-      border-color: var(--yt-red);
+      border-color: var(--accent);
     }
 
     #keyring-list {
@@ -133,8 +151,8 @@
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: var(--yt-text-secondary);
-      background: var(--yt-bg-primary);
+      color: var(--text-secondary);
+      background: var(--bg-primary);
     }
 
     .keyring-item {
@@ -143,16 +161,16 @@
       padding: 10px 16px;
       cursor: pointer;
       font-size: 14px;
-      color: var(--yt-text-primary);
-      background: var(--yt-bg-primary);
+      color: var(--text-primary);
+      background: var(--bg-primary);
     }
 
     .keyring-item:hover {
-      background: var(--yt-bg-hover);
+      background: var(--bg-hover);
     }
 
     .keyring-item.selected {
-      background: var(--yt-red);
+      background: var(--accent);
     }
 
     .keyring-item.selected .keyring-shortcut kbd {
@@ -172,9 +190,9 @@
       align-items: center;
       justify-content: center;
       font-size: 16px;
-      color: var(--yt-text-secondary);
-      background: var(--yt-bg-secondary);
-      border-radius: 6px;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border-radius: 0;
     }
 
     .keyring-item.selected .keyring-icon {
@@ -186,8 +204,8 @@
       width: 80px;
       height: 45px;
       margin-right: 12px;
-      border-radius: 6px;
-      background: var(--yt-bg-secondary);
+      border-radius: 0;
+      background: var(--bg-secondary);
       object-fit: cover;
       flex-shrink: 0;
     }
@@ -234,7 +252,7 @@
 
     .keyring-meta {
       font-size: 12px;
-      color: var(--yt-text-secondary);
+      color: var(--text-secondary);
       margin-left: 8px;
     }
 
@@ -245,29 +263,29 @@
     }
 
     .keyring-shortcut kbd {
-      background: var(--yt-bg-secondary);
-      border: 1px solid var(--yt-border);
-      border-radius: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0;
       padding: 2px 6px;
       font-size: 11px;
-      font-family: var(--yt-font);
-      color: var(--yt-text-secondary);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
     }
 
     #keyring-footer {
       display: flex;
       gap: 20px;
       padding: 10px 16px;
-      background: var(--yt-bg-secondary);
-      border-top: 1px solid var(--yt-border);
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
       font-size: 12px;
-      color: var(--yt-text-secondary);
+      color: var(--text-secondary);
     }
 
     #keyring-footer kbd {
-      background: var(--yt-bg-primary);
-      border: 1px solid var(--yt-border);
-      border-radius: 4px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 0;
       padding: 2px 6px;
       margin: 0 4px;
       font-size: 11px;
@@ -276,7 +294,7 @@
     .keyring-empty {
       padding: 40px;
       text-align: center;
-      color: var(--yt-text-secondary);
+      color: var(--text-secondary);
       font-size: 14px;
     }
 
@@ -284,14 +302,14 @@
       position: fixed;
       bottom: 32px;
       right: 32px;
-      background: var(--yt-bg-primary);
-      color: var(--yt-text-primary);
+      background: var(--bg-primary);
+      color: var(--text-primary);
       padding: 16px 24px;
-      border-radius: 12px;
-      border: 1px solid var(--yt-border);
+      border-radius: 0;
+      border: 1px solid var(--border);
       font-size: 15px;
       font-weight: 500;
-      font-family: var(--yt-font);
+      font-family: var(--font-mono);
       z-index: 10000000;
       opacity: 0;
       transition: opacity 0.2s;
