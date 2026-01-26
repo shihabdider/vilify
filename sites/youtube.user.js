@@ -101,6 +101,37 @@
       color: var(--text-secondary);
     }
 
+    .vilify-filter-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--accent);
+    }
+
+    .vilify-filter-wrapper.hidden {
+      display: none;
+    }
+
+    #vilify-filter {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 2px 4px;
+      width: 200px;
+      outline: none;
+    }
+
+    #vilify-filter:focus {
+      border-bottom-color: var(--accent);
+    }
+
+    #vilify-filter::placeholder {
+      color: var(--text-secondary);
+    }
+
     #vilify-content {
       flex: 1;
       overflow-y: auto;
@@ -568,6 +599,8 @@
   let selectedIdx = 0;
   let focusModeActive = true;
   let focusOverlay = null;
+  let filterActive = false;
+  let filterQuery = '';
 
   // ============================================
   // Utilities
@@ -1476,13 +1509,26 @@
     
     focusOverlay = createElement('div', { id: 'vilify-focus' });
     
-    // Header
-    const header = createElement('div', { className: 'vilify-header' }, [
-      createElement('span', { className: 'vilify-logo', textContent: 'VILIFY' }),
-      createElement('span', { className: 'vilify-mode', textContent: '[/] filter' })
-    ]);
+    // Header with filter
+    const header = createElement('div', { className: 'vilify-header' });
+    header.appendChild(createElement('span', { className: 'vilify-logo', textContent: 'VILIFY' }));
     
-    // Content area (will be populated based on page type)
+    // Filter input (hidden by default)
+    const filterWrapper = createElement('div', { className: 'vilify-filter-wrapper hidden' });
+    const filterInput = createElement('input', {
+      id: 'vilify-filter',
+      type: 'text',
+      placeholder: 'filter videos...',
+      autocomplete: 'off',
+      spellcheck: 'false'
+    });
+    filterWrapper.appendChild(createElement('span', { textContent: '/' }));
+    filterWrapper.appendChild(filterInput);
+    header.appendChild(filterWrapper);
+    
+    header.appendChild(createElement('span', { className: 'vilify-mode', textContent: '[/] filter  [i] search  [:] commands' }));
+    
+    // Content area
     const content = createElement('div', { id: 'vilify-content' });
     
     // Footer
@@ -1493,6 +1539,69 @@
     focusOverlay.appendChild(footer);
     
     document.body.appendChild(focusOverlay);
+    
+    // Filter input event listeners
+    filterInput.addEventListener('input', onFilterInput);
+    filterInput.addEventListener('keydown', onFilterKeydown);
+  }
+
+  function openFilter() {
+    const wrapper = document.querySelector('.vilify-filter-wrapper');
+    const input = document.getElementById('vilify-filter');
+    if (!wrapper || !input) return;
+    
+    filterActive = true;
+    wrapper.classList.remove('hidden');
+    input.value = filterQuery;
+    input.focus();
+  }
+
+  function closeFilter() {
+    const wrapper = document.querySelector('.vilify-filter-wrapper');
+    const input = document.getElementById('vilify-filter');
+    if (!wrapper || !input) return;
+    
+    filterActive = false;
+    wrapper.classList.add('hidden');
+    input.blur();
+  }
+
+  function onFilterInput(e) {
+    filterQuery = e.target.value;
+    const videos = scrapeVideos();
+    renderVideoList(videos, filterQuery);
+  }
+
+  function onFilterKeydown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      filterQuery = '';
+      closeFilter();
+      const videos = scrapeVideos();
+      renderVideoList(videos);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      closeFilter();
+      // Execute selected video
+      const items = document.querySelectorAll('.vilify-video-item');
+      if (items.length > 0) {
+        executeVideoItem(selectedIdx, e.shiftKey);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const items = document.querySelectorAll('.vilify-video-item');
+      if (items.length > 0) {
+        selectedIdx = (selectedIdx + 1) % items.length;
+        updateVideoSelection();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const items = document.querySelectorAll('.vilify-video-item');
+      if (items.length > 0) {
+        selectedIdx = (selectedIdx - 1 + items.length) % items.length;
+        updateVideoSelection();
+      }
+    }
   }
 
   // ============================================
