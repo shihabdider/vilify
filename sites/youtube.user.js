@@ -1263,57 +1263,37 @@
   // ============================================
   function scrapeChapters() {
     const chapters = [];
-    const seenTimes = new Set();
+    const seenKeys = new Set();
     
     function addChapter(title, time, timeText, thumbnailUrl) {
-      // Deduplicate by time (rounded to nearest second)
-      const timeKey = Math.round(time);
-      if (seenTimes.has(timeKey)) return;
-      seenTimes.add(timeKey);
+      // Deduplicate by title + time combination
+      const key = `${title}::${Math.round(time)}`;
+      if (seenKeys.has(key)) return;
+      seenKeys.add(key);
       chapters.push({ title, time, timeText, thumbnailUrl });
     }
     
     // Method 1: From chapter markers in progress bar
     const chapterMarkers = document.querySelectorAll('.ytp-chapter-hover-container');
-    if (chapterMarkers.length > 0) {
-      for (const marker of chapterMarkers) {
-        const title = marker.querySelector('.ytp-chapter-title')?.textContent?.trim();
-        const timeText = marker.dataset.startTime || marker.getAttribute('data-start-time');
-        if (title && timeText) {
-          addChapter(title, parseFloat(timeText), null, null);
-        }
+    for (const marker of chapterMarkers) {
+      const title = marker.querySelector('.ytp-chapter-title')?.textContent?.trim();
+      const timeText = marker.dataset.startTime || marker.getAttribute('data-start-time');
+      if (title && timeText) {
+        addChapter(title, parseFloat(timeText), null, null);
       }
     }
     
-    // Method 2: From description chapters panel
-    if (chapters.length === 0) {
-      const chapterItems = document.querySelectorAll('ytd-macro-markers-list-item-renderer');
-      for (const item of chapterItems) {
-        const titleEl = item.querySelector('#details h4, #title');
-        const timeEl = item.querySelector('#time, #details #time');
-        const thumbEl = item.querySelector('img');
-        
-        if (titleEl && timeEl) {
-          const timeText = timeEl.textContent.trim();
-          const time = parseTimestamp(timeText);
-          addChapter(titleEl.textContent.trim(), time, timeText, thumbEl?.src || null);
-        }
-      }
-    }
-    
-    // Method 3: From expandable description chapters
-    if (chapters.length === 0) {
-      const descChapters = document.querySelectorAll('ytd-expandable-video-description-body-renderer ytd-macro-markers-list-item-renderer');
-      for (const item of descChapters) {
-        const titleEl = item.querySelector('h4, #title');
-        const timeEl = item.querySelector('#time');
-        const thumbEl = item.querySelector('img');
-        
-        if (titleEl && timeEl) {
-          const timeText = timeEl.textContent.trim();
-          const time = parseTimestamp(timeText);
-          addChapter(titleEl.textContent.trim(), time, timeText, thumbEl?.src || null);
-        }
+    // Method 2: From description chapters panel (ytd-macro-markers-list-item-renderer)
+    const chapterItems = document.querySelectorAll('ytd-macro-markers-list-item-renderer');
+    for (const item of chapterItems) {
+      const titleEl = item.querySelector('#details h4, #title');
+      const timeEl = item.querySelector('#time, #details #time');
+      const thumbEl = item.querySelector('img');
+      
+      if (titleEl && timeEl) {
+        const timeText = timeEl.textContent.trim();
+        const time = parseTimestamp(timeText);
+        addChapter(titleEl.textContent.trim(), time, timeText, thumbEl?.src || null);
       }
     }
     
