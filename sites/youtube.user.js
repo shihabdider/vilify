@@ -103,7 +103,8 @@
       font-size: 14px;
     }
 
-    .vilify-filter-wrapper {
+    .vilify-filter-wrapper,
+    .vilify-search-wrapper {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -111,11 +112,13 @@
       font-size: 16px;
     }
 
-    .vilify-filter-wrapper.hidden {
+    .vilify-filter-wrapper.hidden,
+    .vilify-search-wrapper.hidden {
       display: none;
     }
 
-    #vilify-filter {
+    #vilify-filter,
+    #vilify-search {
       background: transparent;
       border: none;
       border-bottom: 1px solid var(--border);
@@ -127,11 +130,13 @@
       outline: none;
     }
 
-    #vilify-filter:focus {
+    #vilify-filter:focus,
+    #vilify-search:focus {
       border-bottom-color: var(--accent);
     }
 
-    #vilify-filter::placeholder {
+    #vilify-filter::placeholder,
+    #vilify-search::placeholder {
       color: var(--text-secondary);
     }
 
@@ -1295,7 +1300,7 @@
         }
       },
       ':': () => openPalette('command'),
-      'i': () => focusSearchBox(),
+      'i': () => openSearch(),
       
       // Navigation: g + key
       'gh': () => navigateTo('/'),
@@ -1540,12 +1545,12 @@
     
     focusOverlay = createElement('div', { id: 'vilify-focus' });
     
-    // Header with filter
+    // Header with filter and search
     const header = createElement('div', { className: 'vilify-header' });
     header.appendChild(createElement('span', { className: 'vilify-logo', textContent: 'VILIFY' }));
     
     // Filter input (hidden by default)
-    const filterWrapper = createElement('div', { className: 'vilify-filter-wrapper hidden' });
+    const filterWrapper = createElement('div', { className: 'vilify-filter-wrapper hidden', 'data-mode': 'filter' });
     const filterInput = createElement('input', {
       id: 'vilify-filter',
       type: 'text',
@@ -1556,6 +1561,19 @@
     filterWrapper.appendChild(createElement('span', { textContent: '/' }));
     filterWrapper.appendChild(filterInput);
     header.appendChild(filterWrapper);
+    
+    // Search input (hidden by default)
+    const searchWrapper = createElement('div', { className: 'vilify-search-wrapper hidden', 'data-mode': 'search' });
+    const searchInput = createElement('input', {
+      id: 'vilify-search',
+      type: 'text',
+      placeholder: 'search youtube...',
+      autocomplete: 'off',
+      spellcheck: 'false'
+    });
+    searchWrapper.appendChild(createElement('span', { textContent: '?' }));
+    searchWrapper.appendChild(searchInput);
+    header.appendChild(searchWrapper);
     
     header.appendChild(createElement('span', { className: 'vilify-mode', textContent: '[/] filter  [i] search  [:] commands' }));
     
@@ -1574,6 +1592,9 @@
     // Filter input event listeners
     filterInput.addEventListener('input', onFilterInput);
     filterInput.addEventListener('keydown', onFilterKeydown);
+    
+    // Search input event listeners
+    searchInput.addEventListener('keydown', onSearchKeydown);
   }
 
   function openFilter() {
@@ -1631,6 +1652,47 @@
       if (items.length > 0) {
         selectedIdx = (selectedIdx - 1 + items.length) % items.length;
         updateVideoSelection();
+      }
+    }
+  }
+
+  // ============================================
+  // Search Input (Focus Mode)
+  // ============================================
+  let searchActive = false;
+
+  function openSearch() {
+    const wrapper = document.querySelector('.vilify-search-wrapper');
+    const input = document.getElementById('vilify-search');
+    if (!wrapper || !input) return;
+    
+    searchActive = true;
+    wrapper.classList.remove('hidden');
+    input.value = '';
+    input.focus();
+  }
+
+  function closeSearch() {
+    const wrapper = document.querySelector('.vilify-search-wrapper');
+    const input = document.getElementById('vilify-search');
+    if (!wrapper || !input) return;
+    
+    searchActive = false;
+    wrapper.classList.add('hidden');
+    input.blur();
+  }
+
+  function onSearchKeydown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeSearch();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = e.target.value.trim();
+      if (query) {
+        closeSearch();
+        // Navigate to YouTube search results
+        navigateTo('/results?search_query=' + encodeURIComponent(query));
       }
     }
   }
@@ -2024,6 +2086,8 @@
       document.body.classList.remove('vilify-watch-page');
       const videos = scrapeVideos();
       renderVideoList(videos);
+      // Watch for more videos loading
+      setupVideoObserver();
     }
   }
 
@@ -2051,26 +2115,80 @@
 
   function waitForContent(callback, maxWait = 5000) {
     const startTime = Date.now();
+    let lastVideoCount = 0;
+    let stableCount = 0;
     
     function check() {
-      const hasVideos = document.querySelector('ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model');
+      const videoElements = document.querySelectorAll('ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model');
       const hasPlayer = document.querySelector('#movie_player video');
       const pageType = getPageType();
       
-      // On watch page, wait for player; otherwise wait for videos
-      const ready = pageType === 'watch' ? hasPlayer : hasVideos;
+      // On watch page, wait for player
+      if (pageType === 'watch') {
+        if (hasPlayer) {
+          callback();
+        } else if (Date.now() - startTime < maxWait) {
+          setTimeout(check, 100);
+        } else {
+          callback();
+        }
+        return;
+      }
       
-      if (ready) {
-        callback();
-      } else if (Date.now() - startTime < maxWait) {
+      // On listing pages, wait for videos to stabilize (stop loading more)
+      const currentCount = videoElements.length;
+      
+      if (currentCount > 0) {
+        if (currentCount === lastVideoCount) {
+          stableCount++;
+          // Wait for count to be stable for 3 checks (300ms)
+          if (stableCount >= 3) {
+            callback();
+            return;
+          }
+        } else {
+          stableCount = 0;
+          lastVideoCount = currentCount;
+        }
+      }
+      
+      if (Date.now() - startTime < maxWait) {
         setTimeout(check, 100);
       } else {
-        // Timeout - show anyway
+        // Timeout - show what we have
         callback();
       }
     }
     
     check();
+  }
+  
+  // Re-render video list when more videos load (lazy loading)
+  function setupVideoObserver() {
+    if (getPageType() === 'watch') return;
+    
+    let renderTimeout = null;
+    const videoObserver = new MutationObserver(() => {
+      if (!focusModeActive || filterActive || searchActive) return;
+      
+      // Debounce re-renders
+      clearTimeout(renderTimeout);
+      renderTimeout = setTimeout(() => {
+        const videos = scrapeVideos();
+        const currentItems = document.querySelectorAll('.vilify-video-item').length;
+        // Only re-render if we have more videos
+        if (videos.length > currentItems) {
+          clearVideoCache();
+          renderVideoList(scrapeVideos());
+        }
+      }, 500);
+    });
+    
+    // Watch for new video elements being added
+    const contentArea = document.querySelector('ytd-rich-grid-renderer, ytd-section-list-renderer, #contents');
+    if (contentArea) {
+      videoObserver.observe(contentArea, { childList: true, subtree: true });
+    }
   }
 
   // ============================================
@@ -2087,6 +2205,9 @@
     if (filterActive) {
       filterQuery = '';
       closeFilter();
+    }
+    if (searchActive) {
+      closeSearch();
     }
     settingsApplied = false;
     clearVideoCache();
