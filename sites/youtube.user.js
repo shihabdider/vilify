@@ -49,6 +49,105 @@
       --font-mono: 'Roboto Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
     }
 
+    /* ====== Shared Modal Base Classes ====== */
+    .vilify-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 15vh;
+      z-index: 9999999;
+      font-family: var(--font-main);
+    }
+
+    .vilify-overlay.open {
+      display: flex;
+    }
+
+    .vilify-modal {
+      max-width: 90vw;
+      max-height: 70vh;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .vilify-modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .vilify-modal-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .vilify-modal-input-wrapper {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .vilify-modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: var(--font-main);
+      color: var(--text-primary);
+      outline: none;
+    }
+
+    .vilify-modal-input:focus {
+      border-color: var(--accent);
+    }
+
+    .vilify-modal-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .vilify-modal-list {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+
+    .vilify-modal-footer {
+      display: flex;
+      gap: 16px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .vilify-modal-footer kbd {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin: 0 4px;
+      font-size: 11px;
+    }
+
+    .vilify-modal-empty {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
     /* Hide YouTube UI when focus mode is active */
     body.vilify-focus-mode ytd-app {
       visibility: hidden !important;
@@ -316,48 +415,19 @@
       margin: 0 2px;
     }
 
-    /* Description Modal */
+    /* Description Modal - extends .vilify-overlay, .vilify-modal */
     #vilify-desc-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: none;
-      align-items: flex-start;
-      justify-content: center;
       padding-top: 10vh;
-      z-index: 9999999;
-      font-family: var(--font-main);
-    }
-
-    #vilify-desc-overlay.open {
-      display: flex;
     }
 
     #vilify-desc-modal {
       width: 700px;
-      max-width: 90vw;
       max-height: 80vh;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
     }
 
     #vilify-desc-header {
       padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
       justify-content: space-between;
-      align-items: center;
-    }
-
-    #vilify-desc-title {
-      font-size: 16px;
-      font-weight: 500;
-      color: var(--text-primary);
     }
 
     #vilify-desc-close {
@@ -390,17 +460,6 @@
 
     #vilify-desc-footer {
       padding: 12px 20px;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
-
-    #vilify-desc-footer kbd {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
-      margin: 0 4px;
     }
 
     .vilify-comments {
@@ -431,79 +490,9 @@
       line-height: 1.4;
     }
 
-    /* Chapter Picker */
-    #vilify-chapter-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: none;
-      align-items: flex-start;
-      justify-content: center;
-      padding-top: 15vh;
-      z-index: 9999999;
-      font-family: var(--font-main);
-    }
-
-    #vilify-chapter-overlay.open {
-      display: flex;
-    }
-
+    /* Chapter Picker - extends .vilify-overlay, .vilify-modal */
     #vilify-chapter-modal {
       width: 500px;
-      max-width: 90vw;
-      max-height: 70vh;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    #vilify-chapter-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    #vilify-chapter-header-title {
-      font-size: 16px;
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    #vilify-chapter-input-wrapper {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    #vilify-chapter-input {
-      width: 100%;
-      padding: 10px 12px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: var(--font-main);
-      color: var(--text-primary);
-      outline: none;
-    }
-
-    #vilify-chapter-input:focus {
-      border-color: var(--accent);
-    }
-
-    #vilify-chapter-input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    #vilify-chapter-list {
-      flex: 1;
-      overflow-y: auto;
-      max-height: 400px;
     }
 
     .vilify-chapter-item {
@@ -552,67 +541,17 @@
       margin-top: 2px;
     }
 
-    .vilify-chapter-empty {
-      padding: 40px;
-      text-align: center;
-      color: var(--text-secondary);
-      font-size: 14px;
-    }
-
-    #vilify-chapter-footer {
-      padding: 10px 16px;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-secondary);
-      display: flex;
-      gap: 16px;
-    }
-
-    #vilify-chapter-footer kbd {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
-      margin: 0 4px;
-      font-size: 11px;
-    }
-
+    /* Command Palette - extends .vilify-overlay, .vilify-modal */
     #keyring-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: none;
-      align-items: flex-start;
-      justify-content: center;
-      padding-top: 15vh;
-      z-index: 9999999;
       font-family: var(--font-mono);
-    }
-
-    #keyring-overlay.open {
-      display: flex;
     }
 
     #keyring-modal {
       width: 560px;
-      max-width: 90vw;
-      max-height: 70vh;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
     }
 
     #keyring-header {
       background: var(--bg-secondary);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      border-bottom: 1px solid var(--border);
     }
 
     #keyring-header-logo {
@@ -633,44 +572,6 @@
       border-top: 5px solid transparent;
       border-bottom: 5px solid transparent;
       margin-left: 2px;
-    }
-
-    #keyring-header-title {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    #keyring-input-wrapper {
-      padding: 12px 16px;
-      background: var(--bg-primary);
-      border-bottom: 1px solid var(--border);
-    }
-
-    #keyring-input {
-      width: 100%;
-      padding: 10px 12px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: var(--font-main);
-      color: var(--text-primary);
-      outline: none;
-    }
-
-    #keyring-input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    #keyring-input:focus {
-      border-color: var(--accent);
-    }
-
-    #keyring-list {
-      flex: 1;
-      overflow-y: auto;
-      max-height: 400px;
     }
 
     .keyring-group-label {
@@ -801,29 +702,12 @@
     }
 
     #keyring-footer {
-      display: flex;
       gap: 20px;
-      padding: 10px 16px;
       background: var(--bg-secondary);
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-secondary);
     }
 
     #keyring-footer kbd {
       background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
-      margin: 0 4px;
-      font-size: 11px;
-    }
-
-    .keyring-empty {
-      padding: 40px;
-      text-align: center;
-      color: var(--text-secondary);
-      font-size: 14px;
     }
 
     .keyring-toast {
@@ -1327,12 +1211,12 @@
   function createDescriptionModal() {
     if (descOverlay) return;
 
-    descOverlay = createElement('div', { id: 'vilify-desc-overlay' });
-    const modal = createElement('div', { id: 'vilify-desc-modal' });
+    descOverlay = createElement('div', { id: 'vilify-desc-overlay', className: 'vilify-overlay' });
+    const modal = createElement('div', { id: 'vilify-desc-modal', className: 'vilify-modal' });
 
     // Header
-    const header = createElement('div', { id: 'vilify-desc-header' });
-    header.appendChild(createElement('span', { id: 'vilify-desc-title', textContent: 'Description' }));
+    const header = createElement('div', { id: 'vilify-desc-header', className: 'vilify-modal-header' });
+    header.appendChild(createElement('span', { id: 'vilify-desc-title', className: 'vilify-modal-title', textContent: 'Description' }));
     const closeBtn = createElement('button', { id: 'vilify-desc-close', textContent: '×' });
     closeBtn.addEventListener('click', closeDescriptionModal);
     header.appendChild(closeBtn);
@@ -1342,7 +1226,7 @@
     content.appendChild(createElement('div', { id: 'vilify-desc-text' }));
 
     // Footer
-    const footer = createElement('div', { id: 'vilify-desc-footer' });
+    const footer = createElement('div', { id: 'vilify-desc-footer', className: 'vilify-modal-footer' });
     footer.appendChild(document.createTextNode('Press '));
     footer.appendChild(createElement('kbd', { textContent: 'zc' }));
     footer.appendChild(document.createTextNode(' or '));
@@ -2111,7 +1995,7 @@
 
     if (idx === 0) {
       listEl.appendChild(createElement('div', { 
-        className: 'keyring-empty', 
+        className: 'vilify-modal-empty', 
         textContent: 'No matching commands' 
       }));
     }
@@ -2367,29 +2251,30 @@
   function createChapterPicker() {
     if (chapterOverlay) return;
 
-    chapterOverlay = createElement('div', { id: 'vilify-chapter-overlay' });
-    const modal = createElement('div', { id: 'vilify-chapter-modal' });
+    chapterOverlay = createElement('div', { id: 'vilify-chapter-overlay', className: 'vilify-overlay' });
+    const modal = createElement('div', { id: 'vilify-chapter-modal', className: 'vilify-modal' });
 
     // Header
-    const header = createElement('div', { id: 'vilify-chapter-header' }, [
-      createElement('span', { id: 'vilify-chapter-header-title', textContent: 'Jump to Chapter' })
+    const header = createElement('div', { id: 'vilify-chapter-header', className: 'vilify-modal-header' }, [
+      createElement('span', { id: 'vilify-chapter-header-title', className: 'vilify-modal-title', textContent: 'Jump to Chapter' })
     ]);
 
     // Input
     chapterInputEl = createElement('input', {
       id: 'vilify-chapter-input',
+      className: 'vilify-modal-input',
       type: 'text',
       placeholder: 'Filter chapters...',
       autocomplete: 'off',
       spellcheck: 'false'
     });
-    const inputWrapper = createElement('div', { id: 'vilify-chapter-input-wrapper' }, [chapterInputEl]);
+    const inputWrapper = createElement('div', { id: 'vilify-chapter-input-wrapper', className: 'vilify-modal-input-wrapper' }, [chapterInputEl]);
 
     // List
-    chapterListEl = createElement('div', { id: 'vilify-chapter-list' });
+    chapterListEl = createElement('div', { id: 'vilify-chapter-list', className: 'vilify-modal-list' });
 
     // Footer
-    const footer = createElement('div', { id: 'vilify-chapter-footer' }, [
+    const footer = createElement('div', { id: 'vilify-chapter-footer', className: 'vilify-modal-footer' }, [
       createChapterFooterHint(['↑', '↓'], 'navigate'),
       createChapterFooterHint(['↵'], 'jump'),
       createChapterFooterHint(['esc'], 'close')
@@ -2462,7 +2347,7 @@
 
     if (filtered.length === 0) {
       chapterListEl.appendChild(createElement('div', {
-        className: 'vilify-chapter-empty',
+        className: 'vilify-modal-empty',
         textContent: filter ? `No chapters matching "${filter}"` : 'No chapters found'
       }));
       return;
@@ -2673,32 +2558,32 @@
     injectStyles();
 
     // Create overlay using DOM APIs (YouTube blocks innerHTML due to Trusted Types CSP)
-    overlay = createElement('div', { id: 'keyring-overlay' });
+    overlay = createElement('div', { id: 'keyring-overlay', className: 'vilify-overlay' });
 
-    const modal = createElement('div', { id: 'keyring-modal' });
+    const modal = createElement('div', { id: 'keyring-modal', className: 'vilify-modal' });
 
     // Header
-    const header = createElement('div', { id: 'keyring-header' }, [
+    const header = createElement('div', { id: 'keyring-header', className: 'vilify-modal-header' }, [
       createElement('div', { id: 'keyring-header-logo' }),
-      createElement('div', { id: 'keyring-header-title', textContent: 'Command Palette' })
+      createElement('div', { id: 'keyring-header-title', className: 'vilify-modal-title', textContent: 'Command Palette' })
     ]);
 
     // Input wrapper
     inputEl = createElement('input', {
       id: 'keyring-input',
+      className: 'vilify-modal-input',
       type: 'text',
       placeholder: 'Type a command...',
       autocomplete: 'off',
       spellcheck: 'false'
     });
-    const inputWrapper = createElement('div', { id: 'keyring-input-wrapper' }, [inputEl]);
+    const inputWrapper = createElement('div', { id: 'keyring-input-wrapper', className: 'vilify-modal-input-wrapper' }, [inputEl]);
 
     // List
-    listEl = createElement('div', { id: 'keyring-list' });
+    listEl = createElement('div', { id: 'keyring-list', className: 'vilify-modal-list' });
 
     // Footer
-    // Footer
-    const footer = createElement('div', { id: 'keyring-footer' }, [
+    const footer = createElement('div', { id: 'keyring-footer', className: 'vilify-modal-footer' }, [
       createFooterHint(['↑', '↓'], 'navigate'),
       createFooterHint(['↵'], 'select'),
       createFooterHint(['⇧↵'], 'new tab'),
