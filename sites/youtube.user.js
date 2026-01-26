@@ -2366,56 +2366,34 @@
   injectStyles();
 
   function createUI() {
-    // Ensure styles are injected
     injectStyles();
 
-    // Create overlay using DOM APIs (YouTube blocks innerHTML due to Trusted Types CSP)
-    overlay = createElement('div', { id: 'keyring-overlay', className: 'vilify-overlay' });
+    inputEl = input({
+      id: 'keyring-input', className: 'vilify-modal-input', type: 'text',
+      placeholder: 'Type a command...', autocomplete: 'off', spellcheck: 'false'
+    });
+    listEl = div({ id: 'keyring-list', className: 'vilify-modal-list' });
 
-    const modal = createElement('div', { id: 'keyring-modal', className: 'vilify-modal' });
-
-    // Header
-    const header = createElement('div', { id: 'keyring-header', className: 'vilify-modal-header' }, [
-      createElement('div', { id: 'keyring-header-logo' }),
-      createElement('div', { id: 'keyring-header-title', className: 'vilify-modal-title', textContent: 'Command Palette' })
+    const modal = div({ id: 'keyring-modal', className: 'vilify-modal' }, [
+      div({ id: 'keyring-header', className: 'vilify-modal-header' }, [
+        div({ id: 'keyring-header-logo' }),
+        div({ className: 'vilify-modal-title', textContent: 'Command Palette' })
+      ]),
+      div({ className: 'vilify-modal-input-wrapper' }, [inputEl]),
+      listEl,
+      div({ id: 'keyring-footer', className: 'vilify-modal-footer' }, [
+        createFooterHint(['↑', '↓'], 'navigate'),
+        createFooterHint(['↵'], 'select'),
+        createFooterHint(['⇧↵'], 'new tab'),
+        createFooterHint(['esc'], 'close')
+      ])
     ]);
 
-    // Input wrapper
-    inputEl = createElement('input', {
-      id: 'keyring-input',
-      className: 'vilify-modal-input',
-      type: 'text',
-      placeholder: 'Type a command...',
-      autocomplete: 'off',
-      spellcheck: 'false'
-    });
-    const inputWrapper = createElement('div', { id: 'keyring-input-wrapper', className: 'vilify-modal-input-wrapper' }, [inputEl]);
-
-    // List
-    listEl = createElement('div', { id: 'keyring-list', className: 'vilify-modal-list' });
-
-    // Footer
-    const footer = createElement('div', { id: 'keyring-footer', className: 'vilify-modal-footer' }, [
-      createFooterHint(['↑', '↓'], 'navigate'),
-      createFooterHint(['↵'], 'select'),
-      createFooterHint(['⇧↵'], 'new tab'),
-      createFooterHint(['esc'], 'close')
-    ]);
-
-    modal.appendChild(header);
-    modal.appendChild(inputWrapper);
-    modal.appendChild(listEl);
-    modal.appendChild(footer);
-    overlay.appendChild(modal);
-
-    document.body.appendChild(overlay);
-
-    // Event listeners
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) closePalette();
-    });
+    overlay = div({ id: 'keyring-overlay', className: 'vilify-overlay' }, [modal]);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closePalette(); });
     inputEl.addEventListener('input', onInput);
     inputEl.addEventListener('keydown', onInputKeydown);
+    document.body.appendChild(overlay);
   }
 
   // ============================================
