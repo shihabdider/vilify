@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.1.1
+// @version      0.1.2
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
@@ -3037,6 +3037,93 @@
     setTimeout(() => content.classList.remove('flash-end'), 150);
   }
 
+  /**
+   * Check if the current page supports "load more" functionality.
+   * Home page is excluded to prevent doomscrolling.
+   */
+  function supportsLoadMore() {
+    const pageType = getPageType();
+    // These pages support loading more videos
+    return ['search', 'subscriptions', 'history', 'library', 'playlist', 'channel'].includes(pageType);
+  }
+
+  let isLoadingMoreVideos = false;
+
+  /**
+   * Trigger YouTube to load more videos by scrolling the hidden page.
+   * Shows a toast and re-renders when new videos are detected.
+   */
+  function loadMoreVideos() {
+    if (isLoadingMoreVideos) return;
+    if (!supportsLoadMore()) {
+      flashEndOfList();
+      return;
+    }
+
+    isLoadingMoreVideos = true;
+    showToast('Loading more videos...');
+
+    const oldVideoCount = scrapeVideos().length;
+
+    // Method 1: Find and trigger continuation elements
+    const continuationTriggers = [
+      'ytd-continuation-item-renderer',
+      '#continuations',
+      'tp-yt-paper-spinner',
+      'ytd-rich-grid-renderer ytd-continuation-item-renderer',
+      'ytd-section-list-renderer ytd-continuation-item-renderer'
+    ];
+
+    for (const selector of continuationTriggers) {
+      const el = document.querySelector(selector);
+      if (el) {
+        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+        if (el.click) el.click();
+      }
+    }
+
+    // Method 2: Scroll the main page to trigger lazy loading
+    const scrollTargets = [
+      document.querySelector('ytd-browse'),
+      document.querySelector('ytd-search'),
+      document.querySelector('ytd-section-list-renderer'),
+      document.querySelector('#contents'),
+      document.documentElement
+    ];
+
+    for (const target of scrollTargets) {
+      if (target) {
+        if (target === document.documentElement) {
+          window.scrollBy(0, 2000);
+        } else {
+          target.scrollTop += 1000;
+        }
+      }
+    }
+
+    // Method 3: Dispatch scroll events to trigger observers
+    const scrollEvent = new Event('scroll', { bubbles: true });
+    document.dispatchEvent(scrollEvent);
+    window.dispatchEvent(scrollEvent);
+
+    // Check for new videos after delay
+    setTimeout(() => {
+      const videos = scrapeVideos();
+      isLoadingMoreVideos = false;
+
+      if (videos.length > oldVideoCount) {
+        const newCount = videos.length - oldVideoCount;
+        showToast(`Loaded ${newCount} more video${newCount === 1 ? '' : 's'}`);
+        // Re-render with new videos, keeping selection at the end
+        selectedIdx = oldVideoCount; // Move to first new video
+        renderVideoList(videos, filterQuery);
+      } else {
+        showToast('No more videos available');
+        flashEndOfList();
+      }
+    }, 1500);
+  }
+
   function executeVideoItem(idx, newTab) {
     const items = document.querySelectorAll('.vilify-video-item');
     const item = items[idx];
@@ -3261,7 +3348,7 @@
           e.preventDefault();
           if (count > 0) {
             if (selectedIdx < count - 1) { selectedIdx++; updateVideoSelection(); }
-            else { flashEndOfList(); }
+            else { loadMoreVideos(); }
           }
           return;
         }
