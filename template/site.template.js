@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - [SITE_NAME]
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.1.0
+// @version      0.2.0
 // @description  Vim-style command palette for [SITE_NAME]
 // @author       [YOUR_NAME]
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/[site].user.js
@@ -15,43 +15,59 @@
   'use strict';
 
   // ============================================
-  // TODO: Define your theme CSS
+  // TUI-Style Theme (Solarized Dark)
   // ============================================
-  // Use CSS variables that match the site's design language.
-  // Example from YouTube (dark theme, red accents):
-  //   --yt-bg-primary: #0f0f0f;
-  //   --yt-red: #ff0000;
+  // Minimalist terminal-inspired design with:
+  // - Solarized Dark color palette
+  // - Monospace font throughout
+  // - Low-contrast, muted color hierarchy
+  // - Panel labels overlaying borders
+  // - No rounded corners, minimal decoration
   //
-  // Inspect the site to find:
-  // - Background colors (primary, secondary, hover states)
-  // - Accent color (for selection highlight)
-  // - Text colors (primary, secondary/muted)
-  // - Border colors
-  // - Font family
+  // Based on re-start Chrome extension styling.
+  // Colors use YouTube-style semantic naming for easy site adaptation.
   // ============================================
   const CSS = `
     :root {
-      /* TODO: Define your color palette */
-      --bg-primary: #ffffff;
-      --bg-secondary: #f5f5f5;
-      --bg-hover: #e5e5e5;
-      --text-primary: #333333;
-      --text-secondary: #666666;
-      --accent: #0066cc;
-      --border: #dddddd;
-      --font: system-ui, sans-serif;
+      /* Solarized Dark - Background layers */
+      --bg-1: #002b36;            /* Base03 - Main background */
+      --bg-2: #073642;            /* Base02 - Panels, cards */
+      --bg-3: #094552;            /* Slightly lighter - Borders, hover */
+      
+      /* Solarized Dark - Text hierarchy */
+      --txt-1: #93a1a1;           /* Base1 - Primary text, headings */
+      --txt-2: #839496;           /* Base0 - Body text */
+      --txt-3: #586e75;           /* Base01 - Secondary, muted */
+      --txt-4: #2aa198;           /* Cyan - Labels, decorative */
+      
+      /* Solarized Dark - Accent colors */
+      --txt-accent: #268bd2;      /* Blue - Links, interactive */
+      --txt-num: #b58900;         /* Yellow - Numbers, highlights */
+      --txt-green: #859900;       /* Green - Success */
+      --txt-orange: #cb4b16;      /* Orange - Warnings */
+      --txt-violet: #6c71c4;      /* Violet - Special */
+      --txt-magenta: #d33682;     /* Magenta - Emphasis */
+      --txt-err: #dc322f;         /* Red - Errors */
+      
+      /* Font */
+      --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
     }
 
+    /* ============================================
+       Overlay & Modal Structure
+       ============================================ */
     #vilify-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.7);
       display: none;
       align-items: flex-start;
       justify-content: center;
       padding-top: 15vh;
       z-index: 9999999;
-      font-family: var(--font);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.5;
     }
 
     #vilify-overlay.open {
@@ -59,158 +75,175 @@
     }
 
     #vilify-modal {
+      position: relative;
       width: 560px;
       max-width: 90vw;
       max-height: 70vh;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+      background: var(--bg-1);
+      border: 2px solid var(--bg-3);
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
+    /* Panel label - positioned at top-left border (Solarized cyan) */
+    #vilify-modal::before {
+      content: 'commands';
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      background: var(--bg-1);
+      color: var(--txt-4);
+      padding: 0 6px;
+      font-size: 12px;
+      z-index: 1;
+    }
+
+    /* ============================================
+       Header (optional - can be removed for minimal look)
+       ============================================ */
     #vilify-header {
-      background: var(--bg-secondary);
-      padding: 12px 16px;
+      padding: 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      border-bottom: 1px solid var(--border);
+      gap: 8px;
+      border-bottom: 1px solid var(--bg-3);
     }
 
     #vilify-header-logo {
-      /* TODO: Style your logo to match the site */
-      width: 24px;
-      height: 24px;
-      background: var(--accent);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 14px;
+      color: var(--txt-3);
+    }
+
+    #vilify-header-logo::before {
+      content: '>';
     }
 
     #vilify-header-title {
       font-size: 14px;
-      font-weight: 500;
-      color: var(--text-primary);
+      color: var(--txt-2);
     }
 
+    /* ============================================
+       Input
+       ============================================ */
     #vilify-input-wrapper {
       padding: 12px 16px;
-      background: var(--bg-primary);
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--bg-3);
     }
 
     #vilify-input {
       width: 100%;
-      padding: 10px 12px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      padding: 8px 0;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--bg-3);
       font-size: 14px;
-      font-family: var(--font);
-      color: var(--text-primary);
+      font-family: var(--font-mono);
+      color: var(--txt-1);
       outline: none;
     }
 
     #vilify-input::placeholder {
-      color: var(--text-secondary);
+      color: var(--txt-4);
     }
 
     #vilify-input:focus {
-      border-color: var(--accent);
+      border-bottom-color: var(--txt-3);
     }
 
+    /* ============================================
+       List & Items
+       ============================================ */
     #vilify-list {
       flex: 1;
       overflow-y: auto;
       max-height: 400px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--bg-3) transparent;
+    }
+
+    #vilify-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #vilify-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #vilify-list::-webkit-scrollbar-thumb {
+      background: var(--bg-3);
     }
 
     .vilify-group-label {
-      padding: 12px 16px 8px;
-      font-size: 11px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-secondary);
-      background: var(--bg-primary);
+      padding: 16px 16px 8px;
+      font-size: 12px;
+      color: var(--txt-4);
+      text-transform: lowercase;
     }
 
     .vilify-item {
       display: flex;
       align-items: center;
-      padding: 10px 16px;
+      padding: 8px 16px;
       cursor: pointer;
       font-size: 14px;
-      color: var(--text-primary);
-      background: var(--bg-primary);
+      color: var(--txt-2);
+      background: transparent;
     }
 
     .vilify-item:hover {
-      background: var(--bg-hover);
+      background: var(--bg-2);
     }
 
     .vilify-item.selected {
-      background: var(--accent);
-      color: white;
+      background: var(--bg-2);
+      outline: 1px solid var(--txt-4);
+      outline-offset: -1px;
     }
 
-    .vilify-item.selected .vilify-shortcut kbd {
-      background: rgba(255, 255, 255, 0.2);
-      border-color: rgba(255, 255, 255, 0.3);
-    }
-
-    .vilify-item.selected .vilify-meta {
-      color: rgba(255, 255, 255, 0.8);
-    }
-
-    .vilify-icon {
-      width: 32px;
-      height: 32px;
-      margin-right: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      color: var(--text-secondary);
-      background: var(--bg-secondary);
-      border-radius: 6px;
+    .vilify-item.selected .vilify-label {
+      color: var(--txt-1);
     }
 
     .vilify-item.selected .vilify-icon {
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
+      color: var(--txt-4);
     }
 
-    /* TODO: If your site shows content items (like videos, emails, etc.),
-       add thumbnail/preview styles here. Example:
-    
-    .vilify-thumbnail {
-      width: 80px;
-      height: 45px;
-      margin-right: 12px;
-      border-radius: 6px;
-      background: var(--bg-secondary);
-      object-fit: cover;
+    /* Icon: terminal-style prefix */
+    .vilify-icon {
+      width: auto;
+      margin-right: 8px;
+      color: var(--txt-3);
+      font-size: 14px;
     }
-    */
+
+    .vilify-icon::before {
+      content: '>';
+    }
+
+    /* Hide emoji icons, use terminal prefix instead */
+    .vilify-icon:not(:empty)::before {
+      content: none;
+    }
 
     .vilify-label {
       flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .vilify-meta {
       font-size: 12px;
-      color: var(--text-secondary);
-      margin-left: 8px;
+      color: var(--txt-4);
+      margin-left: 16px;
     }
 
+    .vilify-item.selected .vilify-meta {
+      color: var(--txt-3);
+    }
+
+    /* Keyboard shortcuts */
     .vilify-shortcut {
       margin-left: 12px;
       display: flex;
@@ -218,57 +251,76 @@
     }
 
     .vilify-shortcut kbd {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
+      background: transparent;
+      border: 1px solid var(--bg-3);
       padding: 2px 6px;
       font-size: 11px;
-      font-family: var(--font);
-      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      color: var(--txt-4);
     }
 
+    .vilify-item.selected .vilify-shortcut kbd {
+      border-color: var(--txt-3);
+      color: var(--txt-num);
+    }
+
+    /* Thumbnails for content items */
+    .vilify-thumbnail {
+      width: 80px;
+      height: 45px;
+      margin-right: 12px;
+      background: var(--bg-2);
+      object-fit: cover;
+      border: 1px solid var(--bg-3);
+    }
+
+    /* ============================================
+       Footer
+       ============================================ */
     #vilify-footer {
       display: flex;
-      gap: 20px;
-      padding: 10px 16px;
-      background: var(--bg-secondary);
-      border-top: 1px solid var(--border);
+      gap: 16px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--bg-3);
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--txt-4);
     }
 
     #vilify-footer kbd {
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
+      background: transparent;
+      border: 1px solid var(--bg-3);
+      padding: 1px 5px;
       margin: 0 4px;
       font-size: 11px;
+      font-family: var(--font-mono);
     }
 
+    /* ============================================
+       Empty State
+       ============================================ */
     .vilify-empty {
       padding: 40px;
       text-align: center;
-      color: var(--text-secondary);
+      color: var(--txt-4);
       font-size: 14px;
     }
 
+    /* ============================================
+       Toast Notifications
+       ============================================ */
     .vilify-toast {
       position: fixed;
       bottom: 32px;
       right: 32px;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      padding: 16px 24px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      font-size: 15px;
-      font-weight: 500;
-      font-family: var(--font);
+      background: var(--bg-2);
+      color: var(--txt-2);
+      padding: 12px 20px;
+      border: 2px solid var(--bg-3);
+      font-size: 14px;
+      font-family: var(--font-mono);
       z-index: 10000000;
       opacity: 0;
       transition: opacity 0.2s;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     }
 
     .vilify-toast.show {
@@ -429,11 +481,12 @@
   // ============================================
   // Commands appear in the palette. Each command has:
   // - label: string (display name)
-  // - icon: string (emoji or character)
   // - action: function (what to do)
-  // - keys: string (optional, shows shortcut hint, e.g., 'G H')
+  // - keys: string (optional, shows shortcut hint, e.g., 'g h')
   //
-  // Group commands with: { group: 'Group Name' }
+  // Group commands with: { group: 'group name' }
+  //
+  // Note: Icons are replaced with terminal-style '>' prefix
   // ============================================
 
   function getCommands() {
@@ -442,16 +495,16 @@
     const cmds = [];
 
     // Navigation commands (always available)
-    cmds.push({ group: 'Navigation' });
-    cmds.push({ label: 'Home', icon: '🏠', action: () => navigateTo('/'), keys: 'G H' });
+    cmds.push({ group: 'navigation' });
+    cmds.push({ label: 'home', action: () => navigateTo('/'), keys: 'g h' });
     // TODO: Add more navigation commands
 
     // Context-specific commands
     if (ctx) {
-      cmds.push({ group: 'Actions' });
+      cmds.push({ group: 'actions' });
       // TODO: Add context-aware commands
       // Example:
-      // cmds.push({ label: 'Like', icon: '❤️', action: () => like(ctx.id) });
+      // cmds.push({ label: 'like', action: () => like(ctx.id) });
     }
 
     return cmds;
@@ -585,10 +638,9 @@
           });
           itemEl.appendChild(img);
         } else {
-          // Command item with icon
+          // Terminal-style prefix (> is added via CSS ::before)
           itemEl.appendChild(createElement('span', {
-            className: 'vilify-icon',
-            textContent: item.icon || '▸'
+            className: 'vilify-icon'
           }));
         }
 
@@ -620,7 +672,7 @@
     if (idx === 0) {
       listEl.appendChild(createElement('div', { 
         className: 'vilify-empty', 
-        textContent: 'No results' 
+        textContent: 'no results' 
       }));
     }
 
@@ -689,17 +741,11 @@
     overlay = createElement('div', { id: 'vilify-overlay' });
     const modal = createElement('div', { id: 'vilify-modal' });
 
-    // Header - TODO: Customize the logo
-    const header = createElement('div', { id: 'vilify-header' }, [
-      createElement('div', { id: 'vilify-header-logo', textContent: 'V' }),
-      createElement('div', { id: 'vilify-header-title', textContent: 'Command Palette' })
-    ]);
-
-    // Input
+    // Input (no header in minimal TUI style)
     inputEl = createElement('input', {
       id: 'vilify-input',
       type: 'text',
-      placeholder: 'Type a command...',
+      placeholder: 'type a command...',
       autocomplete: 'off',
       spellcheck: 'false'
     });
@@ -708,7 +754,7 @@
     // List
     listEl = createElement('div', { id: 'vilify-list' });
 
-    // Footer
+    // Footer with keyboard hints
     const footer = createElement('div', { id: 'vilify-footer' }, [
       createFooterHint(['↑', '↓'], 'navigate'),
       createFooterHint(['↵'], 'select'),
@@ -716,7 +762,6 @@
       createFooterHint(['esc'], 'close')
     ]);
 
-    modal.appendChild(header);
     modal.appendChild(inputWrapper);
     modal.appendChild(listEl);
     modal.appendChild(footer);
