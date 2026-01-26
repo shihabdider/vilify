@@ -1842,24 +1842,29 @@
       const notificationBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
       if (notificationBtn) {
         notificationBtn.click();
-        // Wait for dropdown to appear, then click Unsubscribe
+        // Wait for dropdown to appear
         setTimeout(() => {
-          const unsubOption = document.querySelector('tp-yt-paper-item[role="option"]:last-child, ytd-menu-service-item-renderer:last-child, [aria-label*="Unsubscribe"]');
-          if (unsubOption) {
-            unsubOption.click();
-            showToast('Unsubscribed');
-          } else {
-            // Try finding by text content
-            const menuItems = document.querySelectorAll('tp-yt-paper-item, ytd-menu-service-item-renderer');
+          // Look for Unsubscribe in the popup menu
+          const popup = document.querySelector('ytd-menu-popup-renderer, tp-yt-iron-dropdown');
+          if (popup) {
+            const menuItems = popup.querySelectorAll('ytd-menu-service-item-renderer, tp-yt-paper-item');
             for (const item of menuItems) {
               if (item.textContent?.toLowerCase().includes('unsubscribe')) {
                 item.click();
-                showToast('Unsubscribed');
+                // Handle confirmation dialog that may appear
+                setTimeout(() => {
+                  const confirmBtn = document.querySelector('yt-confirm-dialog-renderer #confirm-button button, tp-yt-paper-dialog #confirm-button button, [aria-label="Unsubscribe"]');
+                  if (confirmBtn) {
+                    confirmBtn.click();
+                  }
+                  showToast('Unsubscribed');
+                  updateSubscribeButton();
+                }, 300);
                 return;
               }
             }
-            showToast('Unsubscribe option not found');
           }
+          showToast('Unsubscribe option not found');
         }, 300);
       }
     } else {
@@ -1868,9 +1873,20 @@
       if (ytSubBtn) {
         ytSubBtn.click();
         showToast('Subscribed');
+        setTimeout(updateSubscribeButton, 500);
       } else {
         showToast('Subscribe button not found');
       }
+    }
+  }
+
+  function updateSubscribeButton() {
+    // Update our UI button to reflect current state
+    const ctx = getVideoContext();
+    const ourBtn = document.querySelector('.vilify-subscribe-btn');
+    if (ourBtn && ctx) {
+      ourBtn.textContent = ctx.isSubscribed ? 'Subscribed' : 'Subscribe';
+      ourBtn.classList.toggle('subscribed', ctx.isSubscribed);
     }
   }
 
