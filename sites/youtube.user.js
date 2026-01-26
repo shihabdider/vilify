@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.1.2
+// @version      0.1.3
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
@@ -2369,7 +2369,7 @@
       cmds.push({ label: 'Toggle fullscreen', icon: '⛶', action: toggleFullscreen, keys: 'F' });
       cmds.push({ label: 'Theater mode', icon: '🎬', action: toggleTheaterMode, keys: 'T' });
       cmds.push({ label: 'Toggle captions', icon: '💬', action: toggleCaptions, keys: 'C' });
-      cmds.push({ label: 'Toggle mute', icon: videoCtx.muted ? '🔇' : '🔊', action: toggleMute, keys: 'M' });
+      cmds.push({ label: 'Toggle mute', icon: videoCtx.muted ? '🔇' : '🔊', action: toggleMute, keys: 'Shift+M' });
       cmds.push({ label: 'Show description', icon: '📖', action: toggleDescriptionOpen, keys: 'Z O' });
       cmds.push({ label: 'Close description', icon: '📕', action: toggleDescriptionClose, keys: 'Z C' });
       cmds.push({ label: 'Next comment page', icon: '💬', action: nextCommentPage, keys: 'Ctrl+F' });
@@ -2395,7 +2395,7 @@
           label: videoCtx.isSubscribed ? 'Unsubscribe' : 'Subscribe', 
           icon: videoCtx.isSubscribed ? '✓' : '⊕', 
           action: toggleSubscribe,
-          keys: 'M'
+          keys: 'm'
         });
         cmds.push({ 
           label: `Go to ${videoCtx.channelName || 'channel'}`, 
@@ -2465,6 +2465,8 @@
     if (videoCtx) {
       // Shift+Y = yank URL at current time
       actions['Y'] = copyVideoUrlAtTime;
+      // Shift+M = toggle mute
+      actions['M'] = toggleMute;
     }
     
     return actions;
