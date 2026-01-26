@@ -49,6 +49,29 @@
       --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Consolas', monospace;
     }
 
+    /* Hide YouTube UI when focus mode is active */
+    body.vilify-focus-mode ytd-app {
+      visibility: hidden !important;
+    }
+
+    body.vilify-focus-mode #movie_player {
+      visibility: visible !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      z-index: 1 !important;
+    }
+
+    body.vilify-focus-mode ytd-watch-flexy {
+      visibility: hidden !important;
+    }
+
+    /* Prevent scrolling on YouTube's hidden content */
+    body.vilify-focus-mode {
+      overflow: hidden !important;
+    }
+
     #keyring-overlay {
       position: fixed;
       inset: 0;
