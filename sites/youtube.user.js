@@ -1835,17 +1835,42 @@
   }
 
   function toggleSubscribe() {
-    const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
-    if (ytSubBtn) {
-      ytSubBtn.click();
-      // Check new state after a brief delay for YouTube to update
-      setTimeout(() => {
-        const label = ytSubBtn.getAttribute('aria-label') || '';
-        const isNowSubscribed = label.toLowerCase().includes('unsubscribe');
-        showToast(isNowSubscribed ? 'Subscribed' : 'Unsubscribed');
-      }, 300);
+    const ctx = getVideoContext();
+    
+    if (ctx?.isSubscribed) {
+      // Already subscribed - need to open dropdown and click Unsubscribe
+      const notificationBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
+      if (notificationBtn) {
+        notificationBtn.click();
+        // Wait for dropdown to appear, then click Unsubscribe
+        setTimeout(() => {
+          const unsubOption = document.querySelector('tp-yt-paper-item[role="option"]:last-child, ytd-menu-service-item-renderer:last-child, [aria-label*="Unsubscribe"]');
+          if (unsubOption) {
+            unsubOption.click();
+            showToast('Unsubscribed');
+          } else {
+            // Try finding by text content
+            const menuItems = document.querySelectorAll('tp-yt-paper-item, ytd-menu-service-item-renderer');
+            for (const item of menuItems) {
+              if (item.textContent?.toLowerCase().includes('unsubscribe')) {
+                item.click();
+                showToast('Unsubscribed');
+                return;
+              }
+            }
+            showToast('Unsubscribe option not found');
+          }
+        }, 300);
+      }
     } else {
-      showToast('Subscribe button not found');
+      // Not subscribed - click subscribe button directly
+      const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
+      if (ytSubBtn) {
+        ytSubBtn.click();
+        showToast('Subscribed');
+      } else {
+        showToast('Subscribe button not found');
+      }
     }
   }
 
