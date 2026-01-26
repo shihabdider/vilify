@@ -2130,26 +2130,23 @@
     searchInput.addEventListener('keydown', onSearchKeydown);
   }
 
-  function openFilter() {
+  function toggleFilter(show) {
     const wrapper = document.querySelector('.vilify-filter-wrapper');
     const input = document.getElementById('vilify-filter');
     if (!wrapper || !input) return;
     
-    filterActive = true;
-    wrapper.classList.remove('hidden');
-    input.value = filterQuery;
-    input.focus();
+    filterActive = show;
+    wrapper.classList.toggle('hidden', !show);
+    if (show) {
+      input.value = filterQuery;
+      input.focus();
+    } else {
+      input.blur();
+    }
   }
 
-  function closeFilter() {
-    const wrapper = document.querySelector('.vilify-filter-wrapper');
-    const input = document.getElementById('vilify-filter');
-    if (!wrapper || !input) return;
-    
-    filterActive = false;
-    wrapper.classList.add('hidden');
-    input.blur();
-  }
+  const openFilter = () => toggleFilter(true);
+  const closeFilter = () => toggleFilter(false);
 
   function onFilterInput(e) {
     filterQuery = e.target.value;
@@ -2202,26 +2199,23 @@
   // ============================================
   let searchActive = false;
 
-  function openSearch() {
+  function toggleSearch(show) {
     const wrapper = document.querySelector('.vilify-search-wrapper');
     const input = document.getElementById('vilify-search');
     if (!wrapper || !input) return;
     
-    searchActive = true;
-    wrapper.classList.remove('hidden');
-    input.value = '';
-    input.focus();
+    searchActive = show;
+    wrapper.classList.toggle('hidden', !show);
+    if (show) {
+      input.value = '';
+      input.focus();
+    } else {
+      input.blur();
+    }
   }
 
-  function closeSearch() {
-    const wrapper = document.querySelector('.vilify-search-wrapper');
-    const input = document.getElementById('vilify-search');
-    if (!wrapper || !input) return;
-    
-    searchActive = false;
-    wrapper.classList.add('hidden');
-    input.blur();
-  }
+  const openSearch = () => toggleSearch(true);
+  const closeSearch = () => toggleSearch(false);
 
   function onSearchKeydown(e) {
     if (e.key === 'Escape') {
