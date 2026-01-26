@@ -1851,14 +1851,25 @@
             for (const item of menuItems) {
               if (item.textContent?.toLowerCase().includes('unsubscribe')) {
                 item.click();
-                // Handle confirmation dialog that may appear
+                // Handle confirmation dialog
                 setTimeout(() => {
-                  const confirmBtn = document.querySelector('yt-confirm-dialog-renderer #confirm-button button, tp-yt-paper-dialog #confirm-button button, [aria-label="Unsubscribe"]');
+                  // Find the blue "Unsubscribe" button in the confirmation modal
+                  const dialogBtns = document.querySelectorAll('yt-confirm-dialog-renderer button, tp-yt-paper-dialog button, yt-button-renderer button');
+                  for (const btn of dialogBtns) {
+                    if (btn.textContent?.toLowerCase().trim() === 'unsubscribe') {
+                      btn.click();
+                      showToast('Unsubscribed');
+                      setTimeout(() => updateSubscribeButton(false), 500);
+                      return;
+                    }
+                  }
+                  // Fallback: try aria-label
+                  const confirmBtn = document.querySelector('[aria-label="Unsubscribe"]');
                   if (confirmBtn) {
                     confirmBtn.click();
+                    showToast('Unsubscribed');
+                    setTimeout(() => updateSubscribeButton(false), 500);
                   }
-                  showToast('Unsubscribed');
-                  updateSubscribeButton();
                 }, 300);
                 return;
               }
@@ -1873,20 +1884,19 @@
       if (ytSubBtn) {
         ytSubBtn.click();
         showToast('Subscribed');
-        setTimeout(updateSubscribeButton, 500);
+        setTimeout(() => updateSubscribeButton(true), 500);
       } else {
         showToast('Subscribe button not found');
       }
     }
   }
 
-  function updateSubscribeButton() {
-    // Update our UI button to reflect current state
-    const ctx = getVideoContext();
+  function updateSubscribeButton(isSubscribed) {
+    // Update our UI button directly with the known state
     const ourBtn = document.querySelector('.vilify-subscribe-btn');
-    if (ourBtn && ctx) {
-      ourBtn.textContent = ctx.isSubscribed ? 'Subscribed' : 'Subscribe';
-      ourBtn.classList.toggle('subscribed', ctx.isSubscribed);
+    if (ourBtn) {
+      ourBtn.textContent = isSubscribed ? 'Subscribed' : 'Subscribe';
+      ourBtn.classList.toggle('subscribed', isSubscribed);
     }
   }
 
