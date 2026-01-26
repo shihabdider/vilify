@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.2.2
+// @version      0.2.3
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
@@ -1989,6 +1989,10 @@
     // Returns the index of the next comment (for the next page)
     clearElement(commentsList);
     
+    // Temporarily set overflow to hidden so scrollHeight reflects actual content height
+    const originalOverflow = commentsList.style.overflow;
+    commentsList.style.overflow = 'hidden';
+    
     let i = startIdx;
     while (i < comments.length) {
       const comment = comments[i];
@@ -1998,7 +2002,7 @@
       ]);
       commentsList.appendChild(commentEl);
       
-      // Check if we've overflowed
+      // Check if we've overflowed (scrollHeight > visible area)
       if (commentsList.scrollHeight > maxHeight && i > startIdx) {
         // Remove this comment - it doesn't fit
         commentsList.removeChild(commentEl);
@@ -2006,6 +2010,9 @@
       }
       i++;
     }
+    
+    // Restore overflow
+    commentsList.style.overflow = originalOverflow;
     
     return i; // Next page starts here
   }
@@ -2026,12 +2033,8 @@
     }
     
     // Get available height for comments list
-    const commentsContainer = document.querySelector('.vilify-comments');
-    const headerEl = document.querySelector('.vilify-comments-header');
-    const paginationHeight = paginationEl ? paginationEl.offsetHeight : 50;
-    const headerHeight = headerEl ? headerEl.offsetHeight : 30;
-    const containerHeight = commentsContainer ? commentsContainer.offsetHeight : 400;
-    const availableHeight = containerHeight - headerHeight - paginationHeight - 20;
+    // Use clientHeight which gives the visible area (excluding scrollbar)
+    const availableHeight = commentsList.clientHeight || 300;
     
     // Ensure we have page start for current page
     if (commentPage < 0) commentPage = 0;
