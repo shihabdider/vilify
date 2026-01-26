@@ -1955,12 +1955,7 @@
   }
 
   function updateSelection() {
-    listEl.querySelectorAll('.keyring-item').forEach(el => {
-      const i = parseInt(el.dataset.idx, 10);
-      el.classList.toggle('selected', i === selectedIdx);
-    });
-    const sel = listEl.querySelector('.keyring-item.selected');
-    if (sel) sel.scrollIntoView({ block: 'nearest' });
+    updateListSelection(listEl, '.keyring-item', selectedIdx);
   }
 
   function getActionableItems() {
@@ -2015,6 +2010,14 @@
   const img = (attrs) => createElement('img', attrs);
   const input = (attrs) => createElement('input', attrs);
   const button = (attrs, children) => createElement('button', attrs, children);
+
+  // Generic list selection updater
+  function updateListSelection(container, itemSelector, selectedIdx) {
+    const items = container.querySelectorAll(itemSelector);
+    items.forEach((el, i) => el.classList.toggle('selected', i === selectedIdx));
+    const sel = container.querySelector(`${itemSelector}.selected`);
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
 
   function createFocusOverlay() {
     if (focusOverlay) return;
@@ -2299,12 +2302,7 @@
   }
 
   function updateChapterSelection() {
-    const items = chapterListEl.querySelectorAll('.vilify-chapter-item');
-    items.forEach((el, i) => {
-      el.classList.toggle('selected', i === chapterSelectedIdx);
-    });
-    const sel = chapterListEl.querySelector('.vilify-chapter-item.selected');
-    if (sel) sel.scrollIntoView({ block: 'nearest' });
+    updateListSelection(chapterListEl, '.vilify-chapter-item', chapterSelectedIdx);
   }
 
   function jumpToChapter(idx, filteredList = null) {
@@ -2412,12 +2410,7 @@
   }
 
   function updateVideoSelection() {
-    const items = document.querySelectorAll('.vilify-video-item');
-    items.forEach((el, i) => {
-      el.classList.toggle('selected', i === selectedIdx);
-    });
-    const sel = document.querySelector('.vilify-video-item.selected');
-    if (sel) sel.scrollIntoView({ block: 'nearest' });
+    updateListSelection(document, '.vilify-video-item', selectedIdx);
   }
 
   function flashEndOfList() {
