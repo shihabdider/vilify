@@ -377,9 +377,41 @@
       font-size: 16px;
     }
 
-    /* Watch page - sidebar layout */
+    /* Watch page - sidebar layout: overlay only covers sidebar, not video */
     body.vilify-focus-mode.vilify-watch-page #vilify-focus {
+      left: auto;
+      right: 0;
+      width: 350px;
+      background: var(--bg-primary);
+    }
+    
+    /* Header spans full width on watch page, positioned separately */
+    body.vilify-focus-mode.vilify-watch-page .vilify-header {
+      position: fixed;
       top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 10001;
+      background: var(--bg-primary);
+    }
+    
+    /* Footer spans full width on watch page */
+    body.vilify-focus-mode.vilify-watch-page .vilify-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 10001;
+      background: var(--bg-primary);
+    }
+    
+    /* Adjust content area to account for fixed header */
+    body.vilify-focus-mode.vilify-watch-page #vilify-content {
+      margin-top: 48px;
+      margin-bottom: 40px;
+      height: calc(100vh - 48px - 40px);
     }
 
     body.vilify-focus-mode.vilify-watch-page #movie_player {
@@ -388,33 +420,26 @@
       left: 0 !important;
       width: calc(100% - 350px) !important;
       height: calc(100vh - 48px - 40px) !important;  /* viewport minus header and footer */
-      z-index: 10000 !important;  /* above #vilify-focus (9999) */
+      z-index: 10000 !important;  /* between header/footer (10001) and sidebar overlay */
       visibility: visible !important;
     }
     
-    /* Ensure video element inside player is visible */
-    body.vilify-focus-mode.vilify-watch-page #movie_player video {
+    /* Ensure video element and all player internals are visible */
+    body.vilify-focus-mode.vilify-watch-page #movie_player,
+    body.vilify-focus-mode.vilify-watch-page #movie_player * {
       visibility: visible !important;
     }
 
     .vilify-watch-layout {
       display: flex;
+      flex-direction: column;
       height: 100%;
     }
 
-    .vilify-watch-video-area {
-      flex: 1;
-      min-width: 0;
-      /* Transparent spacer - actual player shows through at higher z-index */
-      background: transparent;
-    }
-
     .vilify-watch-sidebar {
-      width: 350px;
-      flex-shrink: 0;
+      flex: 1;
       display: flex;
       flex-direction: column;
-      border-left: 1px solid var(--border);
       background: var(--bg-primary);
       overflow: hidden;
     }
@@ -1357,14 +1382,7 @@
       return;
     }
     
-    // Create sidebar layout
-    const layout = div({ className: 'vilify-watch-layout' });
-    
-    // Left side: video area (spacer - actual player is fixed positioned)
-    const videoArea = div({ className: 'vilify-watch-video-area' });
-    layout.appendChild(videoArea);
-    
-    // Right side: sidebar with info and comments
+    // Create sidebar layout (entire overlay is the sidebar on watch page)
     const sidebar = div({ className: 'vilify-watch-sidebar' });
     
     // Video info section
@@ -1412,9 +1430,8 @@
     ]);
     
     sidebar.appendChild(commentsSection);
-    layout.appendChild(sidebar);
     
-    content.appendChild(layout);
+    content.appendChild(sidebar);
     
     // If no comments yet, set up observer to re-render when they load
     if (comments.length === 0) {
