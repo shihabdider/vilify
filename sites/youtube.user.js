@@ -296,35 +296,106 @@
       background: var(--bg-hover);
     }
 
-    .vilify-description {
-      margin-top: 12px;
+    .vilify-description-hint {
+      margin-top: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
     }
 
-    .vilify-description-text {
-      color: var(--text-primary);
-      font-size: 14px;
-      line-height: 1.5;
-      white-space: pre-wrap;
+    .vilify-description-hint kbd {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      margin: 0 2px;
     }
 
-    .vilify-description-text.collapsed {
-      max-height: 80px;
+    /* Description Modal */
+    #vilify-desc-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 10vh;
+      z-index: 9999999;
+      font-family: var(--font-main);
+    }
+
+    #vilify-desc-overlay.open {
+      display: flex;
+    }
+
+    #vilify-desc-modal {
+      width: 700px;
+      max-width: 90vw;
+      max-height: 80vh;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
 
-    .vilify-description-toggle {
-      background: none;
-      border: none;
-      color: var(--text-primary);
-      font-family: var(--font-main);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      padding: 8px 0;
+    #vilify-desc-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .vilify-description-toggle:hover {
+    #vilify-desc-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    #vilify-desc-close {
+      background: none;
+      border: none;
       color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    #vilify-desc-close:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    #vilify-desc-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    #vilify-desc-text {
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    #vilify-desc-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    #vilify-desc-footer kbd {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin: 0 4px;
     }
 
     .vilify-comments {
@@ -1261,34 +1332,92 @@
   }
 
   // ============================================
-  // Description Toggle (zo/zc)
+  // Description Modal (zo/zc)
   // ============================================
-  function toggleDescriptionOpen() {
-    const descText = document.querySelector('.vilify-description-text');
-    const descToggle = document.querySelector('.vilify-description-toggle');
-    if (descText && descToggle) {
-      descText.classList.remove('collapsed');
-      descToggle.textContent = '...less';
-      showToast('Description expanded');
+  let descOverlay = null;
+  let descriptionText = '';
+
+  function createDescriptionModal() {
+    if (descOverlay) return;
+
+    descOverlay = createElement('div', { id: 'vilify-desc-overlay' });
+    const modal = createElement('div', { id: 'vilify-desc-modal' });
+
+    // Header
+    const header = createElement('div', { id: 'vilify-desc-header' });
+    header.appendChild(createElement('span', { id: 'vilify-desc-title', textContent: 'Description' }));
+    const closeBtn = createElement('button', { id: 'vilify-desc-close', textContent: '×' });
+    closeBtn.addEventListener('click', closeDescriptionModal);
+    header.appendChild(closeBtn);
+
+    // Content
+    const content = createElement('div', { id: 'vilify-desc-content' });
+    content.appendChild(createElement('div', { id: 'vilify-desc-text' }));
+
+    // Footer
+    const footer = createElement('div', { id: 'vilify-desc-footer' });
+    footer.appendChild(document.createTextNode('Press '));
+    footer.appendChild(createElement('kbd', { textContent: 'zc' }));
+    footer.appendChild(document.createTextNode(' or '));
+    footer.appendChild(createElement('kbd', { textContent: 'Esc' }));
+    footer.appendChild(document.createTextNode(' to close'));
+
+    modal.appendChild(header);
+    modal.appendChild(content);
+    modal.appendChild(footer);
+    descOverlay.appendChild(modal);
+    document.body.appendChild(descOverlay);
+
+    // Click outside to close
+    descOverlay.addEventListener('click', e => {
+      if (e.target === descOverlay) closeDescriptionModal();
+    });
+  }
+
+  function openDescriptionModal() {
+    if (getPageType() !== 'watch') {
+      showToast('No description on this page');
+      return;
     }
+
+    const description = getVideoDescription();
+    if (!description) {
+      showToast('No description available');
+      return;
+    }
+
+    if (!descOverlay) createDescriptionModal();
+    
+    descriptionText = description;
+    const textEl = document.getElementById('vilify-desc-text');
+    if (textEl) textEl.textContent = description;
+    
+    descOverlay.classList.add('open');
+  }
+
+  function closeDescriptionModal() {
+    if (descOverlay) {
+      descOverlay.classList.remove('open');
+    }
+  }
+
+  function isDescriptionModalOpen() {
+    return descOverlay?.classList.contains('open');
+  }
+
+  function toggleDescriptionOpen() {
+    openDescriptionModal();
   }
 
   function toggleDescriptionClose() {
-    const descText = document.querySelector('.vilify-description-text');
-    const descToggle = document.querySelector('.vilify-description-toggle');
-    if (descText && descToggle) {
-      descText.classList.add('collapsed');
-      descToggle.textContent = '...more';
-      showToast('Description collapsed');
-    }
+    closeDescriptionModal();
   }
 
   function toggleDescription() {
-    const descText = document.querySelector('.vilify-description-text');
-    const descToggle = document.querySelector('.vilify-description-toggle');
-    if (descText && descToggle) {
-      const isCollapsed = descText.classList.toggle('collapsed');
-      descToggle.textContent = isCollapsed ? '...more' : '...less';
+    if (isDescriptionModalOpen()) {
+      closeDescriptionModal();
+    } else {
+      openDescriptionModal();
     }
   }
 
@@ -1360,24 +1489,12 @@
     
     videoInfo.appendChild(channelRow);
     
-    // Description
-    const description = getVideoDescription();
-    const descEl = createElement('div', { className: 'vilify-description' });
-    const descText = createElement('div', { 
-      className: 'vilify-description-text collapsed',
-      textContent: description || 'No description'
-    });
-    const descToggle = createElement('button', { 
-      className: 'vilify-description-toggle',
-      textContent: '...more'
-    });
-    descToggle.addEventListener('click', () => {
-      const isCollapsed = descText.classList.toggle('collapsed');
-      descToggle.textContent = isCollapsed ? '...more' : '...less';
-    });
-    descEl.appendChild(descText);
-    descEl.appendChild(descToggle);
-    videoInfo.appendChild(descEl);
+    // Description hint
+    const descHint = createElement('div', { className: 'vilify-description-hint' });
+    descHint.appendChild(document.createTextNode('Press '));
+    descHint.appendChild(createElement('kbd', { textContent: 'zo' }));
+    descHint.appendChild(document.createTextNode(' for description'));
+    videoInfo.appendChild(descHint);
     
     content.appendChild(videoInfo);
     
@@ -1512,6 +1629,37 @@
       ]);
       commentsList.appendChild(commentEl);
     });
+  }
+
+  function loadMoreComments() {
+    if (getPageType() !== 'watch') return;
+    
+    // Scroll the hidden YouTube comments section to trigger loading more
+    const commentsContainer = document.querySelector('ytd-comments #contents, ytd-comments');
+    if (commentsContainer) {
+      // Scroll down within the comments
+      commentsContainer.scrollTop += 500;
+      
+      // Also scroll the main page
+      const ytdApp = document.querySelector('ytd-app');
+      if (ytdApp) {
+        window.scrollBy(0, 500);
+      }
+    }
+    
+    // Also try to click "Show more" button if it exists
+    const showMoreBtn = document.querySelector('ytd-comments ytd-button-renderer#more-replies button, ytd-comments [aria-label*="more"]');
+    if (showMoreBtn) {
+      showMoreBtn.click();
+    }
+    
+    showToast('Loading more comments...');
+    
+    // Re-scrape comments after a delay
+    setTimeout(() => {
+      const comments = scrapeComments();
+      updateCommentsUI(comments);
+    }, 1500);
   }
 
   function formatTimestamp(seconds) {
@@ -1757,8 +1905,9 @@
       cmds.push({ label: 'Theater mode', icon: '🎬', action: toggleTheaterMode, keys: 'T' });
       cmds.push({ label: 'Toggle captions', icon: '💬', action: toggleCaptions, keys: 'C' });
       cmds.push({ label: 'Toggle mute', icon: videoCtx.muted ? '🔇' : '🔊', action: toggleMute, keys: 'M' });
-      cmds.push({ label: 'Expand description', icon: '📖', action: toggleDescriptionOpen, keys: 'Z O' });
-      cmds.push({ label: 'Collapse description', icon: '📕', action: toggleDescriptionClose, keys: 'Z C' });
+      cmds.push({ label: 'Show description', icon: '📖', action: toggleDescriptionOpen, keys: 'Z O' });
+      cmds.push({ label: 'Close description', icon: '📕', action: toggleDescriptionClose, keys: 'Z C' });
+      cmds.push({ label: 'Load more comments', icon: '💬', action: loadMoreComments, keys: 'Ctrl+F' });
       cmds.push({ label: 'Jump to chapter', icon: '📑', action: openChapterPicker, keys: 'F' });
 
       cmds.push({ group: 'Copy' });
@@ -2687,6 +2836,11 @@
 
     // Escape to close palettes
     if (e.key === 'Escape') {
+      if (isDescriptionModalOpen()) {
+        e.preventDefault();
+        closeDescriptionModal();
+        return;
+      }
       if (isChapterPickerOpen()) {
         e.preventDefault();
         closeChapterPicker();
@@ -2699,8 +2853,19 @@
       }
     }
 
+    // Ctrl+f/b for loading more comments on watch page
+    if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      if (e.key === 'f' || e.key === 'b') {
+        if (focusModeActive && getPageType() === 'watch' && !isPaletteOpen() && !isChapterPickerOpen()) {
+          e.preventDefault();
+          loadMoreComments();
+          return;
+        }
+      }
+    }
+
     // Vim-style sequences when palette is closed
-    if (!isPaletteOpen() && !isChapterPickerOpen() && !isInput) {
+    if (!isPaletteOpen() && !isChapterPickerOpen() && !isDescriptionModalOpen() && !isInput) {
       // Ignore modifier keys alone
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
         return;
@@ -2723,9 +2888,9 @@
         return;
       }
 
-      // j/k navigation in focus mode (listing pages only)
+      // j/k/arrow navigation in focus mode (listing pages only)
       if (focusModeActive && !isPaletteOpen() && !filterActive && getPageType() !== 'watch') {
-        if (e.key === 'j') {
+        if (e.key === 'j' || e.key === 'ArrowDown') {
           e.preventDefault();
           const items = document.querySelectorAll('.vilify-video-item');
           if (items.length > 0) {
@@ -2734,7 +2899,7 @@
           }
           return;
         }
-        if (e.key === 'k') {
+        if (e.key === 'k' || e.key === 'ArrowUp') {
           e.preventDefault();
           const items = document.querySelectorAll('.vilify-video-item');
           if (items.length > 0) {
