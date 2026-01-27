@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vilify - YouTube
 // @namespace    https://github.com/shihabdider/vilify
-// @version      0.2.3
+// @version      0.2.5
 // @description  Vim-style command palette for YouTube
 // @author       shihabdider
 // @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js
@@ -1175,6 +1175,15 @@
         '#description .content',
         'ytd-expandable-video-description-body-renderer #description-inner',
         '#description yt-attributed-string'
+      ],
+      // Upload date on watch page (e.g., "Jan 15, 2024" or "2 days ago")
+      uploadDate: [
+        '#info-strings yt-formatted-string',
+        'ytd-watch-metadata #info-strings span',
+        '#info span.bold',
+        'ytd-video-primary-info-renderer #info-text',
+        '#description ytd-video-description-header-renderer .yt-core-attributed-string',
+        '#info-container yt-formatted-string'
       ]
     },
     listing: {
@@ -1205,7 +1214,10 @@
         '[itemprop="author"] [itemprop="name"]'
       ],
       videoLink: 'a#video-title-link, a#video-title, a.ytd-thumbnail',
-      videoTitle: '#video-title'
+      videoTitle: '#video-title',
+      // Metadata elements that may contain upload date
+      metadataNew: '.yt-content-metadata-view-model-wiz__metadata-text, .yt-content-metadata-view-model__metadata-text',
+      metadataOld: '#metadata-line span, .inline-metadata-item, .ytd-video-meta-block span, #metadata span'
     },
     comments: {
       thread: [
@@ -1378,6 +1390,15 @@
       ctx.isLiked = likeButton.getAttribute('aria-pressed') === 'true';
     }
 
+    // Get upload date
+    const uploadDateEl = queryFirst(SELECTORS.watch.uploadDate);
+    if (uploadDateEl) {
+      const text = uploadDateEl.textContent.trim();
+      // Extract date pattern - could be "Jan 15, 2024", "2 days ago", "Premiered Jan 15, 2024", etc.
+      const dateMatch = text.match(/(?:Premiered\s+|Streamed\s+)?(.+ago|[A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Z][a-z]+\s+\d{4})/i);
+      ctx.uploadDate = dateMatch ? dateMatch[1] || dateMatch[0] : text;
+    }
+
     return ctx;
   }
 
@@ -1544,7 +1565,7 @@
     /**
      * Helper to add a video if not already seen
      */
-    function addVideo(videoId, title, channelName) {
+    function addVideo(videoId, title, channelName, uploadDate = '') {
       if (seen.has(videoId)) return;
       seen.add(videoId);
       videos.push({
@@ -1552,9 +1573,26 @@
         videoId,
         title,
         channelName,
+        uploadDate,
         thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
         url: `/watch?v=${videoId}`
       });
+    }
+    
+    /**
+     * Extract upload date from a container element by searching all metadata elements
+     * Looks for patterns like "6 years ago", "2 days ago", "Streamed 2 days ago"
+     */
+    function extractUploadDate(container, selector) {
+      if (!container || !selector) return '';
+      const elements = container.querySelectorAll(selector);
+      for (const el of elements) {
+        const text = el.textContent?.trim() || '';
+        // Match patterns like "X time ago", "Streamed X time ago", etc.
+        const match = text.match(/^(?:Streamed\s+)?(\d+\s+(?:second|minute|hour|day|week|month|year)s?\s+ago)$/i);
+        if (match) return match[1];
+      }
+      return '';
     }
     
     /**
@@ -1579,8 +1617,11 @@
 
       const channelEl = queryFirst(SELECTORS.listing.channelNew, el);
       const channelName = channelEl?.textContent?.trim() || '';
+      
+      // Extract upload date from metadata elements
+      const uploadDate = extractUploadDate(el, SELECTORS.listing.metadataNew);
 
-      addVideo(videoId, title, channelName);
+      addVideo(videoId, title, channelName, uploadDate);
     }
 
     // Strategy 2: Old layout selectors (always try, not just fallback)
@@ -1596,8 +1637,11 @@
 
       const channelEl = queryFirst(SELECTORS.listing.channelOld, el);
       const channelName = channelEl?.textContent?.trim() || '';
+      
+      // Extract upload date from metadata elements
+      const uploadDate = extractUploadDate(el, SELECTORS.listing.metadataOld);
 
-      addVideo(videoId, title, channelName);
+      addVideo(videoId, title, channelName, uploadDate);
     }
     
     // Strategy 3: Search results - ytd-video-renderer with different structure
@@ -1623,8 +1667,11 @@
                         el.querySelector('#channel-name a') ||
                         el.querySelector('.ytd-channel-name');
       const channelName = channelEl?.textContent?.trim() || '';
+      
+      // Extract upload date from metadata elements
+      const uploadDate = extractUploadDate(el, SELECTORS.listing.metadataOld);
 
-      addVideo(videoId, title, channelName);
+      addVideo(videoId, title, channelName, uploadDate);
     }
     
     // Strategy 4: Playlist renderers (for playlist pages and search results)
@@ -1642,8 +1689,11 @@
       const channelEl = el.querySelector('#channel-name a') ||
                         el.querySelector('ytd-channel-name a');
       const channelName = channelEl?.textContent?.trim() || '';
+      
+      // Extract upload date from metadata elements (playlists may not always have this)
+      const uploadDate = extractUploadDate(el, SELECTORS.listing.metadataOld);
 
-      addVideo(videoId, title, channelName);
+      addVideo(videoId, title, channelName, uploadDate);
     }
     
     // Strategy 5: Generic fallback - find any link to a video with a title nearby
@@ -1858,10 +1908,15 @@
       if (ytSubBtn) ytSubBtn.click();
     });
     
+    // Build channel info line with optional upload date
+    const channelInfoParts = [ctx.channelName || 'Unknown channel'];
+    if (ctx.uploadDate) channelInfoParts.push(ctx.uploadDate);
+    const channelInfoText = channelInfoParts.join(' · ');
+    
     const videoInfo = div({ className: 'vilify-watch-info' }, [
       createElement('h1', { className: 'vilify-watch-title', textContent: ctx.title || 'Untitled' }),
       div({ className: 'vilify-channel-row' }, [
-        span({ className: 'vilify-channel-name', textContent: ctx.channelName || 'Unknown channel' }),
+        span({ className: 'vilify-channel-name', textContent: channelInfoText }),
         subBtn
       ]),
       div({ className: 'vilify-description-hint' }, [
@@ -2643,8 +2698,12 @@
         if (isVideo) {
           children.push(img({ className: 'keyring-thumbnail', src: item.thumbnailUrl, alt: '' }));
           const metaChildren = [span({ className: 'keyring-label', textContent: item.title })];
-          if (item.channelName) {
-            metaChildren.push(span({ className: 'keyring-meta', textContent: item.channelName }));
+          // Build metadata text: "channelName · uploadDate" or just one if the other is missing
+          const metaParts = [];
+          if (item.channelName) metaParts.push(item.channelName);
+          if (item.uploadDate) metaParts.push(item.uploadDate);
+          if (metaParts.length > 0) {
+            metaChildren.push(span({ className: 'keyring-meta', textContent: metaParts.join(' · ') }));
           }
           children.push(div({ className: 'keyring-video-meta' }, metaChildren));
         } else {
@@ -3106,6 +3165,12 @@
     }
     
     filtered.forEach((video, idx) => {
+      // Build metadata text: "channelName · uploadDate" or just one if the other is missing
+      const metaParts = [];
+      if (video.channelName) metaParts.push(video.channelName);
+      if (video.uploadDate) metaParts.push(video.uploadDate);
+      const metaText = metaParts.join(' · ');
+      
       const item = div({
         className: `vilify-video-item ${idx === selectedIdx ? 'selected' : ''}`,
         'data-idx': String(idx),
@@ -3116,7 +3181,7 @@
         ]),
         div({ className: 'vilify-video-info' }, [
           div({ className: 'vilify-video-title', textContent: video.title }),
-          div({ className: 'vilify-video-meta', textContent: video.channelName || '' })
+          div({ className: 'vilify-video-meta', textContent: metaText })
         ])
       ]);
       
