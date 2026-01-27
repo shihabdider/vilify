@@ -287,6 +287,11 @@
       z-index: 1;
     }
 
+    /* Modals use left: 12px for label positioning */
+    .vilify .vilify-modal.vilify-labeled::before {
+      left: 12px;
+    }
+
     /* Scroll container - consolidate scrollbar styling */
     .vilify .vilify-scroll {
       scrollbar-width: thin;
