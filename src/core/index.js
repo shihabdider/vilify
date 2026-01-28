@@ -13,7 +13,17 @@ export {
   scrollHalfPage,
   isInputElement
 } from './view.js';
-export { renderLayout } from './layout.js';
+export {
+  injectFocusModeStyles,
+  applyTheme,
+  renderFocusMode,
+  renderListing,
+  renderDefaultItem,
+  updateStatusMessage,
+  updateModeBadge,
+  removeFocusMode,
+  getContentContainer
+} from './layout.js';
 export {
   injectLoadingStyles,
   showLoadingScreen,
