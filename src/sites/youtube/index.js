@@ -3,6 +3,7 @@
 import { getVideos, getChapters, getComments, getYouTubePageType, getVideoContext, getDescription } from './scraper.js';
 import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
 import * as player from './player.js';
+import * as watch from './watch.js';
 
 export const youtubeConfig = {
   name: 'youtube',
@@ -46,11 +47,20 @@ export const youtubeConfig = {
     applyDefaultVideoSettings: player.applyDefaultVideoSettings,
   },
   
-  // Page renderers - TODO: implement
-  renderers: {},
+  // Watch page renderers
+  watch: {
+    injectWatchStyles: watch.injectWatchStyles,
+    renderWatchPage: watch.renderWatchPage,
+    renderVideoInfo: watch.renderVideoInfo,
+    renderComments: watch.renderComments,
+    nextCommentPage: watch.nextCommentPage,
+    prevCommentPage: watch.prevCommentPage,
+    triggerCommentLoad: watch.triggerCommentLoad,
+  },
 };
 
 // Re-export for direct imports
 export * from './scraper.js';
 export * from './commands.js';
 export * from './player.js';
+export * from './watch.js';
