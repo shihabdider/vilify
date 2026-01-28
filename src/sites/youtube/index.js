@@ -25,14 +25,12 @@ export const youtubeConfig = {
     description: getDescription,
   },
   
-  // Commands
-  commands: youtubeCommands,
+  // Commands - TODO: implement
+  commands: [],
   
-  // Player controls
-  player: playerControls,
+  // Player controls - TODO: implement
+  player: {},
   
-  // Page renderers
-  renderers: {
-    watch: renderWatchPage,
-  },
+  // Page renderers - TODO: implement
+  renderers: {},
 };
