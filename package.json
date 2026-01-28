@@ -1,0 +1,17 @@
+{
+  "name": "vilify",
+  "version": "0.1.0",
+  "description": "Vim-style command palette for websites",
+  "type": "module",
+  "scripts": {
+    "dev": "esbuild content.js --bundle --outfile=dist/content.js --sourcemap --watch",
+    "build": "esbuild content.js --bundle --outfile=dist/content.js --minify",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "mousetrap": "^1.6.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}
