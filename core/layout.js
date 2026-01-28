@@ -46,8 +46,10 @@ export function renderFocusMode(siteConfig, state) {
   const mode = getMode(state);
   renderStatusBar(mode, '', siteConfig);
   
-  // Start hidden
-  if (!state.focusModeActive) {
+  // Show/hide based on state
+  if (state.focusModeActive) {
+    overlay.classList.remove('hidden');
+  } else {
     overlay.classList.add('hidden');
   }
 }

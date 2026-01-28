@@ -31,13 +31,14 @@ export function initSite(siteConfig) {
   currentConfig = siteConfig;
   appState = createAppState();
   appState.lastUrl = window.location.href;
+  appState.focusModeActive = true; // Auto-launch
   
   // Initialize site-specific state if the site has a createState function
   if (siteConfig.createSiteState) {
     siteState = siteConfig.createSiteState();
   }
   
-  // Render initial focus mode (hidden)
+  // Render focus mode (visible by default)
   renderFocusMode(siteConfig, appState);
   
   // Set up core keyboard bindings
@@ -47,6 +48,12 @@ export function initSite(siteConfig) {
   setupNavigationObserver((oldUrl, newUrl) => {
     onNavigate(oldUrl, newUrl, siteConfig, appState);
   });
+  
+  // Initial content load (with delay for SPA content)
+  setTimeout(() => {
+    refreshContent(siteConfig);
+    console.log('[Vilify] Initial content loaded');
+  }, 1000);
   
   console.log('[Vilify] Initialized for', siteConfig.name);
 }
@@ -191,14 +198,18 @@ function refreshContent(siteConfig) {
   const pageType = siteConfig.getPageType ? siteConfig.getPageType() : 'default';
   const layout = siteConfig.layouts ? siteConfig.layouts[pageType] : 'listing';
   
+  console.log('[Vilify] Refreshing content for page type:', pageType);
+  
   if (typeof layout === 'function') {
     // Custom layout renderer
     const ctx = getContext(siteConfig);
     const container = getContentContainer();
+    console.log('[Vilify] Using custom layout, context:', ctx);
     layout(ctx, container);
   } else {
     // Built-in listing layout
     const items = getItems(siteConfig);
+    console.log('[Vilify] Rendering listing with', items.length, 'items');
     renderListing(items, appState.selectedIdx, siteConfig.renderItem);
   }
   
