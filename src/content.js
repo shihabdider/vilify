@@ -1,4 +1,6 @@
-// Vilify - Entry Point
+// Vilify - Content Script Entry Point
+// Loads when matching site patterns are detected
+
 import { initSite } from './core/index.js';
 import { youtubeConfig } from './sites/youtube/index.js';
 
