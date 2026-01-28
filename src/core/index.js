@@ -2,7 +2,7 @@
 // TODO: Export all core functionality
 
 export { createAppState, resetState, getMode, createYouTubeState } from './state.js';
-export { initKeyboard, handleKey } from './keyboard.js';
+export { createKeyboardState, handleKeyEvent, setupKeyboardHandler } from './keyboard.js';
 export {
   el,
   clear,
