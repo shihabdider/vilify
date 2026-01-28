@@ -172,7 +172,7 @@ Analyzed the working userscript against the existing design docs and identified 
 1. Read `.design/DATA.md` for type definitions
 2. Read `.design/BLUEPRINT.md` for function specs
 3. Read `.design/STYLES.md` for UI patterns and ASCII mockups
-4. Reference `sites/youtube.user.js` for working implementations (scraping, keyboard handling)
+4. Read `.design/SCRAPING.md` for YouTube DOM selectors (verified Jan 28, 2026)
 5. Use `htdp-implement` skill → `htdp-implementer` subagent for implementation
 6. Use `htdp-verify` skill → `htdp-verifier` subagent for testing
 
