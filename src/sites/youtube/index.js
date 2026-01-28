@@ -1,63 +1,158 @@
 // YouTube site configuration
+// Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
-import { getVideos, getChapters, getComments, getYouTubePageType, getVideoContext, getDescription } from './scraper.js';
-import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
-import * as player from './player.js';
-import * as watch from './watch.js';
+import { getYouTubePageType, getVideos, getVideoContext } from './scraper.js';
+import { getYouTubeCommands, getYouTubeKeySequences } from './commands.js';
+import { applyDefaultVideoSettings } from './player.js';
+import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 
+// =============================================================================
+// THEME
+// =============================================================================
+
+/**
+ * YouTube theme - Solarized Dark with YouTube red accent
+ * @type {SiteTheme}
+ */
+const youtubeTheme = {
+  bg1: '#002b36',
+  bg2: '#073642',
+  bg3: '#0a4a5c',
+  txt1: '#f1f1f1',
+  txt2: '#aaaaaa',
+  txt3: '#717171',
+  txt4: '#3ea6ff',
+  accent: '#ff0000',
+  accentHover: '#cc0000',
+};
+
+// =============================================================================
+// SITE STATE
+// =============================================================================
+
+/**
+ * Create initial YouTube-specific state.
+ * [PURE]
+ *
+ * @returns {YouTubeState} Initial YouTube state
+ *
+ * @example
+ * createYouTubeState()
+ *   => { chapterQuery: '', chapterSelectedIdx: 0,
+ *        commentPage: 0, commentPageStarts: [0],
+ *        settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0 }
+ */
+function createYouTubeState() {
+  // Template: Compound - construct all fields per YouTubeState definition
+  return {
+    chapterQuery: '',
+    chapterSelectedIdx: 0,
+    commentPage: 0,
+    commentPageStarts: [0],
+    settingsApplied: false,
+    watchPageRetryCount: 0,
+    commentLoadAttempts: 0,
+  };
+}
+
+// =============================================================================
+// SITE CONFIG
+// =============================================================================
+
+/**
+ * YouTube site configuration.
+ * Defines theme, page detection, scrapers, commands, and layouts.
+ * @type {SiteConfig}
+ */
 export const youtubeConfig = {
   name: 'youtube',
   matches: ['*://www.youtube.com/*', '*://youtube.com/*'],
-  
-  // Page detection
-  pages: {
-    watch: /\/watch/,
-    home: /^\/$/,
-    search: /\/results/,
-    channel: /\/@|\/channel\//,
+  theme: youtubeTheme,
+  logo: null, // Could add YouTube logo data URL here
+
+  /**
+   * Get current page type from URL.
+   * @returns {YouTubePageType}
+   */
+  getPageType: getYouTubePageType,
+
+  /**
+   * Get items for current page.
+   * Returns videos for listing pages, empty for watch page.
+   * @returns {Array<ContentItem>}
+   */
+  getItems: () => {
+    const pageType = getYouTubePageType();
+    if (pageType === 'watch') return [];
+    return getVideos();
   },
-  
-  // Scrapers
-  scrapers: {
-    videos: getVideos,
-    chapters: getChapters,
-    comments: getComments,
-    pageType: getYouTubePageType,
-    videoContext: getVideoContext,
-    description: getDescription,
+
+  /**
+   * Get available commands for command palette.
+   * @param {Object} ctx - Context with state, callbacks
+   * @returns {Array<Command>}
+   */
+  getCommands: (ctx) => getYouTubeCommands(ctx),
+
+  /**
+   * Get key sequence bindings.
+   * @param {Object} ctx - Context with state, callbacks
+   * @returns {Object<string, Function>}
+   */
+  getKeySequences: (ctx) => getYouTubeKeySequences(ctx),
+
+  /**
+   * Layout definitions per page type.
+   * Maps YouTubePageType to LayoutDef.
+   * @type {Layouts}
+   */
+  layouts: {
+    home: 'listing',
+    search: 'listing',
+    subscriptions: 'listing',
+    channel: 'listing',
+    playlist: 'listing',
+    history: 'listing',
+    library: 'listing',
+    shorts: 'listing',
+    other: 'listing',
+    watch: (state, siteState, container) => {
+      // Custom watch page layout
+      injectWatchStyles();
+      document.body.classList.add('vilify-watch-page');
+      const ctx = getVideoContext();
+      renderWatchPage(ctx, siteState, container);
+    },
   },
-  
-  // Commands
-  getCommands: getYouTubeCommands,
-  getKeySequences: getYouTubeKeySequences,
-  getSingleKeyActions: getYouTubeSingleKeyActions,
-  
-  // Player controls
-  player: {
-    getVideo: player.getVideo,
-    togglePlayPause: player.togglePlayPause,
-    seekRelative: player.seekRelative,
-    setPlaybackRate: player.setPlaybackRate,
-    toggleMute: player.toggleMute,
-    toggleFullscreen: player.toggleFullscreen,
-    toggleTheaterMode: player.toggleTheaterMode,
-    toggleCaptions: player.toggleCaptions,
-    seekToChapter: player.seekToChapter,
-    seekToPercent: player.seekToPercent,
-    applyDefaultVideoSettings: player.applyDefaultVideoSettings,
+
+  /**
+   * Factory for site-specific state.
+   * @returns {YouTubeState}
+   */
+  createSiteState: createYouTubeState,
+
+  /**
+   * Called after initial render completes.
+   * Applies default video settings on watch page.
+   */
+  onContentReady: () => {
+    if (getYouTubePageType() === 'watch') {
+      applyDefaultVideoSettings();
+    }
   },
-  
-  // Watch page renderers
+
+  /**
+   * Watch page specific functions (for comment pagination).
+   */
   watch: {
-    injectWatchStyles: watch.injectWatchStyles,
-    renderWatchPage: watch.renderWatchPage,
-    renderVideoInfo: watch.renderVideoInfo,
-    renderComments: watch.renderComments,
-    nextCommentPage: watch.nextCommentPage,
-    prevCommentPage: watch.prevCommentPage,
-    triggerCommentLoad: watch.triggerCommentLoad,
+    nextCommentPage,
+    prevCommentPage,
   },
 };
+
+// =============================================================================
+// RE-EXPORTS
+// =============================================================================
 
 // Re-export for direct imports
 export * from './scraper.js';
