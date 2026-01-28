@@ -44,11 +44,20 @@ const WATCH_CSS = `
   .vilify-watch-hints { color: var(--txt-3); font-size: 11px; }
   .vilify-watch-hints kbd { border: 1px solid var(--bg-3); padding: 1px 5px; font-size: 10px; margin: 0 2px; }
   
+  /* Channel row with subscribe button */
+  .vilify-watch-channel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  
   /* Subscribe button */
   .vilify-subscribe-btn {
     background: transparent; border: 1px solid var(--accent);
     color: var(--accent); padding: 4px 12px;
     font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+    flex-shrink: 0;
   }
   .vilify-subscribe-btn:hover { background: var(--accent); color: var(--bg-1); }
   .vilify-subscribe-btn.subscribed { border-color: var(--txt-3); color: var(--txt-3); }
@@ -131,10 +140,18 @@ export function renderWatchPage(ctx, state, container) {
   const infoBox = renderVideoInfoBox(ctx);
   container.appendChild(infoBox);
   
+  // Trigger comment loading (YouTube lazy loads comments)
+  triggerCommentLoad();
+  
   // Render comments section
   const commentsResult = getComments();
   const commentsBox = renderCommentsBox(commentsResult, state);
   container.appendChild(commentsBox);
+  
+  // Set up retry to re-check comments after they load
+  if (commentsResult.status === 'loading') {
+    scheduleCommentRetry(state, container, ctx);
+  }
   
   // Add watch page class to body for CSS targeting
   document.body.classList.add('vilify-watch-page');
@@ -164,6 +181,12 @@ function renderVideoInfoBox(ctx) {
     [ctx.isSubscribed ? 'Subscribed' : 'Subscribe']
   );
   
+  // Channel row with channel name and subscribe button
+  const channelRow = el('div', { class: 'vilify-watch-channel-row' }, [
+    el('div', { class: 'vilify-watch-channel' }, [ctx.channelName || 'Unknown']),
+    subscribeBtn
+  ]);
+  
   // Keyboard hints
   const hints = el('div', { class: 'vilify-watch-hints' }, [
     el('kbd', {}, ['m']), ' subscribe  ',
@@ -174,8 +197,7 @@ function renderVideoInfoBox(ctx) {
   // Build info box with TUI pattern
   const infoBox = el('div', { class: 'vilify-tui-box', 'data-label': 'video' }, [
     el('h1', { class: 'vilify-watch-title' }, [ctx.title || 'Untitled']),
-    el('div', { class: 'vilify-watch-channel' }, [ctx.channelName || 'Unknown']),
-    subscribeBtn,
+    channelRow,
     hints
   ]);
   
@@ -415,13 +437,73 @@ export function triggerCommentLoad() {
   
   const commentsSection = document.querySelector('#comments, ytd-comments');
   if (commentsSection) {
+    // Save current scroll position
+    const scrollY = window.scrollY;
+    
+    // Scroll to comments to trigger lazy load
     commentsSection.scrollIntoView({ behavior: 'instant', block: 'start' });
     
     // Dispatch scroll events to trigger YouTube's lazy loading
     [document, window].forEach(target => {
       target.dispatchEvent(new Event('scroll', { bubbles: true }));
     });
+    
+    // Restore scroll position after a brief delay
+    setTimeout(() => {
+      window.scrollTo(0, scrollY);
+    }, 100);
   }
+}
+
+/** Track active comment retry timer */
+let commentRetryTimer = null;
+
+/**
+ * Schedule a retry to refresh comments after YouTube loads them
+ * [I/O]
+ * 
+ * @param {YouTubeState} state - YouTube state
+ * @param {HTMLElement} container - Container element
+ * @param {VideoContext} ctx - Video context
+ */
+function scheduleCommentRetry(state, container, ctx) {
+  // Clear any existing timer
+  if (commentRetryTimer) {
+    clearTimeout(commentRetryTimer);
+  }
+  
+  let retryCount = 0;
+  const maxRetries = 5;
+  const retryDelay = 1000; // 1 second between retries
+  
+  function retry() {
+    retryCount++;
+    
+    // Trigger another scroll to comments
+    triggerCommentLoad();
+    
+    // Check if comments loaded
+    const commentsResult = getComments();
+    
+    if (commentsResult.status === 'loaded' || commentsResult.status === 'disabled') {
+      // Comments loaded or disabled, re-render the comments section
+      const existingCommentsBox = container.querySelector('.vilify-tui-box[data-label="comments"]');
+      if (existingCommentsBox) {
+        const newCommentsBox = renderCommentsBox(commentsResult, state);
+        existingCommentsBox.replaceWith(newCommentsBox);
+      }
+      commentRetryTimer = null;
+    } else if (retryCount < maxRetries) {
+      // Still loading, schedule another retry
+      commentRetryTimer = setTimeout(retry, retryDelay);
+    } else {
+      // Max retries reached, stop trying
+      commentRetryTimer = null;
+    }
+  }
+  
+  // Start first retry after delay
+  commentRetryTimer = setTimeout(retry, retryDelay);
 }
 
 // =============================================================================

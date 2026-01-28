@@ -213,14 +213,28 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       return;
     }
 
+    // Get key sequences from config
+    const sequences = config.getKeySequences ? config.getKeySequences() : {};
+
+    // Check for single-key modal openers FIRST (before sequence building)
+    // These special keys (`:`, `/`, `i`) should trigger immediately
+    const singleKeyActions = [':', '/', 'i'];
+    if (singleKeyActions.includes(event.key) && sequences[event.key]) {
+      event.preventDefault();
+      keySeq = '';
+      if (keyTimer) {
+        clearTimeout(keyTimer);
+        keyTimer = null;
+      }
+      sequences[event.key]();
+      return;
+    }
+
     // Clear existing timeout
     if (keyTimer) {
       clearTimeout(keyTimer);
       keyTimer = null;
     }
-
-    // Get key sequences from config
-    const sequences = config.getKeySequences ? config.getKeySequences() : {};
 
     // Process key event through pure function
     const result = handleKeyEvent(event, keySeq, sequences, KEY_SEQ_TIMEOUT_MS);

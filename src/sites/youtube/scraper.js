@@ -137,6 +137,7 @@ function scrapeHomeLayout() {
 
 /**
  * Scrape videos from search results layout (ytd-video-renderer)
+ * Also handles history page which uses ytd-video-renderer inside ytd-section-list-renderer
  * @returns {Array<Object>} Raw video data objects
  */
 function scrapeSearchLayout() {
@@ -167,6 +168,72 @@ function scrapeSearchLayout() {
       channelUrl,
       views,
       uploadDate,
+    });
+  });
+
+  return videos;
+}
+
+/**
+ * Scrape videos from history/library layout
+ * History page uses ytd-video-renderer inside ytd-section-list-renderer
+ * Library page may use ytd-compact-video-renderer
+ * @returns {Array<Object>} Raw video data objects
+ */
+function scrapeHistoryLayout() {
+  const videos = [];
+
+  // History page: videos in section-list containers
+  document.querySelectorAll('ytd-section-list-renderer ytd-video-renderer, ytd-item-section-renderer ytd-video-renderer').forEach(item => {
+    const titleLink = item.querySelector('a#video-title, #video-title-link');
+    const href = titleLink?.href;
+    const videoId = extractVideoId(href);
+    if (!videoId) return;
+
+    // Filter out Shorts
+    if (href?.includes('/shorts/')) return;
+
+    const title = titleLink?.textContent?.trim();
+    const channelLink = item.querySelector('ytd-channel-name a, #channel-name a');
+    const channel = channelLink?.textContent?.trim();
+    const channelUrl = channelLink?.getAttribute('href');
+
+    const metaSpans = item.querySelectorAll('#metadata-line span, .inline-metadata-item');
+    const views = metaSpans[0]?.textContent?.trim();
+    const uploadDate = metaSpans[1]?.textContent?.trim();
+
+    videos.push({
+      videoId,
+      title,
+      channel,
+      channelUrl,
+      views,
+      uploadDate,
+    });
+  });
+
+  // Library page: compact video renderers
+  document.querySelectorAll('ytd-compact-video-renderer').forEach(item => {
+    const titleLink = item.querySelector('a#video-title, #video-title-link, a.yt-simple-endpoint');
+    const href = titleLink?.href;
+    const videoId = extractVideoId(href);
+    if (!videoId) return;
+
+    // Filter out Shorts
+    if (href?.includes('/shorts/')) return;
+
+    const titleEl = item.querySelector('#video-title, .title');
+    const title = titleEl?.textContent?.trim();
+    const channelEl = item.querySelector('#channel-name, .ytd-channel-name');
+    const channel = channelEl?.textContent?.trim();
+
+    videos.push({
+      videoId,
+      title,
+      channel,
+      channelUrl: null,
+      views: null,
+      uploadDate: null,
     });
   });
 
@@ -225,9 +292,10 @@ export function getVideos() {
   const homeVideos = scrapeHomeLayout();
   const searchVideos = scrapeSearchLayout();
   const playlistVideos = scrapePlaylistLayout();
+  const historyVideos = scrapeHistoryLayout();
 
   // Combine all results
-  const allRaw = [...homeVideos, ...searchVideos, ...playlistVideos];
+  const allRaw = [...homeVideos, ...searchVideos, ...playlistVideos, ...historyVideos];
 
   // Deduplicate by videoId
   const seen = new Set();
@@ -291,12 +359,17 @@ export function getVideoContext() {
   // Get video element
   const video = document.querySelector('video.html5-main-video');
 
-  // Get title - try multiple selectors
+  // Get title - try multiple selectors (YouTube loads metadata async)
   const titleSelectors = [
     'h1.ytd-watch-metadata yt-formatted-string',
+    'yt-formatted-string.style-scope.ytd-watch-metadata',
     'h1.ytd-watch-metadata',
+    '#title h1 yt-formatted-string',
     '#title h1',
     'ytd-watch-metadata h1',
+    '#above-the-fold #title yt-formatted-string',
+    'ytd-video-primary-info-renderer h1 yt-formatted-string',
+    'ytd-video-primary-info-renderer #title',
   ];
   let title = null;
   for (const sel of titleSelectors) {
@@ -307,10 +380,14 @@ export function getVideoContext() {
     }
   }
 
-  // Get channel info
+  // Get channel info - try multiple selectors
   const channelSelectors = [
     'ytd-video-owner-renderer #channel-name a',
     '#owner #channel-name a',
+    '#owner ytd-channel-name a',
+    'ytd-watch-metadata #owner a',
+    '#above-the-fold ytd-channel-name a',
+    'ytd-video-owner-renderer ytd-channel-name yt-formatted-string a',
   ];
   let channelName = null;
   let channelUrl = null;
@@ -319,7 +396,23 @@ export function getVideoContext() {
     if (el) {
       channelName = el.textContent?.trim() || null;
       channelUrl = el.getAttribute('href') || null;
-      break;
+      if (channelName) break;
+    }
+  }
+  
+  // Fallback: try to get channel name without link
+  if (!channelName) {
+    const channelNameOnlySelectors = [
+      'ytd-video-owner-renderer #channel-name',
+      '#owner #channel-name',
+      'ytd-channel-name yt-formatted-string',
+    ];
+    for (const sel of channelNameOnlySelectors) {
+      const el = document.querySelector(sel);
+      if (el?.textContent?.trim()) {
+        channelName = el.textContent.trim();
+        break;
+      }
     }
   }
 

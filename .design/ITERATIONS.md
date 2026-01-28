@@ -181,3 +181,74 @@ Analyzed the working userscript against the existing design docs and identified 
 - Status bar replaces toasts for messages
 - Bottom drawer replaces centered modals
 - Mode badge in status bar (vim-like)
+
+---
+
+## Iteration 3: Fresh Implementation (IN PROGRESS)
+
+**Date:** January 28, 2026
+**Version:** 0.1.2
+**Outcome:** Initial build complete, needs testing
+
+### What We Did
+
+1. **Verified YouTube DOM** - Used Playwright to check current selectors (Jan 28, 2026)
+2. **Created SCRAPING.md** - Documented verified DOM structure and selectors
+3. **Built extension structure** - manifest.json, esbuild, modular src/
+4. **Implemented core modules** using htdp-implementer subagents:
+   - `state.js` - AppState, getMode
+   - `view.js` - el(), clear(), updateListSelection(), navigateList()
+   - `keyboard.js` - handleKeyEvent(), setupKeyboardHandler()
+   - `loading.js` - Loading screen with spinner
+   - `navigation.js` - SPA URL change detection
+   - `layout.js` - Focus mode overlay, renderListing()
+   - `palette.js` - Command palette (bottom drawer)
+   - `actions.js` - copyToClipboard(), navigateTo()
+   - `index.js` - Main orchestration (initSite)
+5. **Implemented YouTube modules**:
+   - `scraper.js` - getVideos(), getVideoContext(), getChapters(), getComments()
+   - `player.js` - togglePlayPause(), seekRelative(), setPlaybackRate()
+   - `commands.js` - getYouTubeCommands(), getYouTubeKeySequences()
+   - `watch.js` - Watch page layout with sidebar
+   - `index.js` - youtubeConfig
+
+### Build Status
+- ✅ `npm run build` succeeds (64.9kb bundle)
+- ⏳ Not yet tested in browser
+
+### File Structure
+```
+src/
+  content.js           # Entry point
+  core/
+    index.js           # Main orchestration
+    state.js           # AppState functions
+    keyboard.js        # Keyboard handler (capture phase)
+    view.js            # DOM utilities
+    layout.js          # Focus mode layout
+    loading.js         # Loading screen
+    navigation.js      # URL change observer
+    palette.js         # Command palette
+    actions.js         # Copy, navigate
+  sites/
+    youtube/
+      index.js         # YouTube site config
+      scraper.js       # Video/chapter/comment scrapers
+      commands.js      # YouTube commands
+      player.js        # Player controls
+      watch.js         # Watch page layout
+```
+
+### Next Steps
+
+1. **Load extension in Chrome** and test on YouTube
+2. **Fix any runtime errors** - imports, missing exports, etc.
+3. **Test features**:
+   - [ ] Loading screen shows
+   - [ ] Home page video listing works
+   - [ ] j/k navigation
+   - [ ] Enter to select video
+   - [ ] Watch page layout (player + sidebar)
+   - [ ] Command palette (:)
+   - [ ] Key sequences (gh, gs, yy, etc.)
+4. **Iterate on bugs**
