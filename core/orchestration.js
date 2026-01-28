@@ -50,10 +50,24 @@ export function initSite(siteConfig) {
   });
   
   // Initial content load (with delay for SPA content)
-  setTimeout(() => {
+  // YouTube loads content dynamically, so we retry a few times
+  let retries = 0;
+  const maxRetries = 5;
+  
+  const tryLoadContent = () => {
     refreshContent(siteConfig);
-    console.log('[Vilify] Initial content loaded');
-  }, 1000);
+    const items = getItems(siteConfig);
+    
+    if (items.length === 0 && retries < maxRetries) {
+      retries++;
+      console.log(`[Vilify] No items found, retry ${retries}/${maxRetries}...`);
+      setTimeout(tryLoadContent, 1000);
+    } else {
+      console.log('[Vilify] Content loaded with', items.length, 'items');
+    }
+  };
+  
+  setTimeout(tryLoadContent, 1500);
   
   console.log('[Vilify] Initialized for', siteConfig.name);
 }
