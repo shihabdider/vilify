@@ -14,8 +14,14 @@ export {
   isInputElement
 } from './view.js';
 export { renderLayout } from './layout.js';
-export { showLoading, hideLoading } from './loading.js';
-export { observeNavigation } from './navigation.js';
+export {
+  injectLoadingStyles,
+  showLoadingScreen,
+  hideLoadingScreen,
+  showLoading,
+  hideLoading
+} from './loading.js';
+export { setupNavigationObserver, observeNavigation } from './navigation.js';
 export { openPalette, closePalette } from './palette.js';
 export { copyToClipboard, navigate } from './actions.js';
 
