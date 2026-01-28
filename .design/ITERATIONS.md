@@ -150,6 +150,16 @@ Analyzed the working userscript against the existing design docs and identified 
 - Added YouTube: `nextCommentPage`, `prevCommentPage`, `loadMoreComments`
 - Updated totals: 55 functions (18 pure, 37 I/O)
 
+**STYLES.md (new):**
+- No header - content goes edge-to-edge, status bar at bottom only
+- Vim-like status bar with mode badge: `[NORMAL]`, `[FILTER]`, `[SEARCH]`, `[COMMAND]`
+- Input field in status bar when in FILTER/SEARCH/COMMAND mode
+- Messages displayed on right side of status bar (replaces toasts)
+- Bottom drawer pattern for all modals (command palette, chapters, description, filter results)
+- Context-aware hints (`[j/k] [↵] [esc]`) only shown when drawer is open
+- Sidebar on watch page keeps contextual hints (`[m] subscribe`, `[zo] desc`, `[f] chap`)
+- TUI box pattern with inline labels preserved (`─ video ─`, `─ comments ─`)
+
 ### Next Steps
 
 1. **Set up extension structure** - manifest.json, entry point, build config
@@ -161,6 +171,13 @@ Analyzed the working userscript against the existing design docs and identified 
 
 1. Read `.design/DATA.md` for type definitions
 2. Read `.design/BLUEPRINT.md` for function specs
-3. Reference `sites/youtube.user.js` for working implementations
-4. Use `htdp-implement` skill → `htdp-implementer` subagent for implementation
-5. Use `htdp-verify` skill → `htdp-verifier` subagent for testing
+3. Read `.design/STYLES.md` for UI patterns and ASCII mockups
+4. Reference `sites/youtube.user.js` for working implementations (scraping, keyboard handling)
+5. Use `htdp-implement` skill → `htdp-implementer` subagent for implementation
+6. Use `htdp-verify` skill → `htdp-verifier` subagent for testing
+
+**Important UI differences from userscript:**
+- No header (userscript has header with logo)
+- Status bar replaces toasts for messages
+- Bottom drawer replaces centered modals
+- Mode badge in status bar (vim-like)
