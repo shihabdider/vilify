@@ -6,7 +6,7 @@ import { el, clear, updateListSelection, showMessage, flashBoundary, navigateLis
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
 import { setupNavigationObserver } from './navigation.js';
 import { setupKeyboardHandler } from './keyboard.js';
-import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing } from './layout.js';
+import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar } from './layout.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
 
@@ -23,6 +23,77 @@ let siteState = null;
 /** @type {SiteConfig|null} Current site configuration */
 let currentConfig = null;
 
+/** @type {number|null} Content polling timer */
+let pollTimer = null;
+
+/** @type {number} Last seen video count for polling */
+let lastVideoCount = 0;
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+const POLL_INTERVAL_MS = 200;
+
+// =============================================================================
+// CONTENT POLLING
+// =============================================================================
+
+/**
+ * Start polling for content changes on listing pages.
+ * Re-renders when new videos are detected.
+ * [I/O]
+ */
+function startContentPolling() {
+  stopContentPolling();
+  lastVideoCount = 0;
+  
+  const poll = () => {
+    const pageType = currentConfig?.getPageType?.() || 'other';
+    
+    // Don't poll on watch page
+    if (pageType === 'watch') {
+      stopContentPolling();
+      return;
+    }
+    
+    // Count video elements in DOM (YouTube-specific selectors)
+    const currentCount = document.querySelectorAll(
+      'ytd-rich-item-renderer, ytd-video-renderer, ' +
+      'ytd-compact-video-renderer, ytd-grid-video-renderer, ' +
+      'ytd-playlist-video-renderer, yt-lockup-view-model'
+    ).length;
+    
+    // Check if YouTube is still loading content
+    const isLoading = !!document.querySelector(
+      'ytd-continuation-item-renderer, tp-yt-paper-spinner, ' +
+      '#spinner, ytd-ghost-grid-renderer, ' +
+      'ytd-rich-grid-renderer[is-loading], .ytd-ghost-grid-renderer'
+    );
+    
+    // Re-render if video count changed and not currently loading
+    if (currentCount !== lastVideoCount && !isLoading && currentCount > 0) {
+      lastVideoCount = currentCount;
+      render();
+    }
+    
+    pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+  };
+  
+  poll();
+}
+
+/**
+ * Stop content polling.
+ * [I/O]
+ */
+function stopContentPolling() {
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+}
+
 // =============================================================================
 // INITIALIZATION
 // =============================================================================
@@ -31,17 +102,8 @@ let currentConfig = null;
  * Initialize site with configuration.
  * Entry point - shows loading, waits for content, sets up handlers.
  * [I/O]
- *
- * @param {SiteConfig} config - Site configuration object
- *
- * @example
- * initSite(youtubeConfig)
- * // Sets up everything for the site
  */
 export function initSite(config) {
-  // Template: I/O - orchestration with multiple side effects
-  // Inventory: config (SiteConfig)
-
   currentConfig = config;
 
   // Inject styles early (before content loads)
@@ -69,6 +131,18 @@ export function initSite(config) {
       applyTheme(config.theme);
     }
 
+    // Set up input callbacks for status bar
+    setInputCallbacks({
+      onFilterChange: handleFilterChange,
+      onFilterSubmit: handleFilterSubmit,
+      onSearchChange: handleSearchChange,
+      onSearchSubmit: handleSearchSubmit,
+      onCommandChange: handleCommandChange,
+      onCommandSubmit: handleCommandSubmit,
+      onCommandNavigate: handleCommandNavigate,
+      onEscape: handleInputEscape,
+    });
+
     // Set up keyboard handling
     setupKeyboardHandler(config, getState, setState, {
       onNavigate: handleListNavigation,
@@ -91,6 +165,12 @@ export function initSite(config) {
     // Hide loading screen
     hideLoadingScreen();
 
+    // Start content polling for listing pages
+    const pageType = config.getPageType ? config.getPageType() : 'other';
+    if (pageType !== 'watch') {
+      startContentPolling();
+    }
+
     // Call site's onContentReady hook if provided
     if (config.onContentReady) {
       config.onContentReady();
@@ -102,29 +182,18 @@ export function initSite(config) {
 
 /**
  * Wait for page content to be ready.
- * For watch pages, waits for video element.
- * For listing pages, waits for items to appear.
- * [I/O]
- *
- * @param {SiteConfig} config - Site configuration
- * @param {number} timeout - Max time to wait in ms
- * @returns {Promise<void>} Resolves when content is ready or timeout
  */
 function waitForContent(config, timeout = 5000) {
-  // Template: I/O - polling with timeout
   return new Promise((resolve) => {
     const start = Date.now();
 
     const check = () => {
       const pageType = config.getPageType ? config.getPageType() : 'other';
 
-      // Determine if content is ready based on page type
       let ready = false;
       if (pageType === 'watch') {
-        // Watch page: wait for video element
         ready = !!document.querySelector('video.html5-main-video');
       } else {
-        // Listing page: wait for items
         const items = config.getItems ? config.getItems() : [];
         ready = items.length > 0;
       }
@@ -144,18 +213,10 @@ function waitForContent(config, timeout = 5000) {
 // STATE ACCESSORS
 // =============================================================================
 
-/**
- * Get current app state (for keyboard handler).
- * @returns {AppState} Current state
- */
 function getState() {
   return state;
 }
 
-/**
- * Set app state and trigger re-render.
- * @param {AppState} newState - New state
- */
 function setState(newState) {
   state = newState;
   render();
@@ -167,11 +228,8 @@ function setState(newState) {
 
 /**
  * Main render function.
- * Renders focus mode container, content based on page type, and palette if open.
- * [I/O]
  */
 function render() {
-  // Template: I/O - DOM mutation
   if (!state || !currentConfig) return;
 
   const pageType = currentConfig.getPageType ? currentConfig.getPageType() : 'other';
@@ -183,18 +241,16 @@ function render() {
     container = document.getElementById('vilify-content');
   }
 
-  // Update status bar
-  updateStatusBar();
+  // Update status bar (mode badge, input visibility)
+  updateStatusBar(state);
 
   // Render content based on page type and layout config
   if (currentConfig.layouts && currentConfig.layouts[pageType]) {
     const layout = currentConfig.layouts[pageType];
 
     if (typeof layout === 'function') {
-      // Custom layout renderer
       layout(state, siteState, container);
     } else if (layout === 'listing') {
-      // Built-in listing layout
       const items = currentConfig.getItems ? currentConfig.getItems() : [];
 
       // Apply local filter if active
@@ -204,7 +260,6 @@ function render() {
 
       renderListing(filtered, state.selectedIdx, container);
     }
-    // 'detail' layout would go here if needed
   }
 
   // Handle palette rendering
@@ -220,11 +275,10 @@ function render() {
             render();
           },
           openFilter: () => {
-            state = { ...state, localFilterActive: true };
+            state = { ...state, localFilterActive: true, localFilterQuery: '' };
             render();
           },
           openSearch: () => {
-            // Focus YouTube search box
             const searchInput = document.querySelector('input#search');
             if (searchInput) searchInput.focus();
           },
@@ -244,48 +298,110 @@ function render() {
   }
 }
 
-/**
- * Update status bar with current mode and input state.
- * [I/O]
- */
-function updateStatusBar() {
-  // Template: I/O - DOM mutation
-  const mode = getMode(state);
+// =============================================================================
+// INPUT HANDLERS (for status bar input)
+// =============================================================================
 
-  // Update mode badge
-  const badge = document.querySelector('.vilify-mode-badge');
-  if (badge) {
-    badge.textContent = mode;
-  }
+function handleFilterChange(value) {
+  state.localFilterQuery = value;
+  render();
+}
 
-  // Update status input visibility and value
-  const input = document.querySelector('.vilify-status-input');
-  if (input) {
-    if (state.localFilterActive || state.siteSearchActive || state.modalState === 'palette') {
-      input.style.display = 'block';
-      input.value = state.localFilterActive
-        ? state.localFilterQuery
-        : state.siteSearchActive
-          ? state.siteSearchQuery
-          : state.paletteQuery;
+function handleFilterSubmit(value, shiftKey) {
+  // Select the current item
+  const items = currentConfig.getItems ? currentConfig.getItems() : [];
+  const filtered = items.filter((i) => i.title?.toLowerCase().includes(value.toLowerCase()));
+  const item = filtered[state.selectedIdx];
+
+  if (item?.url) {
+    if (shiftKey) {
+      openInNewTab(item.url);
     } else {
-      input.style.display = 'none';
+      navigateTo(item.url);
     }
   }
+}
+
+function handleSearchChange(value) {
+  state.siteSearchQuery = value;
+}
+
+function handleSearchSubmit(value) {
+  if (value.trim()) {
+    navigateTo('/results?search_query=' + encodeURIComponent(value.trim()));
+  }
+}
+
+function handleCommandChange(value) {
+  state.paletteQuery = value;
+  state.paletteSelectedIdx = 0;
+  render();
+}
+
+function handleCommandSubmit(value, shiftKey) {
+  // Execute selected command
+  const commands = currentConfig.getCommands
+    ? currentConfig.getCommands({ state, siteState, navigateTo, copyToClipboard })
+    : [];
+
+  const query = value.startsWith(':') ? value.slice(1) : value;
+  const filtered = filterItems(commands, query);
+  const actionable = filtered.filter((c) => !c.group);
+  const item = actionable[state.paletteSelectedIdx];
+
+  if (item?.action) {
+    state = closePalette(state);
+    state.localFilterActive = false;
+    item.action();
+    render();
+  }
+}
+
+function handleCommandNavigate(direction) {
+  const commands = currentConfig.getCommands
+    ? currentConfig.getCommands({ state, siteState, navigateTo, copyToClipboard })
+    : [];
+
+  const query = state.paletteQuery.startsWith(':') ? state.paletteQuery.slice(1) : state.paletteQuery;
+  const filtered = filterItems(commands, query);
+  const actionable = filtered.filter((c) => !c.group);
+  const count = actionable.length;
+
+  if (count === 0) return;
+
+  if (direction === 'down') {
+    state.paletteSelectedIdx = (state.paletteSelectedIdx + 1) % count;
+  } else {
+    state.paletteSelectedIdx = (state.paletteSelectedIdx - 1 + count) % count;
+  }
+
+  render();
+}
+
+function handleInputEscape() {
+  if (state.modalState === 'palette') {
+    state = closePalette(state);
+  }
+  state.localFilterActive = false;
+  state.localFilterQuery = '';
+  state.siteSearchActive = false;
+  state.siteSearchQuery = '';
+  render();
 }
 
 // =============================================================================
 // EVENT HANDLERS
 // =============================================================================
 
-/**
- * Handle list navigation (j/k/arrows).
- * @param {'up' | 'down' | 'top' | 'bottom'} direction - Navigation direction
- */
 function handleListNavigation(direction) {
-  // Template: I/O - state mutation
   const items = currentConfig.getItems ? currentConfig.getItems() : [];
-  const result = navigateList(direction, state.selectedIdx, items.length);
+  
+  // Apply filter if active
+  const filtered = state.localFilterActive
+    ? items.filter((i) => i.title?.toLowerCase().includes(state.localFilterQuery.toLowerCase()))
+    : items;
+
+  const result = navigateList(direction, state.selectedIdx, filtered.length);
 
   state.selectedIdx = result.index;
 
@@ -296,41 +412,18 @@ function handleListNavigation(direction) {
   render();
 }
 
-/**
- * Handle item selection (Enter key).
- * @param {boolean} shiftKey - Whether Shift was held
- */
 function handleSelect(shiftKey) {
-  // Template: I/O - conditional action
   if (state.modalState === 'palette') {
-    // Execute selected palette command
-    const commands = currentConfig.getCommands
-      ? currentConfig.getCommands({
-          state,
-          siteState,
-          navigateTo,
-          copyToClipboard,
-        })
-      : [];
-
-    const query = state.paletteQuery.startsWith(':')
-      ? state.paletteQuery.slice(1)
-      : state.paletteQuery;
-    const filtered = filterItems(commands, query);
-
-    // Filter out group headers for index calculation
-    const actionable = filtered.filter((c) => !c.group);
-    const item = actionable[state.paletteSelectedIdx];
-
-    if (item?.action) {
-      state = closePalette(state);
-      item.action();
-      render();
-    }
+    handleCommandSubmit(state.paletteQuery, shiftKey);
   } else {
-    // Navigate to selected item
     const items = currentConfig.getItems ? currentConfig.getItems() : [];
-    const item = items[state.selectedIdx];
+    
+    // Apply filter if active
+    const filtered = state.localFilterActive
+      ? items.filter((i) => i.title?.toLowerCase().includes(state.localFilterQuery.toLowerCase()))
+      : items;
+
+    const item = filtered[state.selectedIdx];
 
     if (item?.url) {
       if (shiftKey) {
@@ -342,12 +435,7 @@ function handleSelect(shiftKey) {
   }
 }
 
-/**
- * Handle Escape key press.
- * Closes modals, filters, and search in priority order.
- */
 function handleEscape() {
-  // Template: I/O - state mutation with priority
   if (state.modalState) {
     state = closePalette(state);
     render();
@@ -362,16 +450,12 @@ function handleEscape() {
   }
 }
 
-/**
- * Handle SPA navigation (URL change).
- * @param {string} oldUrl - Previous URL
- * @param {string} newUrl - New URL
- */
 function handleNavigation(oldUrl, newUrl) {
-  // Template: I/O - state reset and re-render
   console.log('[Vilify] Navigation:', oldUrl, '->', newUrl);
 
-  // Reset selection and filter state
+  // Stop any existing content polling
+  stopContentPolling();
+
   state.selectedIdx = 0;
   state.localFilterQuery = '';
   state.localFilterActive = false;
@@ -382,29 +466,33 @@ function handleNavigation(oldUrl, newUrl) {
     siteState = currentConfig.createSiteState();
   }
 
-  // Wait for new content then re-render
-  waitForContent(currentConfig).then(render);
+  // Remove watch page class if leaving watch page
+  document.body.classList.remove('vilify-watch-page');
+
+  waitForContent(currentConfig).then(() => {
+    render();
+    
+    // Start content polling for listing pages
+    const pageType = currentConfig.getPageType ? currentConfig.getPageType() : 'other';
+    if (pageType !== 'watch') {
+      startContentPolling();
+    }
+  });
 }
 
-/**
- * Handle next comment page (Ctrl+f on watch page).
- */
 function handleNextCommentPage() {
-  // Template: I/O - delegate to site-specific handler
   if (currentConfig.watch?.nextCommentPage && siteState) {
     siteState = currentConfig.watch.nextCommentPage(siteState);
-    render();
+    // Don't call render() - nextCommentPage already updates the UI directly
+    // Calling render() would re-render the entire watch page and reset comments
   }
 }
 
-/**
- * Handle previous comment page (Ctrl+b on watch page).
- */
 function handlePrevCommentPage() {
-  // Template: I/O - delegate to site-specific handler
   if (currentConfig.watch?.prevCommentPage && siteState) {
     siteState = currentConfig.watch.prevCommentPage(siteState);
-    render();
+    // Don't call render() - prevCommentPage already updates the UI directly
+    // Calling render() would re-render the entire watch page and reset comments
   }
 }
 
@@ -412,7 +500,6 @@ function handlePrevCommentPage() {
 // RE-EXPORTS
 // =============================================================================
 
-// Re-export commonly used functions for sites
 export { createAppState, getMode } from './state.js';
 export { el, clear, showMessage } from './view.js';
 export { copyToClipboard, navigateTo, openInNewTab } from './actions.js';

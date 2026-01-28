@@ -56,6 +56,60 @@ function createYouTubeState() {
 }
 
 // =============================================================================
+// WATCH PAGE RETRY LOGIC
+// =============================================================================
+
+const WATCH_MAX_RETRIES = 10;
+const WATCH_RETRY_DELAY = 500;
+
+/** Current watch page retry timer */
+let watchRetryTimer = null;
+
+/**
+ * Clear any pending watch page retry
+ */
+function clearWatchRetry() {
+  if (watchRetryTimer) {
+    clearTimeout(watchRetryTimer);
+    watchRetryTimer = null;
+  }
+}
+
+/**
+ * Render watch page with retry logic for async metadata loading
+ * [I/O]
+ */
+function renderWatchWithRetry(state, siteState, container, retryCount = 0) {
+  injectWatchStyles();
+  document.body.classList.add('vilify-watch-page');
+  
+  const ctx = getVideoContext();
+  
+  // Check if metadata is loaded (title AND channel should be present)
+  const hasMetadata = ctx && (ctx.title || ctx.channelName);
+  
+  if (!hasMetadata && retryCount < WATCH_MAX_RETRIES) {
+    // Show loading state and schedule retry
+    container.innerHTML = `
+      <div class="vilify-tui-box" data-label="video">
+        <div class="vilify-watch-loading">Loading video info... (${retryCount + 1}/${WATCH_MAX_RETRIES})</div>
+      </div>
+    `;
+    
+    watchRetryTimer = setTimeout(() => {
+      renderWatchWithRetry(state, siteState, container, retryCount + 1);
+    }, WATCH_RETRY_DELAY);
+    return;
+  }
+  
+  // Clear any pending retry
+  clearWatchRetry();
+  
+  // Render the watch page (will show "Untitled"/"Unknown" if still no data after retries)
+  renderWatchPage(ctx, siteState, container);
+}
+
+// =============================================================================
 // SITE CONFIG
 // =============================================================================
 
@@ -117,11 +171,9 @@ export const youtubeConfig = {
     shorts: 'listing',
     other: 'listing',
     watch: (state, siteState, container) => {
-      // Custom watch page layout
-      injectWatchStyles();
-      document.body.classList.add('vilify-watch-page');
-      const ctx = getVideoContext();
-      renderWatchPage(ctx, siteState, container);
+      // Custom watch page layout with retry logic for async metadata
+      clearWatchRetry();
+      renderWatchWithRetry(state, siteState, container, 0);
     },
   },
 

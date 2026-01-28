@@ -1,8 +1,8 @@
 // Watch page layout
 // Implements watch page rendering following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
-import { el, clear } from '../../core/view.js';
-import { getVideoContext, getComments, getDescription, getChapters } from './scraper.js';
+import { el, clear, showMessage } from '../../core/view.js';
+import { getVideoContext, getComments, getDescription, getChapters, getYouTubePageType } from './scraper.js';
 
 // =============================================================================
 // CSS STYLES
@@ -26,6 +26,14 @@ const WATCH_CSS = `
     z-index: 10000 !important; visibility: visible !important;
   }
   
+  /* Watch page content area - flexbox for stretching comments */
+  body.vilify-watch-page #vilify-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 32px); /* Full height minus status bar */
+    overflow: hidden;
+  }
+  
   /* TUI box pattern */
   .vilify-tui-box {
     position: relative; border: 2px solid var(--bg-3);
@@ -33,9 +41,42 @@ const WATCH_CSS = `
   }
   .vilify-tui-box::before {
     content: attr(data-label);
-    position: absolute; top: -10px; left: 10px;
+    position: absolute; top: -9px; left: 10px;
     background: var(--bg-1); color: var(--txt-3);
-    padding: 0 6px; font-size: 12px;
+    padding: 0 6px; font-size: 12px; line-height: 1;
+  }
+  
+  /* Video info box - fixed height */
+  .vilify-tui-box[data-label="video"] {
+    flex-shrink: 0;
+  }
+  
+  /* Comments section - uses ::after for border so ::before label can sit above it */
+  .vilify-comments {
+    position: relative;
+    flex: 1;
+    margin: 12px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .vilify-comments::before {
+    content: 'comments';
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background: var(--bg-1);
+    color: var(--txt-3);
+    padding: 0 6px;
+    font-size: 12px;
+    z-index: 1;
+  }
+  .vilify-comments::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--bg-3);
+    pointer-events: none;
   }
   
   /* Video info panel */
@@ -62,16 +103,30 @@ const WATCH_CSS = `
   .vilify-subscribe-btn:hover { background: var(--accent); color: var(--bg-1); }
   .vilify-subscribe-btn.subscribed { border-color: var(--txt-3); color: var(--txt-3); }
   
-  /* Comments */
-  .vilify-comments-list { flex: 1; overflow-y: auto; padding: 16px; }
-  .vilify-comment { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--bg-3); }
-  .vilify-comment:last-child { border-bottom: none; }
-  .vilify-comment-author { color: var(--txt-4); font-size: 12px; margin-bottom: 4px; }
-  .vilify-comment-text { color: var(--txt-2); font-size: 12px; line-height: 1.4; }
-  .vilify-comments-pagination {
-    padding: 8px 16px; border-top: 1px solid var(--bg-3);
-    font-size: 11px; color: var(--txt-3); text-align: center;
+  /* Comments list - NO scrolling, pagination handles overflow */
+  .vilify-comments-list { 
+    flex: 1; 
+    overflow: hidden;
+    padding: 20px 16px 12px; /* Top padding for label clearance */
+    min-height: 0;
   }
+  .vilify-comments-list::-webkit-scrollbar { width: 6px; }
+  .vilify-comments-list::-webkit-scrollbar-track { background: transparent; }
+  .vilify-comments-list::-webkit-scrollbar-thumb { background: var(--bg-3); }
+  .vilify-comment { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--bg-3); }
+  .vilify-comment:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .vilify-comment-author { color: var(--txt-4); font-size: 12px; font-weight: 400; margin-bottom: 4px; word-wrap: break-word; overflow-wrap: break-word; }
+  .vilify-comment-text { color: var(--txt-2); font-size: 12px; line-height: 1.4; word-wrap: break-word; overflow-wrap: break-word; }
+  .vilify-comments-pagination {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 10px 16px; border-top: 1px solid var(--bg-3);
+    font-size: 11px; color: var(--txt-3); flex-shrink: 0;
+  }
+  .vilify-comments-pagination kbd {
+    background: transparent; border: 1px solid var(--bg-3);
+    padding: 1px 5px; font-size: 10px; font-family: var(--font-mono);
+  }
+  .vilify-comments-page-info { min-width: 50px; text-align: center; }
   
   /* Comments loading/disabled states */
   .vilify-comments-status {
@@ -126,6 +181,12 @@ export function renderWatchPage(ctx, state, container) {
   // Template: Compound - access ctx fields, I/O for DOM
   // Inventory: ctx (VideoContext|null), state (YouTubeState), container (HTMLElement)
   
+  // Reset comment window for new video
+  commentStartIdx = 0;
+  commentEndIdx = 0;
+  commentStartHistory = [];
+  stopCommentObserver();
+  
   clear(container);
   
   // Handle loading state
@@ -148,8 +209,13 @@ export function renderWatchPage(ctx, state, container) {
   const commentsBox = renderCommentsBox(commentsResult, state);
   container.appendChild(commentsBox);
   
-  // Set up retry to re-check comments after they load
-  if (commentsResult.status === 'loading') {
+  // Set up retry to re-check comments if:
+  // - Status is 'loading', OR
+  // - Status is 'loaded' but no comments yet (YouTube may not have populated DOM)
+  const needsRetry = commentsResult.status === 'loading' || 
+    (commentsResult.status === 'loaded' && commentsResult.comments.length === 0);
+  
+  if (needsRetry) {
     scheduleCommentRetry(state, container, ctx);
   }
   
@@ -236,80 +302,150 @@ export function renderVideoInfo(ctx, container) {
 // COMMENTS SECTION
 // =============================================================================
 
-/** Number of comments per page */
-const COMMENTS_PER_PAGE = 5;
+/** Track current starting index for comments window */
+let commentStartIdx = 0;
+
+/** Track current ending index (exclusive) for comments window */
+let commentEndIdx = 0;
+
+/** History of start positions for going back */
+let commentStartHistory = [];
 
 /**
- * Create comments box element
- * [PURE]
+ * Create comments box element (initial structure)
+ * [I/O]
  * 
  * @param {CommentsResult} commentsResult - Comments data with status
  * @param {YouTubeState} state - YouTube state for pagination
  * @returns {HTMLElement} Comments box element
  */
 function renderCommentsBox(commentsResult, state) {
-  // Template: Compound - access commentsResult.comments, commentsResult.status
-  // Inventory: commentsResult (CommentsResult), state (YouTubeState)
-  
   const { comments, status } = commentsResult;
-  const commentPage = state?.commentPage || 0;
   
-  // Handle status variants
-  // Template: Enum - case per CommentStatus variant
-  let listContent;
+  // Create the list container
+  const commentsList = el('div', { class: 'vilify-comments-list' }, []);
   
+  // Create pagination
+  const paginationEl = el('div', { class: 'vilify-comments-pagination', id: 'vilify-comments-pagination' }, [
+    el('kbd', {}, ['^b']),
+    el('span', { class: 'vilify-comments-page-info' }, ['1 / 1']),
+    el('kbd', {}, ['^f'])
+  ]);
+  paginationEl.style.display = 'none';
+  
+  // Handle status variants - show message
   if (status === 'loading') {
-    listContent = [
+    commentsList.appendChild(
       el('div', { class: 'vilify-comments-status' }, ['Loading comments...'])
-    ];
+    );
   } else if (status === 'disabled') {
-    listContent = [
+    commentsList.appendChild(
       el('div', { class: 'vilify-comments-status' }, ['Comments are disabled'])
-    ];
-  } else {
-    // Status is 'loaded'
-    listContent = renderCommentsList(comments, commentPage);
+    );
+  } else if (comments.length === 0) {
+    commentsList.appendChild(
+      el('div', { class: 'vilify-comments-status' }, ['No comments yet'])
+    );
   }
   
-  // Calculate pagination
-  const totalPages = Math.max(1, Math.ceil(comments.length / COMMENTS_PER_PAGE));
-  const currentPage = commentPage + 1;
-  const paginationText = `[^b] ${currentPage}/${totalPages} [^f]`;
-  
-  // Build comments box
-  const commentsBox = el('div', { class: 'vilify-tui-box', 'data-label': 'comments' }, [
-    el('div', { class: 'vilify-comments-list' }, listContent),
-    el('div', { class: 'vilify-comments-pagination' }, [paginationText])
+  // Build comments box - use vilify-comments class (not tui-box) for proper label/border styling
+  const commentsBox = el('div', { class: 'vilify-comments' }, [
+    commentsList,
+    paginationEl
   ]);
+  
+  // If we have comments, render them after box is in DOM (need height)
+  if (status === 'loaded' && comments.length > 0) {
+    // Use requestAnimationFrame to ensure layout is computed
+    requestAnimationFrame(() => {
+      updateCommentsUI(comments);
+    });
+  }
   
   return commentsBox;
 }
 
 /**
- * Render list of comments for current page
- * [PURE]
+ * Render comments into list element until height is exceeded
+ * [I/O]
  * 
  * @param {Array<Comment>} comments - All comments
- * @param {number} page - Current page (0-indexed)
- * @returns {Array<HTMLElement>} Comment elements
+ * @param {number} startIdx - Index to start from
+ * @param {HTMLElement} listEl - List container
+ * @param {number} maxHeight - Maximum height before stopping
+ * @returns {number} End index (exclusive) - how many comments were rendered
  */
-function renderCommentsList(comments, page) {
-  // Template: Self-referential (list) - iterate over comments
-  // Inventory: comments (Array<Comment>), page (Number)
+function renderCommentsWindow(comments, startIdx, listEl, maxHeight) {
+  clear(listEl);
+  const originalOverflow = listEl.style.overflow;
+  listEl.style.overflow = 'hidden';
   
-  if (comments.length === 0) {
-    return [
-      el('div', { class: 'vilify-comments-status' }, ['No comments yet'])
-    ];
+  let i = startIdx;
+  while (i < comments.length) {
+    const comment = comments[i];
+    const commentEl = renderComment(comment);
+    listEl.appendChild(commentEl);
+    
+    // Check if we've exceeded available height (but always show at least one)
+    if (listEl.scrollHeight > maxHeight && i > startIdx) {
+      listEl.removeChild(commentEl);
+      break;
+    }
+    i++;
   }
   
-  // Calculate page slice
-  const start = page * COMMENTS_PER_PAGE;
-  const end = start + COMMENTS_PER_PAGE;
-  const pageComments = comments.slice(start, end);
+  listEl.style.overflow = originalOverflow;
+  return i;
+}
+
+/**
+ * Update comments UI - renders comments starting from commentStartIdx
+ * [I/O]
+ * 
+ * @param {Array<Comment>} comments - All comments
+ */
+function updateCommentsUI(comments) {
+  const commentsList = document.querySelector('.vilify-comments-list');
+  const paginationEl = document.getElementById('vilify-comments-pagination');
+  const commentsBox = document.querySelector('.vilify-comments');
+  if (!commentsList) return;
   
-  // Render each comment
-  return pageComments.map(comment => renderComment(comment));
+  if (comments.length === 0) {
+    clear(commentsList);
+    commentsList.appendChild(
+      el('div', { class: 'vilify-comments-status' }, ['No comments available'])
+    );
+    if (paginationEl) paginationEl.style.display = 'none';
+    return;
+  }
+  
+  // Clamp startIdx to valid range
+  if (commentStartIdx < 0) commentStartIdx = 0;
+  if (commentStartIdx >= comments.length) commentStartIdx = Math.max(0, comments.length - 1);
+  
+  // Get available height
+  let availableHeight = commentsList.clientHeight;
+  if (availableHeight < 100 && commentsBox) {
+    const paginationHeight = paginationEl ? paginationEl.offsetHeight : 40;
+    availableHeight = commentsBox.clientHeight - paginationHeight - 32;
+  }
+  if (availableHeight < 100) {
+    availableHeight = 300;
+  }
+  
+  // Render comments starting from commentStartIdx until we run out of space
+  commentEndIdx = renderCommentsWindow(comments, commentStartIdx, commentsList, availableHeight);
+  
+  // Update pagination - show "1-10 / 45" style
+  if (paginationEl) {
+    paginationEl.style.display = '';
+    const pageInfo = paginationEl.querySelector('.vilify-comments-page-info');
+    if (pageInfo) {
+      pageInfo.textContent = `${commentStartIdx + 1}-${commentEndIdx} / ${comments.length}`;
+    }
+  }
+  
+  console.log('[Vilify] updateCommentsUI:', { total: comments.length, startIdx: commentStartIdx, endIdx: commentEndIdx, availableHeight });
 }
 
 /**
@@ -323,8 +459,11 @@ function renderComment(comment) {
   // Template: Compound - access comment.author, comment.text
   // Inventory: comment (Comment)
   
+  // Remove leading @ if present to avoid @@
+  const authorName = comment.author.replace(/^@/, '');
+  
   return el('div', { class: 'vilify-comment' }, [
-    el('div', { class: 'vilify-comment-author' }, [`@${comment.author}`]),
+    el('div', { class: 'vilify-comment-author' }, [`@${authorName}`]),
     el('div', { class: 'vilify-comment-text' }, [comment.text])
   ]);
 }
@@ -357,67 +496,121 @@ export function renderComments(commentsResult, youtubeState, container) {
 
 /**
  * Advance to next comment page
- * [PURE]
+ * [I/O - re-renders comments]
  * 
  * @param {YouTubeState} state - Current YouTube state
  * @returns {YouTubeState} Updated state with incremented page
- * 
- * @example
- * nextCommentPage({ commentPage: 0, commentPageStarts: [0, 5], ... })
- *   => { commentPage: 1, ... }
- * 
- * // Already at last known page
- * nextCommentPage({ commentPage: 1, commentPageStarts: [0, 5], ... })
- *   => { commentPage: 1, ... }  // No change
  */
 export function nextCommentPage(state) {
-  // Template: Compound - access state.commentPage, state.commentPageStarts
-  // Inventory: state (YouTubeState)
+  const { comments } = getComments();
   
-  const currentPage = state.commentPage || 0;
-  const pageStarts = state.commentPageStarts || [0];
-  const maxPage = Math.max(0, pageStarts.length - 1);
+  // Next window starts where current window ends
+  const nextStart = commentEndIdx;
   
-  // Don't go past last known page
-  if (currentPage >= maxPage) {
+  // If we're already showing all comments, try to load more
+  if (nextStart >= comments.length) {
+    loadMoreComments();
     return state;
   }
   
-  return {
-    ...state,
-    commentPage: currentPage + 1
-  };
+  // Save current position to history before advancing
+  commentStartHistory.push(commentStartIdx);
+  
+  // Advance window
+  commentStartIdx = nextStart;
+  updateCommentsUI(comments);
+  
+  return state;
 }
 
 /**
- * Go to previous comment page
- * [PURE]
+ * Go to previous comment window
+ * [I/O - re-renders comments]
  * 
  * @param {YouTubeState} state - Current YouTube state
- * @returns {YouTubeState} Updated state with decremented page
- * 
- * @example
- * prevCommentPage({ commentPage: 2, ... })
- *   => { commentPage: 1, ... }
- * 
- * prevCommentPage({ commentPage: 0, ... })
- *   => { commentPage: 0, ... }  // Already at first
+ * @returns {YouTubeState} Updated state
  */
 export function prevCommentPage(state) {
-  // Template: Compound - access state.commentPage
-  // Inventory: state (YouTubeState)
-  
-  const currentPage = state.commentPage || 0;
-  
-  // Don't go below 0
-  if (currentPage <= 0) {
+  // If we have history, go back to previous position
+  if (commentStartHistory.length > 0) {
+    commentStartIdx = commentStartHistory.pop();
+    const { comments } = getComments();
+    updateCommentsUI(comments);
     return state;
   }
   
-  return {
-    ...state,
-    commentPage: currentPage - 1
-  };
+  // No history - already at the beginning
+  if (commentStartIdx <= 0) {
+    return state;
+  }
+  
+  // Fallback: go to start (shouldn't normally happen)
+  commentStartIdx = 0;
+  const { comments } = getComments();
+  updateCommentsUI(comments);
+  
+  return state;
+}
+
+/**
+ * Load more comments by scrolling in YouTube's DOM to trigger lazy loading
+ * [I/O]
+ */
+function loadMoreComments() {
+  if (getYouTubePageType() !== 'watch') return;
+  
+  showMessage('Loading more comments...');
+  
+  // Try to click/scroll to continuation elements to trigger YouTube's lazy loading
+  const continuationSelectors = [
+    'ytd-comments ytd-continuation-item-renderer',
+    'ytd-comments #continuations',
+    'ytd-comments tp-yt-paper-spinner',
+    '#comments ytd-continuation-item-renderer'
+  ];
+  
+  continuationSelectors.forEach(selector => {
+    const elem = document.querySelector(selector);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'instant', block: 'center' });
+      if (elem.click) elem.click();
+    }
+  });
+  
+  // Also scroll within the comments containers
+  [
+    document.querySelector('ytd-comments'),
+    document.querySelector('#comments'),
+    document.documentElement
+  ].forEach(target => {
+    if (target) {
+      if (target === document.documentElement) {
+        window.scrollBy(0, 1000);
+      } else {
+        target.scrollTop += 500;
+      }
+    }
+  });
+  
+  // Dispatch scroll events to trigger YouTube's lazy loading
+  const scrollEvent = new Event('scroll', { bubbles: true });
+  document.dispatchEvent(scrollEvent);
+  window.dispatchEvent(scrollEvent);
+  
+  // Check for new comments after a delay
+  const oldCommentCount = getComments().comments.length;
+  
+  setTimeout(() => {
+    const { comments } = getComments();
+    if (comments.length > oldCommentCount) {
+      // New comments loaded - just refresh current view (don't auto-advance)
+      // User can press Ctrl+F again to see new comments
+      updateCommentsUI(comments);
+      showMessage(`Loaded ${comments.length - oldCommentCount} more comments - press ^f to continue`);
+    } else {
+      showMessage('No more comments available');
+    }
+  }, 2000);
 }
 
 // =============================================================================
@@ -458,8 +651,26 @@ export function triggerCommentLoad() {
 /** Track active comment retry timer */
 let commentRetryTimer = null;
 
+/** Track MutationObserver for comments */
+let commentObserver = null;
+
+/**
+ * Stop watching for comments
+ */
+function stopCommentObserver() {
+  if (commentObserver) {
+    commentObserver.disconnect();
+    commentObserver = null;
+  }
+  if (commentRetryTimer) {
+    clearTimeout(commentRetryTimer);
+    commentRetryTimer = null;
+  }
+}
+
 /**
  * Schedule a retry to refresh comments after YouTube loads them
+ * Uses both MutationObserver and timer-based retry for reliability
  * [I/O]
  * 
  * @param {YouTubeState} state - YouTube state
@@ -467,38 +678,69 @@ let commentRetryTimer = null;
  * @param {VideoContext} ctx - Video context
  */
 function scheduleCommentRetry(state, container, ctx) {
-  // Clear any existing timer
-  if (commentRetryTimer) {
-    clearTimeout(commentRetryTimer);
-  }
+  // Clear any existing watchers
+  stopCommentObserver();
   
   let retryCount = 0;
-  const maxRetries = 5;
-  const retryDelay = 1000; // 1 second between retries
+  const maxRetries = 10;
+  const retryDelay = 800;
+  let lastCommentCount = 0;
   
+  // Set up MutationObserver on comments container - keeps running to detect more comments
+  const commentsContainer = document.querySelector('ytd-comments, #comments');
+  if (commentsContainer) {
+    commentObserver = new MutationObserver(() => {
+      const { comments } = getComments();
+      // Only update if we got MORE comments than before
+      if (comments.length > lastCommentCount) {
+        lastCommentCount = comments.length;
+        console.log('[Vilify] MutationObserver detected comments:', comments.length);
+        updateCommentsUI(comments);
+      }
+    });
+    commentObserver.observe(commentsContainer, { childList: true, subtree: true });
+  }
+  
+  // Timer-based retry to keep triggering comment loads
   function retry() {
     retryCount++;
     
-    // Trigger another scroll to comments
+    // Trigger scroll to comments
     triggerCommentLoad();
     
     // Check if comments loaded
     const commentsResult = getComments();
+    const hasComments = commentsResult.comments.length > 0;
+    const isDisabled = commentsResult.status === 'disabled';
     
-    if (commentsResult.status === 'loaded' || commentsResult.status === 'disabled') {
-      // Comments loaded or disabled, re-render the comments section
-      const existingCommentsBox = container.querySelector('.vilify-tui-box[data-label="comments"]');
-      if (existingCommentsBox) {
-        const newCommentsBox = renderCommentsBox(commentsResult, state);
-        existingCommentsBox.replaceWith(newCommentsBox);
+    if (isDisabled) {
+      stopCommentObserver();
+      // Show disabled message
+      const commentsList = document.querySelector('.vilify-comments-list');
+      if (commentsList) {
+        clear(commentsList);
+        commentsList.appendChild(
+          el('div', { class: 'vilify-comments-status' }, ['Comments are disabled'])
+        );
       }
-      commentRetryTimer = null;
+    } else if (hasComments && commentsResult.comments.length > lastCommentCount) {
+      // Got more comments than before
+      lastCommentCount = commentsResult.comments.length;
+      console.log('[Vilify] Retry found comments:', lastCommentCount);
+      updateCommentsUI(commentsResult.comments);
+      
+      // Keep retrying a few more times to get more comments
+      if (retryCount < maxRetries) {
+        commentRetryTimer = setTimeout(retry, retryDelay);
+      } else {
+        stopCommentObserver();
+      }
     } else if (retryCount < maxRetries) {
-      // Still loading, schedule another retry
+      // No new comments, keep trying
       commentRetryTimer = setTimeout(retry, retryDelay);
     } else {
       // Max retries reached, stop trying
-      commentRetryTimer = null;
+      stopCommentObserver();
     }
   }
   
@@ -511,6 +753,5 @@ function scheduleCommentRetry(state, container, ctx) {
 // =============================================================================
 
 export {
-  WATCH_CSS,
-  COMMENTS_PER_PAGE
+  WATCH_CSS
 };

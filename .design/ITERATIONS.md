@@ -11,7 +11,7 @@
 | `.design/DATA.md` | Data type definitions (AppState, SiteConfig, YouTubeState, etc.) |
 | `.design/BLUEPRINT.md` | Function signatures, examples, and templates (55 functions) |
 | `.design/STYLES.md` | TUI visual design language (colors, patterns, layouts) |
-| `.design/BRAINSTORM.md` | Initial problem clarification |
+| `.design/SCRAPING.md` | YouTube DOM selectors (verified Jan 28, 2026) |
 | `sites/youtube.user.js` | **Working userscript** (v0.3.0) - the reference implementation |
 
 ### HTDP Workflow
@@ -40,215 +40,252 @@ Attempted to convert the working YouTube userscript into a Chrome extension with
 ### What Went Wrong
 
 1. **Over-engineering from the start**
-   - Split into too many files before having a working prototype
-   - Created abstractions (SiteConfig, LayoutDef, etc.) that weren't validated
-   - Spent time on architecture instead of feature parity
-
 2. **Lost feature parity with userscript**
-   - Original userscript has: filter, search, command palette, chapter picker, description modal, comment pagination with load more, proper keyboard handling
-   - Extension only partially implemented these, with many broken
-
-3. **Keyboard handling was fundamentally broken**
-   - Mousetrap uses bubble phase; YouTube uses capture phase
-   - Attempted fixes (capture blocker, stopCallback override) were band-aids
-   - Should have studied the userscript's approach first (manual keydown listener with capture:true)
-
-4. **Ignored the working reference**
-   - The userscript (`sites/youtube.user.js`) already solves all these problems
-   - Should have used it as the source of truth, not just "inspiration"
-
+3. **Keyboard handling was fundamentally broken** (Mousetrap uses bubble phase)
+4. **Ignored the working reference** (userscript)
 5. **Data model drift**
-   - Created DATA.md with types, then didn't follow it
-   - Added fields like `paletteOpen` that weren't in the spec
-   - Should have used HTDP skills properly to validate changes
 
-### Lessons for Next Iteration
-
-1. **Start with the userscript as-is**
-   - The userscript works. Don't rewrite it, wrap it.
-   - Port it to extension with minimal changes first
-   - Only then refactor incrementally
-
-2. **One thing at a time**
-   - Get keyboard working first (the hardest part)
-   - Then get video listing working
-   - Then watch page
-   - Then modals
-   - Test each before moving on
-
-3. **Use capture phase for keyboard**
-   - YouTube's player uses capture phase handlers
-   - Must intercept at capture phase, not bubble phase
-   - Don't use Mousetrap
-
-4. **Feature parity checklist**
-   - [ ] Focus mode toggle (Escape / ZZ)
-   - [ ] Video listing with j/k navigation
-   - [ ] Filter (/) with live filtering
-   - [ ] Search (i) that navigates to YouTube search
-   - [ ] Command palette (:) with fuzzy search
-   - [ ] Watch page sidebar (video info + comments)
-   - [ ] Comment pagination (ctrl+f/ctrl+b)
-   - [ ] Load more comments on last page
-   - [ ] Chapter picker (f)
-   - [ ] Description modal (zo/zc)
-   - [ ] Copy commands (yy, yt, ya, Y)
-   - [ ] Navigation (gh, gs, gy, gl, gt, gc)
-   - [ ] Playback (space, h, l, g1, g2)
-   - [ ] Subscribe toggle (m)
-
-5. **Test in browser frequently**
-   - Don't batch up changes
-   - Test each feature as it's implemented
-   - Keep the feedback loop tight
+### Lessons Learned
+- Use capture phase for keyboard (YouTube uses capture)
+- Don't use Mousetrap
+- Test frequently, one thing at a time
 
 ---
 
-## Iteration 2: Design Revision (IN PROGRESS)
+## Iteration 2: Design Revision (COMPLETE)
 
 **Date:** January 28, 2026
-**Outcome:** Design updated, ready for implementation
+**Outcome:** Design docs updated
 
-### What We Did
-
-Analyzed the working userscript against the existing design docs and identified gaps. Made decisions through discussion to align the design with the userscript while keeping multi-site extensibility.
-
-### Key Decisions
-
-| Topic | Decision | Rationale |
-|-------|----------|-----------|
-| Modal State | Single unified field in AppState, sites extend enum values | Only one modal open at a time |
-| Keyboard | Custom capture-phase handler (no Mousetrap) | Mousetrap failed in Iteration 1, userscript approach works |
-| State Shape | Split AppState + SiteState | Multi-site support requires site-specific state |
-| Filter/Search | Renamed: `localFilter` (in-page) vs `siteSearch` (navigates) | Clarity, both patterns apply to multiple sites |
-| Loading Screen | Core provides using SiteTheme, site provides optional logo | Reusable with site branding |
-| Navigation Observer | Core detects URL changes, site handles reaction | Decoupled, site knows how to react |
-| Content Polling | YouTube-specific | Each site's infinite scroll is different |
-| Watch Page Retry | YouTube-specific | YouTube-specific loading quirks |
-| Comment Loading | YouTube-specific | YouTube's lazy loading is unique |
-| Default Settings | Core provides `onContentReady` callback | Pattern applies to other sites |
-
-### Design Changes Made
-
-**DATA.md:**
-- ModalState: Unified enum (`null | 'palette' | 'chapters' | 'description'`)
-- AppState: Renamed `filterActive/Query` → `localFilterActive/localFilterQuery`
-- AppState: Renamed `searchActive/Query` → `siteSearchActive/siteSearchQuery`
-- AppState: Added `paletteSelectedIdx`
-- SiteConfig: Added `logo` and `onContentReady` fields
-- YouTubeState: Removed `modalState` (now in AppState)
-- Removed: `YouTubeModalState` type
-
-**BLUEPRINT.md:**
-- Removed: Mousetrap functions (`initKeyboard`, `bind`)
-- Added Core: `setupKeyboardHandler`, `handleKeyEvent` (capture-phase)
-- Added Core: `showLoadingScreen`, `hideLoadingScreen`
-- Added Core: `setupNavigationObserver`
-- Added Core: `openLocalFilter`, `closeLocalFilter`, `openSiteSearch`, `closeSiteSearch`
-- Added YouTube: `startYouTubeContentPolling`, `stopYouTubeContentPolling`
-- Added YouTube: `waitForWatchPageContent`, `triggerCommentLoad`, `applyDefaultVideoSettings`
-- Added YouTube: `nextCommentPage`, `prevCommentPage`, `loadMoreComments`
-- Updated totals: 55 functions (18 pure, 37 I/O)
-
-**STYLES.md (new):**
-- No header - content goes edge-to-edge, status bar at bottom only
-- Vim-like status bar with mode badge: `[NORMAL]`, `[FILTER]`, `[SEARCH]`, `[COMMAND]`
-- Input field in status bar when in FILTER/SEARCH/COMMAND mode
-- Messages displayed on right side of status bar (replaces toasts)
-- Bottom drawer pattern for all modals (command palette, chapters, description, filter results)
-- Context-aware hints (`[j/k] [↵] [esc]`) only shown when drawer is open
-- Sidebar on watch page keeps contextual hints (`[m] subscribe`, `[zo] desc`, `[f] chap`)
-- TUI box pattern with inline labels preserved (`─ video ─`, `─ comments ─`)
-
-### Next Steps
-
-1. **Set up extension structure** - manifest.json, entry point, build config
-2. **Implement Core** - State, keyboard handler, loading screen, navigation observer
-3. **Port YouTube** - Scrapers, commands, layouts from userscript
-4. **Test incrementally** - Each feature before moving on
-
-### How to Continue
-
-1. Read `.design/DATA.md` for type definitions
-2. Read `.design/BLUEPRINT.md` for function specs
-3. Read `.design/STYLES.md` for UI patterns and ASCII mockups
-4. Read `.design/SCRAPING.md` for YouTube DOM selectors (verified Jan 28, 2026)
-5. Use `htdp-implement` skill → `htdp-implementer` subagent for implementation
-6. Use `htdp-verify` skill → `htdp-verifier` subagent for testing
-
-**Important UI differences from userscript:**
-- No header (userscript has header with logo)
-- Status bar replaces toasts for messages
-- Bottom drawer replaces centered modals
-- Mode badge in status bar (vim-like)
+- Updated DATA.md, BLUEPRINT.md, STYLES.md
+- Created SCRAPING.md with verified YouTube DOM selectors
+- Key decisions: unified modal state, capture-phase keyboard, split AppState + SiteState
 
 ---
 
 ## Iteration 3: Fresh Implementation (IN PROGRESS)
 
 **Date:** January 28, 2026
-**Version:** 0.1.2
-**Outcome:** Initial build complete, needs testing
+**Version:** 0.1.6
+**Outcome:** Basic structure working, many bugs remain
 
-### What We Did
+### What Works
+- ✅ Extension loads in Chrome
+- ✅ Focus mode overlay renders
+- ✅ Status bar with mode badge (NORMAL, FILTER, SEARCH, COMMAND)
+- ✅ `:` opens command palette with functional input
+- ✅ `/` opens filter mode with functional input
+- ✅ `i` opens search mode with functional input
+- ✅ Typing in input filters/searches
+- ✅ Escape closes modals
+- ✅ Arrow keys navigate palette
+- ✅ Enter executes command/navigates
+- ✅ Watch page blocks YouTube's native shortcuts (f, m, etc.)
 
-1. **Verified YouTube DOM** - Used Playwright to check current selectors (Jan 28, 2026)
-2. **Created SCRAPING.md** - Documented verified DOM structure and selectors
-3. **Built extension structure** - manifest.json, esbuild, modular src/
-4. **Implemented core modules** using htdp-implementer subagents:
-   - `state.js` - AppState, getMode
-   - `view.js` - el(), clear(), updateListSelection(), navigateList()
-   - `keyboard.js` - handleKeyEvent(), setupKeyboardHandler()
-   - `loading.js` - Loading screen with spinner
-   - `navigation.js` - SPA URL change detection
-   - `layout.js` - Focus mode overlay, renderListing()
-   - `palette.js` - Command palette (bottom drawer)
-   - `actions.js` - copyToClipboard(), navigateTo()
-   - `index.js` - Main orchestration (initSite)
-5. **Implemented YouTube modules**:
-   - `scraper.js` - getVideos(), getVideoContext(), getChapters(), getComments()
-   - `player.js` - togglePlayPause(), seekRelative(), setPlaybackRate()
-   - `commands.js` - getYouTubeCommands(), getYouTubeKeySequences()
-   - `watch.js` - Watch page layout with sidebar
-   - `index.js` - youtubeConfig
+### What's Broken
 
-### Build Status
-- ✅ `npm run build` succeeds (64.9kb bundle)
-- ⏳ Not yet tested in browser
+#### PRIORITY 1: Scraping (Major Issues)
+- **Home page**: Only scrapes a few videos, doesn't wait for full page load
+- **History page**: Doesn't scrape at all
+- **Library page**: Doesn't scrape at all
+- **Watch page metadata**: Often shows "Untitled" / "Unknown" - selectors not finding elements
+- **Watch page comments**: Shows "Loading comments..." forever - lazy load trigger not working
+- **Timing issue**: Videos sometimes appear after keypress instead of on initial load
+
+**Root cause**: The scrapers in `src/sites/youtube/scraper.js` use selectors from SCRAPING.md but:
+1. YouTube's DOM loads asynchronously - need better retry/wait logic
+2. Different page types use different renderers (not all covered)
+3. The `waitForContent()` function times out too early
+
+**Reference**: The userscript (`sites/youtube.user.js`) has working scraper code:
+- `Scraper.getVideos()` (lines 310-420) - multiple strategies
+- `Scraper.getVideoContext()` (lines 422-480) - watch page metadata
+- `Scraper.getComments()` (lines 495-520) - comments with retry
+- Content polling with `startContentPolling()` (lines 1680-1720)
+
+#### PRIORITY 2: Watch Page
+- Subscribe button layout slightly off
+- Chapters picker not implemented (modal exists but no content)
+- Description modal not implemented
+- Comment pagination (Ctrl+f/b) not wired up
+
+#### PRIORITY 3: Other Features
+- Key sequences on watch page (yy, yt, ya, zo, zc, g1, g2, gc) - need testing
+- j/k navigation on listing pages - works but selection highlight may be off
+- Load more videos when hitting bottom of list - not implemented
 
 ### File Structure
 ```
 src/
   content.js           # Entry point
   core/
-    index.js           # Main orchestration
+    index.js           # Main orchestration (initSite, render, event handlers)
     state.js           # AppState functions
     keyboard.js        # Keyboard handler (capture phase)
     view.js            # DOM utilities
-    layout.js          # Focus mode layout
+    layout.js          # Focus mode layout, status bar with input
     loading.js         # Loading screen
     navigation.js      # URL change observer
-    palette.js         # Command palette
+    palette.js         # Command palette (bottom drawer)
     actions.js         # Copy, navigate
   sites/
     youtube/
       index.js         # YouTube site config
-      scraper.js       # Video/chapter/comment scrapers
-      commands.js      # YouTube commands
+      scraper.js       # Video/chapter/comment scrapers ← NEEDS WORK
+      commands.js      # YouTube commands + key sequences
       player.js        # Player controls
       watch.js         # Watch page layout
 ```
 
-### Next Steps
+### Next Steps (for next session)
 
-1. **Load extension in Chrome** and test on YouTube
-2. **Fix any runtime errors** - imports, missing exports, etc.
-3. **Test features**:
-   - [ ] Loading screen shows
-   - [ ] Home page video listing works
-   - [ ] j/k navigation
-   - [ ] Enter to select video
-   - [ ] Watch page layout (player + sidebar)
-   - [ ] Command palette (:)
-   - [ ] Key sequences (gh, gs, yy, etc.)
-4. **Iterate on bugs**
+1. **Fix scraping** - This is the critical path
+   - Study userscript's `Scraper` object (lines 300-550)
+   - Port the multi-strategy approach for video scraping
+   - Add content polling like userscript does
+   - Fix watch page metadata selectors
+   - Fix comment loading trigger
+
+2. **Test on different YouTube pages**:
+   - Home (`/`)
+   - Subscriptions (`/feed/subscriptions`)
+   - History (`/feed/history`)
+   - Search results (`/results?search_query=...`)
+   - Watch page (`/watch?v=...`)
+   - Channel page (`/@...`)
+
+3. **Wire up remaining features**:
+   - Chapter picker content
+   - Description modal
+   - Comment pagination
+
+### How to Continue
+
+1. Load extension: Chrome → `chrome://extensions` → Load unpacked → select project folder
+2. Open YouTube and check console for errors
+3. Compare scraper behavior to userscript
+4. Reference files:
+   - `sites/youtube.user.js` - working reference (especially `Scraper` object)
+   - `.design/SCRAPING.md` - verified DOM selectors
+   - `src/sites/youtube/scraper.js` - current implementation to fix
+
+### Build Commands
+```bash
+cd /Users/user1/projects/vilify
+npm run build    # Build once
+npm run watch    # Watch mode for development
+```
+
+---
+
+## Iteration 4: Bug Fixing (IN PROGRESS)
+
+**Date:** January 28, 2026  
+**Version:** 0.1.6 → 0.1.10  
+**Design:** `.design/iterations/004-bugfix/`
+
+### Goals
+Fix known bugs from Iteration 3, focusing on scraping issues.
+
+### Root Cause Analysis
+See `.design/iterations/004-bugfix/ANALYSIS.md` for detailed comparison.
+
+**TL;DR**: Race condition - extension scrapes once, but YouTube loads DOM asynchronously.
+- Userscript: content polling every 200ms, watch page retries 10x @ 500ms, comment retries
+- Extension: one-shot scrape, no retry logic
+
+### Priority 1: Scraping
+- [x] Content polling/retry logic (v0.1.7)
+- [x] Watch page metadata retry (v0.1.7)
+- [x] Comment loading retry (v0.1.7)
+- [ ] Home page scraping - needs testing
+- [ ] History page scraping - needs testing
+- [ ] Library page scraping - needs testing
+
+### Changes in v0.1.7
+
+**`src/core/index.js`:**
+- Added `startContentPolling()` / `stopContentPolling()` 
+- Polls every 200ms on listing pages
+- Re-renders when video count changes (and not loading)
+- Starts after init and after navigation (non-watch pages)
+
+**`src/sites/youtube/index.js`:**
+- Added `renderWatchWithRetry()` with retry loop
+- Retries up to 10 times @ 500ms if metadata missing
+- Shows "Loading video info... (X/10)" during retries
+
+**`src/sites/youtube/watch.js`:**
+- Already had `scheduleCommentRetry()` - retries 5x @ 1000ms
+
+### Changes in v0.1.8
+
+**Bug 1: History page scraping**
+- **Root cause**: `scrapeHomeLayout()` queried `ytd-rich-item-renderer` first, but on history page `yt-lockup-view-model` is NOT inside `ytd-rich-item-renderer` (198 videos exist standalone)
+- **Fix**: Renamed to `scrapeLockupLayout()`, now queries `yt-lockup-view-model` directly
+
+**Bug 2: Comment status detection**
+- **Root cause**: `getCommentStatus()` returned 'loading' if ANY spinner exists, but spinners exist inside `ytd-continuation-item-renderer` (for loading more replies) even when initial comments ARE loaded
+- **Fix**: Check if comments exist first; only return 'loading' if no comments AND spinner in main section
+
+### Changes in v0.1.9
+
+**Bug 3: Comments showing "No comments yet"**
+- **Root cause**: `scheduleCommentRetry` stopped retrying when `status === 'loaded'`, but status could be 'loaded' with 0 comments if YouTube removed spinner before populating DOM
+- **Fix**: Only stop retrying when `comments.length > 0` or `status === 'disabled'`; increased retries to 8 @ 800ms
+
+**Bug 4: Comment pagination not working**
+- **Root cause**: `nextCommentPage` used `pageStarts.length` to determine max page, but `pageStarts` was never updated
+- **Fix**: Calculate max page dynamically from actual `comments.length / COMMENTS_PER_PAGE`
+
+**Bug 5: Comment box not stretching**
+- **Fix**: Added flexbox layout to watch page content area; comments box now stretches to fill remaining space above status bar
+
+**Bug 6: History page missing channel names**
+- **Root cause**: On history page, channel name is a span (no `<a>` link), but scraper only looked for links
+- **Fix**: Fallback to first metadata text if no channel link found
+
+### Changes in v0.1.10
+
+**Bug 7: Comments not loading automatically**
+- **Root cause**: `scheduleCommentRetry` wasn't being called when `status === 'loaded'` but 0 comments (early state before YouTube populates DOM)
+- **Fix**: Now also schedules retry if `comments.length === 0` regardless of status
+
+**Bug 8: Only showing 4 comments**
+- **Root cause**: Fixed `COMMENTS_PER_PAGE = 5` regardless of available height
+- **Fix**: Dynamic height-based pagination like userscript:
+  - Add comments one by one until `scrollHeight > availableHeight`
+  - Track `commentPageStarts` array for each page's starting index
+  - Estimate total pages based on average comments per page
+
+**Bug 9: Comments more reliable loading**
+- **Fix**: Added `MutationObserver` on `ytd-comments` container (like userscript)
+- Detects when YouTube adds comment elements to DOM
+- Combined with timer-based retry as backup
+- Reset observer and `commentPageStarts` when navigating to new video
+
+### Priority 2: Watch Page
+- [ ] Subscribe button layout
+- [ ] Chapters picker content
+- [ ] Description modal
+
+### Priority 3: Navigation
+- [ ] Key sequences (yy, yt, ya, zo, zc, g1, g2, gc)
+- [ ] j/k navigation highlight
+- [ ] Load more at bottom of list
+
+### Testing Checklist
+After reloading extension:
+- [ ] Home page (`/`) - should show all videos, not just first few
+- [ ] Subscriptions (`/feed/subscriptions`)
+- [ ] History (`/feed/history`)
+- [ ] Search results (`/results?search_query=...`)
+- [ ] Watch page (`/watch?v=...`) - title/channel should load (may show retry count)
+- [ ] Comments on watch page - should load after a few seconds
+
+### Strategy
+Port working code from userscript (`sites/youtube.user.js`) to extension, particularly:
+- `Scraper.getVideos()` lines 310-420
+- `Scraper.getVideoContext()` lines 422-480
+- `Scraper.getComments()` lines 495-520
+- `startContentPolling()` lines 1680-1720

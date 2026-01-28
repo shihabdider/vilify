@@ -435,30 +435,22 @@ Examples:
 A YouTubeState is a structure:
 - chapterQuery: String - filter text in chapter picker
 - chapterSelectedIdx: Number - selected chapter index
-- commentPage: Number - current page of comments
-- commentPageStarts: Array\<Number\> - index where each page starts
 - settingsApplied: Boolean - have we set default playback rate?
 - watchPageRetryCount: Number - internal retry tracking
 - commentLoadAttempts: Number - internal retry tracking
 
 Note: Modal state is now in AppState.modalState (unified enum).
+Note: Comment window state (startIdx, endIdx, history) is tracked at module level in watch.js, not in YouTubeState.
 
 Examples:
 ```js
 // Initial state on watch page
 { chapterQuery: '', chapterSelectedIdx: 0,
-  commentPage: 0, commentPageStarts: [0],
   settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0 }
 
 // Browsing chapters with filter
 { chapterQuery: 'intro', chapterSelectedIdx: 2,
-  commentPage: 0, commentPageStarts: [0],
   settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0 }
-
-// Paging through comments
-{ chapterQuery: '', chapterSelectedIdx: 0,
-  commentPage: 2, commentPageStarts: [0, 5, 11],
-  settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 3 }
 ```
 
 ---

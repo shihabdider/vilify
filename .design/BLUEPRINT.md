@@ -555,37 +555,59 @@ applyDefaultVideoSettings()
 
 ---
 
-## YouTube - Comment Pagination (Site-Specific)
+## YouTube - Comment Window (Site-Specific)
 
-### `nextCommentPage : YouTubeState -> YouTubeState` [PURE]
-Advance to next comment page.
+Comments are displayed using a sliding window approach. Module-level state tracks:
+- `commentStartIdx`: First comment index in current view
+- `commentEndIdx`: End index (exclusive) of current view  
+- `commentStartHistory`: Stack of previous start positions for back navigation
+
+### `nextCommentPage : YouTubeState -> YouTubeState` [I/O]
+Advance comment window to show next set of comments. Pushes current position to history.
 
 ```javascript
-nextCommentPage({ commentPage: 0, commentPageStarts: [0, 5], ... })
-  => { commentPage: 1, ... }
+// Currently showing comments 1-9, advances to 10-17
+nextCommentPage(state)
+// commentStartHistory now contains [0]
+// commentStartIdx = 9, renders and sets commentEndIdx = 17
 
-// Already at last known page
-nextCommentPage({ commentPage: 1, commentPageStarts: [0, 5], ... })
-  => { commentPage: 1, ... }  // No change, caller should try loadMoreComments
+// At end of loaded comments, triggers loadMoreComments
+nextCommentPage(state)  // when commentEndIdx >= comments.length
+// Calls loadMoreComments(), returns state unchanged
 ```
 
-### `prevCommentPage : YouTubeState -> YouTubeState` [PURE]
-Go to previous comment page.
+### `prevCommentPage : YouTubeState -> YouTubeState` [I/O]
+Go back to previous comment window by popping from history.
 
 ```javascript
-prevCommentPage({ commentPage: 2, ... })
-  => { commentPage: 1, ... }
+// Currently showing 10-17, history = [0]
+prevCommentPage(state)
+// Pops 0 from history, shows comments 1-9
 
-prevCommentPage({ commentPage: 0, ... })
-  => { commentPage: 0, ... }  // Already at first
+// Already at first window, history empty
+prevCommentPage(state)
+// Returns state unchanged
 ```
 
 ### `loadMoreComments : () -> void` [I/O]
 Trigger loading of more comments from YouTube (scroll, click continuation).
+Does NOT auto-advance - just refreshes current view with new total.
 
 ```javascript
 loadMoreComments()
 // Scrolls, clicks continuation elements, waits for new comments
+// Shows message "Loaded X more comments - press ^f to continue"
+// User presses Ctrl+F again to see new comments
+```
+
+### `updateCommentsUI : (Array<Comment>) -> void` [I/O]
+Render comments starting from commentStartIdx until container is full.
+Updates commentEndIdx and displays "startIdx-endIdx / total" in pagination.
+
+```javascript
+updateCommentsUI(comments)
+// Renders comments[commentStartIdx..commentEndIdx]
+// Shows "1-9 / 45" in pagination footer
 ```
 
 ---
@@ -611,5 +633,5 @@ loadMoreComments()
 | YouTube - Layout | 3 | 0 | 3 |
 | YouTube - Content Polling | 2 | 0 | 2 |
 | YouTube - Watch Page | 3 | 0 | 3 |
-| YouTube - Comment Pagination | 3 | 2 | 1 |
-| **Total** | **55** | **18** | **37** |
+| YouTube - Comment Window | 4 | 0 | 4 |
+| **Total** | **56** | **16** | **40** |

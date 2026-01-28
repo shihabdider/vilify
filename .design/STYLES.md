@@ -260,7 +260,7 @@ Video player on left (full height minus status bar), sidebar on right with video
 │                                       │ │ @user2                 │  │
 │                                       │ │ Thanks for explaining  │  │
 │                                       │ ├────────────────────────┤  │
-│                                       │ │ [^b] 1/3 [^f]          │  │
+│                                       │ │ [^b] 1-8 / 45 [^f]     │  │
 │                                       │ └────────────────────────┘  │
 ├───────────────────────────────────────┴─────────────────────────────┤
 │ [NORMAL]                                                            │

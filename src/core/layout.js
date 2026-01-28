@@ -80,7 +80,12 @@ const FOCUS_MODE_CSS = `
     margin-left: 8px;
     outline: none;
     flex: 1;
-    max-width: 300px;
+    max-width: 400px;
+    display: none;
+  }
+
+  .vilify-status-input.visible {
+    display: block;
   }
 
   .vilify-status-input::placeholder {
@@ -89,6 +94,20 @@ const FOCUS_MODE_CSS = `
 
   .vilify-status-message {
     color: var(--txt-3);
+  }
+
+  .vilify-status-hints {
+    color: var(--txt-3);
+    font-size: 11px;
+  }
+
+  .vilify-status-hints kbd {
+    background: transparent;
+    border: 1px solid var(--bg-3);
+    padding: 1px 4px;
+    margin: 0 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
   }
 
   /* Content area */
@@ -289,18 +308,23 @@ const FOCUS_MODE_CSS = `
 // Style element ID for deduplication
 const STYLE_ID = 'vilify-focus-mode-styles';
 
+// Store callbacks for input handling
+let inputCallbacks = null;
+
+/**
+ * Set callbacks for status bar input handling
+ * @param {Object} callbacks - { onFilterChange, onFilterSubmit, onSearchChange, onSearchSubmit, onCommandChange, onCommandSubmit, onEscape }
+ */
+export function setInputCallbacks(callbacks) {
+  inputCallbacks = callbacks;
+}
+
 /**
  * Inject focus mode styles into the document.
  * Idempotent - won't add duplicate style elements.
  * [I/O]
- *
- * @example
- * injectFocusModeStyles()
- * // Adds <style id="vilify-focus-mode-styles"> to document head
  */
 export function injectFocusModeStyles() {
-  // Template: I/O - DOM mutation
-  // Check if styles already injected
   if (document.getElementById(STYLE_ID)) {
     return;
   }
@@ -314,15 +338,8 @@ export function injectFocusModeStyles() {
 /**
  * Apply CSS custom properties from theme to focus mode container.
  * [I/O]
- *
- * @param {SiteTheme} theme - Theme configuration
- *
- * @example
- * applyTheme({ accent: '#ff0000', bg1: '#002b36', ... })
- * // Sets --accent, --bg-1, etc. on document root
  */
 export function applyTheme(theme) {
-  // Template: Compound - access all fields from theme
   const root = document.documentElement;
 
   root.style.setProperty('--bg-1', theme.bg1);
@@ -338,23 +355,11 @@ export function applyTheme(theme) {
 
 /**
  * Render the full focus mode overlay (content area, status bar).
- * Creates: #vilify-focus > #vilify-content + .vilify-status-bar
- * Status bar has: mode badge, optional input, message area
  * [I/O]
- *
- * @param {SiteConfig} config - Site configuration
- * @param {AppState} state - Current application state
- *
- * @example
- * renderFocusMode(youtubeConfig, state)
- * // Creates overlay with site's theme, ready for content
  */
 export function renderFocusMode(config, state) {
-  // Template: Compound - access config.theme, state fields
-  // Inject styles first
   injectFocusModeStyles();
 
-  // Apply site theme
   if (config.theme) {
     applyTheme(config.theme);
   }
@@ -365,14 +370,11 @@ export function renderFocusMode(config, state) {
     existing.remove();
   }
 
-  // Get current mode for status bar
-  const mode = getMode(state);
-
   // Create content area
   const content = el('div', { id: 'vilify-content' }, []);
 
-  // Create status bar
-  const statusBar = createStatusBar(mode, state);
+  // Create status bar with input
+  const statusBar = createStatusBar(state);
 
   // Create main container
   const container = el('div', { id: 'vilify-focus' }, [
@@ -380,122 +382,157 @@ export function renderFocusMode(config, state) {
     statusBar
   ]);
 
-  // Add focus mode class to body
   document.body.classList.add('vilify-focus-mode');
-
-  // Append to document
   document.body.appendChild(container);
 }
 
 /**
- * Create the status bar element based on current mode.
- * [PURE]
- *
- * @param {string} mode - Current display mode ('NORMAL', 'COMMAND', 'FILTER', 'SEARCH')
- * @param {AppState} state - Current application state
- * @returns {HTMLElement} Status bar element
+ * Create the status bar element with mode badge and input field.
+ * [PURE - but attaches event listeners]
  */
-function createStatusBar(mode, state) {
-  // Template: Enumeration - case per mode value
-  const leftContent = [];
-  const rightContent = [];
-
+function createStatusBar(state) {
+  const mode = getMode(state);
+  
   // Mode badge
   const modeBadge = el('span', { class: 'vilify-mode-badge' }, [mode]);
-  leftContent.push(modeBadge);
 
-  // Add input field for FILTER, SEARCH, COMMAND modes
-  if (mode === 'FILTER') {
-    const input = el('input', {
-      type: 'text',
-      class: 'vilify-status-input',
-      placeholder: 'Filter...',
-      id: 'vilify-filter-input'
-    }, []);
-    // Set value after creation (can't set via attributes for input)
-    input.value = state.localFilterQuery;
-    leftContent.push(input);
-  } else if (mode === 'SEARCH') {
-    const input = el('input', {
-      type: 'text',
-      class: 'vilify-status-input',
-      placeholder: 'Search...',
-      id: 'vilify-search-input'
-    }, []);
-    input.value = state.siteSearchQuery;
-    leftContent.push(input);
-  } else if (mode === 'COMMAND') {
-    const input = el('input', {
-      type: 'text',
-      class: 'vilify-status-input',
-      placeholder: 'Command...',
-      id: 'vilify-command-input'
-    }, []);
-    input.value = state.paletteQuery;
-    leftContent.push(input);
-  }
-
-  // Message area (right side)
-  const message = el('span', {
-    class: 'vilify-status-message',
-    id: 'vilify-status-message'
+  // Single input field (shown/hidden based on mode)
+  const input = el('input', {
+    type: 'text',
+    class: 'vilify-status-input',
+    id: 'vilify-status-input',
+    placeholder: '',
+    autocomplete: 'off',
+    spellcheck: 'false'
   }, []);
-  rightContent.push(message);
 
-  // Build status bar
-  const leftDiv = el('div', { class: 'vilify-status-left' }, leftContent);
-  const rightDiv = el('div', { class: 'vilify-status-right' }, rightContent);
+  // Set up input event listeners
+  input.addEventListener('input', (e) => {
+    const currentMode = document.querySelector('.vilify-mode-badge')?.textContent;
+    if (currentMode === 'FILTER' && inputCallbacks?.onFilterChange) {
+      inputCallbacks.onFilterChange(e.target.value);
+    } else if (currentMode === 'SEARCH' && inputCallbacks?.onSearchChange) {
+      inputCallbacks.onSearchChange(e.target.value);
+    } else if (currentMode === 'COMMAND' && inputCallbacks?.onCommandChange) {
+      inputCallbacks.onCommandChange(e.target.value);
+    }
+  });
+
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation(); // Prevent keyboard handler from intercepting
+    
+    const currentMode = document.querySelector('.vilify-mode-badge')?.textContent;
+    
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (inputCallbacks?.onEscape) {
+        inputCallbacks.onEscape();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentMode === 'FILTER' && inputCallbacks?.onFilterSubmit) {
+        inputCallbacks.onFilterSubmit(e.target.value, e.shiftKey);
+      } else if (currentMode === 'SEARCH' && inputCallbacks?.onSearchSubmit) {
+        inputCallbacks.onSearchSubmit(e.target.value);
+      } else if (currentMode === 'COMMAND' && inputCallbacks?.onCommandSubmit) {
+        inputCallbacks.onCommandSubmit(e.target.value, e.shiftKey);
+      }
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      // Allow arrow keys for palette navigation
+      if (currentMode === 'COMMAND' && inputCallbacks?.onCommandNavigate) {
+        e.preventDefault();
+        inputCallbacks.onCommandNavigate(e.key === 'ArrowDown' ? 'down' : 'up');
+      }
+    }
+  });
+
+  // Hints area (shown when drawer is open)
+  const hints = el('span', { class: 'vilify-status-hints', id: 'vilify-status-hints' }, []);
+
+  // Message area
+  const message = el('span', { class: 'vilify-status-message', id: 'vilify-status-message' }, []);
+
+  const leftDiv = el('div', { class: 'vilify-status-left' }, [modeBadge, input]);
+  const rightDiv = el('div', { class: 'vilify-status-right' }, [hints, message]);
 
   return el('div', { class: 'vilify-status-bar' }, [leftDiv, rightDiv]);
 }
 
 /**
- * Render a list of content items with selection state.
- * Uses default rendering or custom renderItem function.
+ * Update status bar to reflect current mode.
+ * Shows/hides input, updates badge, focuses input when needed.
  * [I/O]
- *
- * @param {Array<ContentItem>} items - Items to render
- * @param {number} selectedIdx - Index of selected item
- * @param {HTMLElement} container - Container to render into (defaults to #vilify-content)
- * @param {Function|null} renderItem - Optional custom item renderer: (item, isSelected) => HTMLElement
- *
- * @example
- * renderListing(videos, 0)                    // Default rendering, first selected
- * renderListing(comments, 2, container, renderComment)   // Custom renderer, third selected
+ */
+export function updateStatusBar(state, focusInput = false) {
+  const mode = getMode(state);
+  
+  // Update mode badge
+  const badge = document.querySelector('.vilify-mode-badge');
+  if (badge) {
+    badge.textContent = mode;
+  }
+
+  // Update input visibility and value
+  const input = document.getElementById('vilify-status-input');
+  if (input) {
+    if (mode === 'FILTER') {
+      input.classList.add('visible');
+      input.placeholder = 'Filter...';
+      input.value = state.localFilterQuery || '';
+      if (focusInput) input.focus();
+    } else if (mode === 'SEARCH') {
+      input.classList.add('visible');
+      input.placeholder = 'Search YouTube...';
+      input.value = state.siteSearchQuery || '';
+      if (focusInput) input.focus();
+    } else if (mode === 'COMMAND') {
+      input.classList.add('visible');
+      input.placeholder = 'Command...';
+      input.value = state.paletteQuery || '';
+      if (focusInput) input.focus();
+    } else {
+      input.classList.remove('visible');
+      input.blur();
+    }
+  }
+
+  // Update hints
+  const hints = document.getElementById('vilify-status-hints');
+  if (hints) {
+    if (mode === 'FILTER' || mode === 'COMMAND') {
+      hints.innerHTML = '<kbd>↑↓</kbd> navigate <kbd>↵</kbd> select <kbd>esc</kbd> close';
+    } else {
+      hints.innerHTML = '';
+    }
+  }
+}
+
+/**
+ * Render a list of content items with selection state.
+ * [I/O]
  */
 export function renderListing(items, selectedIdx, container = null, renderItem = null) {
-  // Template: Self-referential (list) - iterate over items
-  // Get container
   const targetContainer = container || document.getElementById('vilify-content');
   if (!targetContainer) {
     return;
   }
 
-  // Clear existing content
   clear(targetContainer);
 
-  // Handle empty list
   if (!items || items.length === 0) {
     const empty = el('div', { class: 'vilify-empty' }, ['No items found']);
     targetContainer.appendChild(empty);
     return;
   }
 
-  // Render each item
   items.forEach((item, index) => {
     const isSelected = index === selectedIdx;
-
-    // Use custom renderer if provided, otherwise default
     const renderer = renderItem || renderDefaultItem;
     const itemEl = renderer(item, isSelected);
-
-    // Add data-index for event handling
     itemEl.setAttribute('data-index', String(index));
-
     targetContainer.appendChild(itemEl);
   });
 
-  // Scroll selected item into view
   const selectedEl = targetContainer.querySelector('.vilify-item.selected');
   if (selectedEl) {
     selectedEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -504,19 +541,9 @@ export function renderListing(items, selectedIdx, container = null, renderItem =
 
 /**
  * Default item renderer for ContentItem.
- * Returns element with .vilify-item, thumbnail, title, meta.
  * [PURE]
- *
- * @param {ContentItem} item - Item to render
- * @param {boolean} isSelected - Whether this item is selected
- * @returns {HTMLElement} Rendered item element
- *
- * @example
- * renderDefaultItem({ title: 'Video', meta: 'Channel', thumbnail: '...' }, true)
- * // Returns <div class="vilify-item selected">...</div>
  */
 export function renderDefaultItem(item, isSelected) {
-  // Template: Union - handle ContentItem, GroupHeader, Command
   // Check for group header
   if ('group' in item && item.group) {
     return el('div', { class: 'vilify-group-header' }, [item.group]);
@@ -528,38 +555,26 @@ export function renderDefaultItem(item, isSelected) {
   }
 
   // Default: ContentItem
-  // Template: Compound - access all fields from ContentItem
   const classes = isSelected ? 'vilify-item selected' : 'vilify-item';
   const children = [];
 
-  // Thumbnail (if present)
   if (item.thumbnail) {
-    const thumb = el('img', {
-      class: 'vilify-thumb',
-      src: item.thumbnail,
-      alt: ''
-    }, []);
+    const thumb = el('img', { class: 'vilify-thumb', src: item.thumbnail, alt: '' }, []);
     children.push(thumb);
   } else {
-    // Placeholder for consistent layout
     const thumbPlaceholder = el('div', { class: 'vilify-thumb' }, []);
     children.push(thumbPlaceholder);
   }
 
-  // Info section
   const infoChildren = [];
-
-  // Title
   const title = el('div', { class: 'vilify-item-title' }, [item.title || '']);
   infoChildren.push(title);
 
-  // Meta (secondary info)
   if (item.meta) {
     const meta = el('div', { class: 'vilify-item-meta' }, [item.meta]);
     infoChildren.push(meta);
   }
 
-  // Subtitle (third line)
   if (item.subtitle) {
     const subtitle = el('div', { class: 'vilify-item-subtitle' }, [item.subtitle]);
     infoChildren.push(subtitle);
@@ -574,37 +589,27 @@ export function renderDefaultItem(item, isSelected) {
 /**
  * Render a command item for palette display.
  * [PURE]
- *
- * @param {Command} cmd - Command to render
- * @param {boolean} isSelected - Whether this item is selected
- * @returns {HTMLElement} Rendered command element
  */
 function renderCommandItem(cmd, isSelected) {
-  // Template: Compound - access all fields from Command
   const classes = isSelected ? 'vilify-item selected' : 'vilify-item';
   const children = [];
 
-  // Icon
   if (cmd.icon) {
     const icon = el('span', { class: 'vilify-item-icon' }, [cmd.icon + ' ']);
     children.push(icon);
   }
 
-  // Label
   const label = el('span', { class: 'vilify-item-title' }, [cmd.label]);
   children.push(label);
 
-  // Spacer
   const spacer = el('span', { style: 'flex: 1' }, []);
   children.push(spacer);
 
-  // Keys (shortcut hint)
   if (cmd.keys) {
     const keys = el('kbd', {}, [cmd.keys]);
     children.push(keys);
   }
 
-  // Meta info
   if (cmd.meta) {
     const meta = el('span', { class: 'vilify-item-meta', style: 'margin-left: 8px' }, [cmd.meta]);
     children.push(meta);
@@ -616,14 +621,8 @@ function renderCommandItem(cmd, isSelected) {
 /**
  * Update status bar message.
  * [I/O]
- *
- * @param {string} message - Message to display
- *
- * @example
- * updateStatusMessage('Copied URL')
  */
 export function updateStatusMessage(message) {
-  // Template: I/O - DOM mutation
   const msgEl = document.getElementById('vilify-status-message');
   if (msgEl) {
     msgEl.textContent = message;
@@ -631,31 +630,10 @@ export function updateStatusMessage(message) {
 }
 
 /**
- * Update status bar mode badge.
- * [I/O]
- *
- * @param {string} mode - New mode to display
- *
- * @example
- * updateModeBadge('FILTER')
- */
-export function updateModeBadge(mode) {
-  // Template: I/O - DOM mutation
-  const badge = document.querySelector('.vilify-mode-badge');
-  if (badge) {
-    badge.textContent = mode;
-  }
-}
-
-/**
  * Remove focus mode overlay and restore normal page.
  * [I/O]
- *
- * @example
- * removeFocusMode()
  */
 export function removeFocusMode() {
-  // Template: I/O - DOM mutation
   const container = document.getElementById('vilify-focus');
   if (container) {
     container.remove();
@@ -666,8 +644,6 @@ export function removeFocusMode() {
 /**
  * Get the content container element.
  * [I/O]
- *
- * @returns {HTMLElement|null} Content container or null if not found
  */
 export function getContentContainer() {
   return document.getElementById('vilify-content');

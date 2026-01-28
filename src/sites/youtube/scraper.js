@@ -94,16 +94,16 @@ export function getYouTubePageType() {
 // =============================================================================
 
 /**
- * Scrape videos from home page layout (ytd-rich-item-renderer with yt-lockup-view-model)
+ * Scrape videos from new layout (yt-lockup-view-model)
+ * Used on home page (inside ytd-rich-item-renderer) and history/library (standalone)
  * @returns {Array<Object>} Raw video data objects
  */
-function scrapeHomeLayout() {
+function scrapeLockupLayout() {
   const videos = [];
 
-  document.querySelectorAll('ytd-rich-item-renderer').forEach(item => {
-    const lockup = item.querySelector('yt-lockup-view-model');
-    if (!lockup) return;
-
+  // Query yt-lockup-view-model directly - it may be inside ytd-rich-item-renderer (home)
+  // or standalone (history, library, etc.)
+  document.querySelectorAll('yt-lockup-view-model').forEach(lockup => {
     const titleLink = lockup.querySelector('a.yt-lockup-metadata-view-model__title');
     const href = titleLink?.href;
     const videoId = extractVideoId(href);
@@ -113,12 +113,24 @@ function scrapeHomeLayout() {
     if (href?.includes('/shorts/')) return;
 
     const title = titleLink?.textContent?.trim();
+    
+    // Channel can be a link (home page) or just text (history page)
     const channelLink = lockup.querySelector('.yt-content-metadata-view-model__metadata-row a');
-    const channel = channelLink?.textContent?.trim();
-    const channelUrl = channelLink?.getAttribute('href');
     const metaTexts = lockup.querySelectorAll('.yt-content-metadata-view-model__metadata-text');
-
-    // metaTexts[0] = channel, [1] = views, [2] = date
+    
+    // On home page: metaTexts[0] has channel link inside, [1] = views, [2] = date
+    // On history page: metaTexts[0] = channel (no link), [1] = views, no date
+    let channel = channelLink?.textContent?.trim();
+    let channelUrl = channelLink?.getAttribute('href');
+    
+    // Fallback: if no link, get channel from first metadata text
+    if (!channel && metaTexts.length > 0) {
+      // Extract just the channel name (first part before any separator)
+      const firstMeta = metaTexts[0]?.textContent?.trim();
+      // Channel name is the first metadata, but may contain extra chars
+      channel = firstMeta;
+    }
+    
     const views = metaTexts[1]?.textContent?.trim();
     const uploadDate = metaTexts[2]?.textContent?.trim();
 
@@ -289,13 +301,13 @@ export function getVideos() {
   // Template: Try multiple strategies, deduplicate results
 
   // Try all layout strategies
-  const homeVideos = scrapeHomeLayout();
+  const lockupVideos = scrapeLockupLayout();  // New layout (home, history, library)
   const searchVideos = scrapeSearchLayout();
   const playlistVideos = scrapePlaylistLayout();
-  const historyVideos = scrapeHistoryLayout();
+  const historyVideos = scrapeHistoryLayout();  // Old layout fallback
 
   // Combine all results
-  const allRaw = [...homeVideos, ...searchVideos, ...playlistVideos, ...historyVideos];
+  const allRaw = [...lockupVideos, ...searchVideos, ...playlistVideos, ...historyVideos];
 
   // Deduplicate by videoId
   const seen = new Set();
@@ -522,9 +534,23 @@ function getCommentStatus() {
   const disabledMessage = commentsSection.querySelector('ytd-message-renderer');
   if (disabledMessage?.textContent?.includes('turned off')) return 'disabled';
 
-  // Check if still loading
-  const spinner = commentsSection.querySelector('tp-yt-paper-spinner, #spinner');
-  if (spinner) return 'loading';
+  // Check if any comments have loaded - spinners may exist for loading MORE comments
+  // (continuation items, sub-threads) even when initial batch is loaded
+  const commentCount = document.querySelectorAll('ytd-comment-thread-renderer, ytd-comment-view-model').length;
+  if (commentCount > 0) return 'loaded';
+
+  // No comments yet - check if still loading (spinner in main section, not in continuation items)
+  // Look for spinner that's a direct child of the comments section, not in ytd-continuation-item-renderer
+  const mainSpinner = commentsSection.querySelector(
+    '#contents > tp-yt-paper-spinner, ' +
+    '#contents > #spinner, ' +
+    'ytd-item-section-renderer > #contents > tp-yt-paper-spinner'
+  );
+  if (mainSpinner) return 'loading';
+
+  // Fallback: if there's any spinner and no comments, still loading
+  const anySpinner = commentsSection.querySelector('tp-yt-paper-spinner, #spinner');
+  if (anySpinner) return 'loading';
 
   return 'loaded';
 }

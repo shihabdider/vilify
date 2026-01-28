@@ -213,21 +213,62 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       return;
     }
 
-    // Get key sequences from config
-    const sequences = config.getKeySequences ? config.getKeySequences() : {};
+    // Get key sequences from config, passing callbacks for modal openers
+    const appCallbacks = {
+      openPalette: (mode) => {
+        const newState = { ...state, modalState: 'palette', paletteQuery: mode === 'command' ? ':' : '', paletteSelectedIdx: 0 };
+        setState(newState);
+      },
+      openFilter: () => {
+        setState({ ...state, localFilterActive: true, localFilterQuery: '' });
+      },
+      openSearch: () => {
+        // Open our search mode
+        setState({ ...state, siteSearchActive: true, siteSearchQuery: '' });
+      },
+      openDescriptionModal: () => {
+        setState({ ...state, modalState: 'description' });
+      },
+      closeDescriptionModal: () => {
+        if (state.modalState === 'description') {
+          setState({ ...state, modalState: null });
+        }
+      },
+      openChapterPicker: () => {
+        setState({ ...state, modalState: 'chapters' });
+      },
+    };
+    const sequences = config.getKeySequences ? config.getKeySequences(appCallbacks) : {};
 
     // Check for single-key modal openers FIRST (before sequence building)
     // These special keys (`:`, `/`, `i`) should trigger immediately
     const singleKeyActions = [':', '/', 'i'];
     if (singleKeyActions.includes(event.key) && sequences[event.key]) {
       event.preventDefault();
+      event.stopPropagation(); // Stop YouTube from handling
       keySeq = '';
       if (keyTimer) {
         clearTimeout(keyTimer);
         keyTimer = null;
       }
       sequences[event.key]();
+      // Focus the input after opening modal
+      setTimeout(() => {
+        const input = document.getElementById('vilify-status-input');
+        if (input) input.focus();
+      }, 10);
       return;
+    }
+
+    // On watch page, block single keys that YouTube would handle (f, m, c, t, etc.)
+    // We handle these via sequences, so prevent YouTube's native handling
+    if (isWatchPage) {
+      const youtubeKeys = ['f', 'm', 'c', 't', 'j', 'k', 'l', ' '];
+      if (youtubeKeys.includes(event.key.toLowerCase()) || event.key === ' ') {
+        event.preventDefault();
+        event.stopPropagation();
+        // Don't return - let the sequence handler process it
+      }
     }
 
     // Clear existing timeout

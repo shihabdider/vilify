@@ -100,9 +100,31 @@ export function updateListSelection(container, selector, index) {
  * showMessage("Copied URL")   // Shows toast, auto-clears after timeout
  * showMessage("")             // Clears immediately
  */
-export function showMessage(msg) {
-  // Template: I/O - side effect (display message)
-  // Placeholder: using console.log until status bar UI is implemented
+/** Track message clear timeout */
+let messageClearTimeout = null;
+
+export function showMessage(msg, duration = 3000) {
+  // Template: I/O - side effect (display message in status bar)
+  const msgEl = document.getElementById('vilify-status-message');
+  if (msgEl) {
+    // Clear any pending timeout
+    if (messageClearTimeout) {
+      clearTimeout(messageClearTimeout);
+      messageClearTimeout = null;
+    }
+    
+    msgEl.textContent = msg || '';
+    
+    // Auto-clear after duration (unless empty message)
+    if (msg && duration > 0) {
+      messageClearTimeout = setTimeout(() => {
+        msgEl.textContent = '';
+        messageClearTimeout = null;
+      }, duration);
+    }
+  }
+  
+  // Also log to console for debugging
   if (msg) {
     console.log('[Vilify]', msg);
   }
