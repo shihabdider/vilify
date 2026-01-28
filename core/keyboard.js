@@ -14,10 +14,14 @@ import Mousetrap from 'mousetrap';
  *   // Registers all bindings from config
  */
 export function initKeyboard(siteConfig, getContext) {
-  const sequences = siteConfig.getKeySequences(getContext ? getContext() : null);
+  const ctx = getContext ? getContext() : null;
   
-  for (const [keys, callback] of Object.entries(sequences)) {
-    bind(keys, callback);
+  if (siteConfig.getKeySequences) {
+    const sequences = siteConfig.getKeySequences(ctx);
+    
+    for (const [keys, callback] of Object.entries(sequences)) {
+      bind(keys, callback);
+    }
   }
 }
 
@@ -26,8 +30,8 @@ export function initKeyboard(siteConfig, getContext) {
  *
  * Examples:
  *   bind('j', () => moveDown())
- *   bind('gg', () => goToTop())
- *   bind('yy', () => copyUrl())
+ *   bind('g g', () => goToTop())
+ *   bind('y y', () => copyUrl())
  */
 export function bind(keys, callback) {
   console.log('[Vilify] Binding key:', keys);

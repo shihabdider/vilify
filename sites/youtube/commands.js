@@ -170,37 +170,35 @@ export function getYouTubeCommands(videoContext) {
 
 /**
  * [PURE] Get key sequence bindings.
+ * Note: These are two-key sequences. Single keys like j/k/escape are handled in core.
  */
 export function getYouTubeKeySequences(videoContext) {
   const sequences = {
-    // Navigation
-    'g h': () => navigateTo(YOUTUBE_DESTINATIONS.home),
-    'g s': () => navigateTo(YOUTUBE_DESTINATIONS.subscriptions),
-    'g i': () => navigateTo(YOUTUBE_DESTINATIONS.history),
-    'g w': () => navigateTo(YOUTUBE_DESTINATIONS.watchLater),
-    'g l': () => navigateTo(YOUTUBE_DESTINATIONS.liked),
+    // Navigation (no spaces - these are sequences like "gh" not "g h")
+    'gh': () => navigateTo(YOUTUBE_DESTINATIONS.home),
+    'gs': () => navigateTo(YOUTUBE_DESTINATIONS.subscriptions),
+    'gy': () => navigateTo(YOUTUBE_DESTINATIONS.history),
+    'gw': () => navigateTo(YOUTUBE_DESTINATIONS.watchLater),
+    'gl': () => navigateTo(YOUTUBE_DESTINATIONS.liked),
   };
   
   // Video-specific bindings
   if (videoContext) {
     // Copy bindings
-    sequences['y y'] = () => copyToClipboard(videoContext.cleanUrl, 'Copied URL');
-    sequences['y t'] = () => copyToClipboard(videoContext.title || '', 'Copied title');
-    sequences['y a'] = () => {
+    sequences['yy'] = () => copyToClipboard(videoContext.cleanUrl, 'Copied URL');
+    sequences['yt'] = () => copyToClipboard(videoContext.title || '', 'Copied title');
+    sequences['ya'] = () => {
       const text = `${videoContext.title}\n${videoContext.cleanUrl}`;
       copyToClipboard(text, 'Copied title and URL');
     };
     
     // Playback bindings
-    sequences['space'] = togglePlayPause;
-    sequences['g 1'] = () => setPlaybackRate(1);
-    sequences['g 2'] = () => setPlaybackRate(2);
+    sequences['g1'] = () => setPlaybackRate(1);
+    sequences['g2'] = () => setPlaybackRate(2);
     
-    // Seek bindings
+    // Seek bindings (single keys, but keeping here for video context)
     sequences['l'] = () => seekRelative(10);
     sequences['h'] = () => seekRelative(-10);
-    sequences['shift+l'] = () => seekRelative(30);
-    sequences['shift+h'] = () => seekRelative(-30);
     
     // Chapter picker
     if (videoContext.chapters && videoContext.chapters.length > 0) {
@@ -212,8 +210,12 @@ export function getYouTubeKeySequences(videoContext) {
     
     // Channel
     if (videoContext.channelUrl) {
-      sequences['g c'] = () => navigateTo(videoContext.channelUrl);
+      sequences['gc'] = () => navigateTo(videoContext.channelUrl);
     }
+    
+    // Description
+    sequences['zo'] = () => console.log('[Vilify] Description modal not yet implemented');
+    sequences['zc'] = () => console.log('[Vilify] Description modal not yet implemented');
   }
   
   return sequences;
