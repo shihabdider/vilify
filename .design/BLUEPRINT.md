@@ -7,7 +7,10 @@ Creates initial application state with all defaults.
 
 ```javascript
 createAppState() 
-  => { focusModeActive: false, modalState: null, paletteQuery: '', ... }
+  => { focusModeActive: false, modalState: null, paletteQuery: '', 
+       paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
+       localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
+       keySeq: '', lastUrl: '' }
 ```
 
 ### `resetState : AppState -> AppState` [PURE]
@@ -18,13 +21,14 @@ resetState({ focusModeActive: true, ... })
   => { focusModeActive: false, ... }
 ```
 
-### `getMode : AppState -> 'NORMAL' | 'COMMAND' | 'FILTER'` [PURE]
+### `getMode : AppState -> 'NORMAL' | 'COMMAND' | 'FILTER' | 'SEARCH'` [PURE]
 Derives display mode from current state.
 
 ```javascript
-getMode({ modalState: null, filterActive: false, ... })         => 'NORMAL'
-getMode({ modalState: 'palette', paletteQuery: ':', ... })      => 'COMMAND'
-getMode({ modalState: null, filterActive: true, ... })          => 'FILTER'
+getMode({ modalState: null, localFilterActive: false, siteSearchActive: false, ... })  => 'NORMAL'
+getMode({ modalState: 'palette', paletteQuery: ':', ... })                              => 'COMMAND'
+getMode({ modalState: null, localFilterActive: true, ... })                             => 'FILTER'
+getMode({ modalState: null, siteSearchActive: true, ... })                              => 'SEARCH'
 ```
 
 ---
@@ -61,10 +65,10 @@ updateListSelection(container, '.item', 4)
 ```
 
 ### `showMessage : String -> void` [I/O]
-Display a message in the status bar. Replaces any existing message and resets auto-clear timer.
+Display a toast message. Auto-clears after timeout.
 
 ```javascript
-showMessage("Copied URL")   // Shows message, auto-clears after timeout
+showMessage("Copied URL")   // Shows toast, auto-clears after timeout
 showMessage("")             // Clears immediately
 ```
 
@@ -103,15 +107,22 @@ scrollHalfPage('up', 3, 100, 20)    => 0    // Clamped to min
 
 ---
 
-## Core - Status Bar
+## Core - Loading Screen
 
-### `renderStatusBar : (Mode, Message, SiteConfig) -> void` [I/O]
-Render the full status bar (logo, mode indicator, message area).
+### `showLoadingScreen : SiteConfig -> void` [I/O]
+Show loading overlay using SiteTheme colors and optional site logo.
 
 ```javascript
-renderStatusBar('NORMAL', '', youtubeConfig)      // [Logo] NORMAL
-renderStatusBar('COMMAND', '', youtubeConfig)     // [Logo] COMMAND
-renderStatusBar('NORMAL', 'Copied URL', config)   // [Logo] NORMAL  Copied URL
+showLoadingScreen(youtubeConfig)
+// Creates overlay with bg1 background, accent spinner, optional logo
+```
+
+### `hideLoadingScreen : () -> void` [I/O]
+Hide and remove loading overlay.
+
+```javascript
+hideLoadingScreen()
+// Fades out and removes overlay element
 ```
 
 ---
@@ -119,7 +130,7 @@ renderStatusBar('NORMAL', 'Copied URL', config)   // [Logo] NORMAL  Copied URL
 ## Core - Layout
 
 ### `renderFocusMode : (SiteConfig, AppState) -> void` [I/O]
-Render the full focus mode overlay (content area + command line + status bar).
+Render the full focus mode overlay (header, content area, footer).
 
 ```javascript
 renderFocusMode(youtubeConfig, state)
@@ -138,29 +149,48 @@ renderListing(comments, 2, renderComment)   // Custom renderer, third selected
 Apply CSS custom properties from theme to focus mode container.
 
 ```javascript
-applyTheme({ accent: '#ff0000', bgPrimary: '#002b36', ... })
-// Sets --accent, --bg-primary, etc.
+applyTheme({ accent: '#ff0000', bg1: '#002b36', ... })
+// Sets --accent, --bg-1, etc.
 ```
 
 ---
 
 ## Core - Keyboard
 
-### `initKeyboard : SiteConfig -> void` [I/O]
-Initialize Mousetrap with site's key bindings.
+### `setupKeyboardHandler : (SiteConfig, AppState, Callbacks) -> void` [I/O]
+Initialize capture-phase keyboard listener with site's key sequences.
+
+Callbacks structure:
+- onKeySequence: (seq) => void - called when a sequence matches
+- onNavigate: (direction) => void - for j/k navigation
+- onSelect: (shiftKey) => void - for Enter
+- onEscape: () => void - for Escape handling
 
 ```javascript
-initKeyboard(youtubeConfig)
-// Registers all bindings from config
+setupKeyboardHandler(youtubeConfig, state, {
+  onKeySequence: (seq) => executeSequence(seq),
+  onNavigate: (dir) => moveSelection(dir),
+  onSelect: (shift) => executeItem(shift),
+  onEscape: () => closeModal()
+})
+// Registers capture-phase keydown listener
 ```
 
-### `bind : (Keys, Callback) -> void` [I/O]
-Bind a key or key sequence to a callback.
+### `handleKeyEvent : (KeyboardEvent, KeySeq, Sequences, Timeout) -> { action: Function | null, newSeq: String, shouldPrevent: Boolean }` [PURE]
+Process a key event against registered sequences. Returns action to execute (if any), updated sequence, and whether to prevent default.
 
 ```javascript
-bind('j', () => moveDown())
-bind('gg', () => goToTop())
-bind('yy', () => copyUrl())
+// User presses 'g', no match yet but 'gh' exists
+handleKeyEvent(event, '', { 'gh': goHome, 'gs': goSubs }, 500)
+  => { action: null, newSeq: 'g', shouldPrevent: false }
+
+// User presses 'h' after 'g'
+handleKeyEvent(event, 'g', { 'gh': goHome, 'gs': goSubs }, 500)
+  => { action: goHome, newSeq: '', shouldPrevent: true }
+
+// User presses 'x', no match, no prefix match
+handleKeyEvent(event, '', { 'gh': goHome }, 500)
+  => { action: null, newSeq: '', shouldPrevent: false }
 ```
 
 ### `isInputElement : Element -> Boolean` [PURE]
@@ -174,29 +204,29 @@ isInputElement(document.querySelector('[contenteditable="true"]')) => true
 
 ---
 
+## Core - Navigation Observer
+
+### `setupNavigationObserver : (onNavigate: (oldUrl, newUrl) -> void) -> void` [I/O]
+Watch for SPA URL changes using MutationObserver. Calls callback when URL changes.
+
+```javascript
+setupNavigationObserver((oldUrl, newUrl) => {
+  console.log('Navigated from', oldUrl, 'to', newUrl);
+  site.handleNavigation(newUrl);
+})
+// Sets up observer, site handles the reaction
+```
+
+---
+
 ## Core - Orchestration
 
 ### `initSite : SiteConfig -> void` [I/O]
-Entry point — initialize focus mode, keyboard, navigation observer.
+Entry point — show loading screen, wait for content, initialize focus mode, set up keyboard and navigation.
 
 ```javascript
 initSite(youtubeConfig)
 // Sets up everything for the site
-```
-
-### `onNavigate : (OldUrl, NewUrl) -> void` [I/O]
-Handle SPA navigation — reset state, re-render for new page type.
-
-```javascript
-onNavigate('https://youtube.com/', 'https://youtube.com/watch?v=abc')
-// Detects change, updates UI for watch page
-```
-
-### `setupNavigationObserver : Callback -> void` [I/O]
-Watch for SPA URL changes, call callback on change.
-
-```javascript
-setupNavigationObserver((oldUrl, newUrl) => onNavigate(oldUrl, newUrl))
 ```
 
 ---
@@ -208,7 +238,7 @@ Copy text to clipboard, show confirmation message.
 
 ```javascript
 copyToClipboard('https://youtube.com/watch?v=abc')
-// Copies, shows "Copied URL"
+// Copies, shows "Copied to clipboard"
 ```
 
 ### `navigateTo : String -> void` [I/O]
@@ -234,6 +264,9 @@ Open command palette in specified mode.
 
 ```javascript
 openPalette(state, 'command')
+  => { ...state, modalState: 'palette', paletteQuery: ':', paletteSelectedIdx: 0 }
+
+openPalette(state, 'video')
   => { ...state, modalState: 'palette', paletteQuery: '', paletteSelectedIdx: 0 }
 ```
 
@@ -264,9 +297,49 @@ filterItems(items, '')  => items  // Empty returns all
 
 ---
 
+## Core - Local Filter
+
+### `openLocalFilter : AppState -> AppState` [PURE]
+Open local filter input.
+
+```javascript
+openLocalFilter(state)
+  => { ...state, localFilterActive: true }
+```
+
+### `closeLocalFilter : AppState -> AppState` [PURE]
+Close local filter, optionally clearing query.
+
+```javascript
+closeLocalFilter(state)
+  => { ...state, localFilterActive: false, localFilterQuery: '' }
+```
+
+---
+
+## Core - Site Search
+
+### `openSiteSearch : AppState -> AppState` [PURE]
+Open site search input.
+
+```javascript
+openSiteSearch(state)
+  => { ...state, siteSearchActive: true, siteSearchQuery: '' }
+```
+
+### `closeSiteSearch : AppState -> AppState` [PURE]
+Close site search.
+
+```javascript
+closeSiteSearch(state)
+  => { ...state, siteSearchActive: false }
+```
+
+---
+
 ## YouTube - Scraping
 
-All scrapers **throw on failure** for easier debugging.
+All scrapers return sensible defaults on failure (empty arrays, null contexts) rather than throwing.
 
 ### `getYouTubePageType : () -> YouTubePageType` [PURE]
 Determine current page type from URL.
@@ -282,31 +355,37 @@ getYouTubePageType()  => 'home'
 getYouTubePageType()  => 'shorts'
 ```
 
-### `getVideoContext : () -> VideoContext` [I/O]
-Scrape current video's metadata. Throws if not on watch page or elements missing.
+### `getVideoContext : () -> VideoContext | null` [I/O]
+Scrape current video's metadata. Returns null if not on watch page or elements missing.
 
 ```javascript
 getVideoContext()
   => { videoId: 'abc123', title: 'Video Title', chapters: [...], ... }
+
+// Not on watch page
+getVideoContext()  => null
 ```
 
 ### `getVideos : () -> Array<ContentItem>` [I/O]
-Scrape video items from current page. **Filters out Shorts**. Throws if DOM not ready.
+Scrape video items from current page. Filters out Shorts. Uses multiple strategies for YouTube's varying layouts.
 
 ```javascript
 getVideos()
-  => [{ id: 'abc', title: 'Video 1', url: '/watch?v=abc', ... }, ...]
+  => [{ type: 'content', id: 'abc', title: 'Video 1', url: '/watch?v=abc', ... }, ...]
+
+// No videos found
+getVideos()  => []
 ```
 
 ### `getChapters : () -> Array<Chapter>` [I/O]
-Scrape chapters from video. Throws if elements missing.
+Scrape chapters from video. Returns empty array if none found.
 
 ```javascript
 getChapters()
   => [{ title: 'Intro', time: 0, timeText: '0:00' }, ...]
 
 // Video without chapters
-getChapters()  => []  // Empty array, not an error
+getChapters()  => []
 ```
 
 ### `getComments : () -> CommentsResult` [I/O]
@@ -324,11 +403,14 @@ getComments()  // Disabled
 ```
 
 ### `getDescription : () -> String` [I/O]
-Scrape full video description text. Throws if element missing.
+Scrape full video description text. Returns empty string if not found.
 
 ```javascript
 getDescription()
   => "In this video we explore...\n\nLinks:\n..."
+
+getDescription()  // Not found
+  => ""
 ```
 
 ---
@@ -341,12 +423,12 @@ Get available commands based on context.
 ```javascript
 // On watch page
 getYouTubeCommands(videoContext)
-  => [{ key: 'yy', label: 'Copy video URL', ... },
-      { key: 'c', label: 'Show chapters', enabled: true }, ...]
+  => [{ label: 'Copy video URL', keys: 'Y Y', ... },
+      { label: 'Show chapters', keys: 'F', ... }, ...]
 
 // On listing page
 getYouTubeCommands(null)
-  => [{ key: 'gh', label: 'Go home', ... }, ...]  // No video commands
+  => [{ label: 'Go home', keys: 'G H', ... }, ...]  // No video commands
 ```
 
 ### `getYouTubeKeySequences : VideoContext? -> Object` [PURE]
@@ -354,14 +436,14 @@ Get key sequence bindings.
 
 ```javascript
 getYouTubeKeySequences(videoContext)
-  => { 'yy': copyUrl, 'gh': goHome, ... }
+  => { 'yy': copyUrl, 'gh': goHome, 'zo': openDescription, ... }
 ```
 
 ---
 
 ## YouTube - Video Player
 
-All player functions **no-op silently** if video element not found.
+All player functions no-op silently if video element not found.
 
 ### `togglePlayPause : () -> void` [I/O]
 Toggle video play/pause state.
@@ -375,15 +457,12 @@ seekRelative(-5)   // Back 5s
 ```
 
 ### `setPlaybackRate : Number -> void` [I/O]
-Set video playback speed. **Clamps to YouTube's valid rates** (0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2).
+Set video playback speed.
 
 ```javascript
 setPlaybackRate(1.5)  // Sets 1.5x
-setPlaybackRate(1.3)  // Clamps to 1.25x
-setPlaybackRate(3.0)  // Clamps to 2x
+setPlaybackRate(2)    // Sets 2x
 ```
-
-Note: Commands only expose 1x, 1.5x, 2x.
 
 ### `toggleMute : () -> void` [I/O]
 Toggle video mute state.
@@ -403,24 +482,110 @@ seekToChapter({ title: 'Main Topic', time: 65, timeText: '1:05' })
 ## YouTube - Layout
 
 ### `renderWatchPage : (VideoContext, Container) -> void` [I/O]
-Render watch page layout (video info, chapters hint, comments).
+Render watch page layout (video info panel, comments section).
 
 ```javascript
 renderWatchPage(videoContext, container)
 ```
 
 ### `renderVideoInfo : (VideoContext, Container) -> void` [I/O]
-Render video metadata section.
+Render video metadata section (title, channel, subscribe button).
 
 ```javascript
 renderVideoInfo(videoContext, container)
 ```
 
-### `renderComments : (Array<Comment>, YouTubeState, Container) -> void` [I/O]
-Render comments list with selection state.
+### `renderComments : (CommentsResult, YouTubeState, Container) -> void` [I/O]
+Render comments list with pagination.
 
 ```javascript
-renderComments(comments, { commentSelectedIdx: 2 }, container)
+renderComments(commentsResult, youtubeState, container)
+```
+
+---
+
+## YouTube - Content Polling (Site-Specific)
+
+### `startYouTubeContentPolling : (onUpdate: () -> void) -> void` [I/O]
+Start polling for new video content (infinite scroll detection). Calls onUpdate when new videos detected.
+
+```javascript
+startYouTubeContentPolling(() => {
+  const videos = getVideos();
+  renderListing(videos, state.selectedIdx);
+})
+```
+
+### `stopYouTubeContentPolling : () -> void` [I/O]
+Stop content polling.
+
+```javascript
+stopYouTubeContentPolling()
+```
+
+---
+
+## YouTube - Watch Page (Site-Specific)
+
+### `waitForWatchPageContent : (maxRetries: Number, delay: Number, onReady: () -> void, onFail: () -> void) -> void` [I/O]
+Wait for watch page content to load (video element, metadata). Retries with delay.
+
+```javascript
+waitForWatchPageContent(10, 500,
+  () => renderWatchPage(getVideoContext(), container),
+  () => showMessage('Failed to load video info')
+)
+```
+
+### `triggerCommentLoad : () -> void` [I/O]
+Scroll to comments section to trigger YouTube's lazy loading.
+
+```javascript
+triggerCommentLoad()
+// Scrolls to comments, dispatches scroll events
+```
+
+### `applyDefaultVideoSettings : () -> void` [I/O]
+Apply default settings to video (e.g., 2x playback speed).
+
+```javascript
+applyDefaultVideoSettings()
+// Sets video.playbackRate = 2
+```
+
+---
+
+## YouTube - Comment Pagination (Site-Specific)
+
+### `nextCommentPage : YouTubeState -> YouTubeState` [PURE]
+Advance to next comment page.
+
+```javascript
+nextCommentPage({ commentPage: 0, commentPageStarts: [0, 5], ... })
+  => { commentPage: 1, ... }
+
+// Already at last known page
+nextCommentPage({ commentPage: 1, commentPageStarts: [0, 5], ... })
+  => { commentPage: 1, ... }  // No change, caller should try loadMoreComments
+```
+
+### `prevCommentPage : YouTubeState -> YouTubeState` [PURE]
+Go to previous comment page.
+
+```javascript
+prevCommentPage({ commentPage: 2, ... })
+  => { commentPage: 1, ... }
+
+prevCommentPage({ commentPage: 0, ... })
+  => { commentPage: 0, ... }  // Already at first
+```
+
+### `loadMoreComments : () -> void` [I/O]
+Trigger loading of more comments from YouTube (scroll, click continuation).
+
+```javascript
+loadMoreComments()
+// Scrolls, clicks continuation elements, waits for new comments
 ```
 
 ---
@@ -430,15 +595,21 @@ renderComments(comments, { commentSelectedIdx: 2 }, container)
 | Category | Functions | Pure | I/O |
 |----------|-----------|------|-----|
 | Core - State | 3 | 3 | 0 |
-| Core - View/DOM | 7 | 2 | 5 |
-| Core - Status Bar | 1 | 0 | 1 |
+| Core - View/DOM | 6 | 2 | 4 |
+| Core - Loading Screen | 2 | 0 | 2 |
 | Core - Layout | 3 | 0 | 3 |
-| Core - Keyboard | 3 | 1 | 2 |
-| Core - Orchestration | 3 | 0 | 3 |
+| Core - Keyboard | 3 | 2 | 1 |
+| Core - Navigation Observer | 1 | 0 | 1 |
+| Core - Orchestration | 1 | 0 | 1 |
 | Core - Actions | 3 | 0 | 3 |
 | Core - Palette | 4 | 2 | 2 |
+| Core - Local Filter | 2 | 2 | 0 |
+| Core - Site Search | 2 | 2 | 0 |
 | YouTube - Scraping | 6 | 1 | 5 |
 | YouTube - Commands | 2 | 2 | 0 |
 | YouTube - Player | 6 | 0 | 6 |
 | YouTube - Layout | 3 | 0 | 3 |
-| **Total** | **44** | **11** | **33** |
+| YouTube - Content Polling | 2 | 0 | 2 |
+| YouTube - Watch Page | 3 | 0 | 3 |
+| YouTube - Comment Pagination | 3 | 2 | 1 |
+| **Total** | **55** | **18** | **37** |

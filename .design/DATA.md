@@ -8,12 +8,14 @@ A SiteConfig is a structure:
 - name: String - site identifier ('youtube', 'gmail', etc.)
 - matches: Array\<String\> - URL patterns for matching
 - theme: SiteTheme - color scheme for this site
+- logo: HTMLElement | null - optional branding element for loading screen
 - getPageType: Function - () => PageType
 - getItems: Function - () => Array\<Item\>
 - getCommands: Function - (ctx) => Array\<Command\>
 - getKeySequences: Function - (ctx) => Object
 - layouts: Layouts - mapping of page types to layout definitions
 - renderItem: Function | null - (item, isSelected) => HTMLElement, optional override
+- onContentReady: Function | null - () => void, called after render completes
 
 Examples:
 ```js
@@ -22,12 +24,14 @@ Examples:
   name: 'youtube',
   matches: ['*://www.youtube.com/*'],
   theme: { bg1: '#002b36', accent: '#ff0000', ... },
+  logo: createYouTubeLogo(),  // returns HTMLElement
   getPageType: () => 'watch',
   getItems: () => [...],
   getCommands: (ctx) => [...],
   getKeySequences: (ctx) => ({ 'gh': goHome, ... }),
   layouts: { home: 'listing', watch: renderWatchPage },
-  renderItem: null  // use default
+  renderItem: null,  // use default
+  onContentReady: () => applyDefaultVideoSettings()
 }
 
 // Google Search - simple listing, default rendering
@@ -35,8 +39,10 @@ Examples:
   name: 'google',
   matches: ['*://www.google.com/search*'],
   theme: { bg1: '#002b36', accent: '#4285f4', ... },
+  logo: null,  // use default
   layouts: { results: 'listing' },
-  renderItem: null
+  renderItem: null,
+  onContentReady: null
 }
 ```
 
@@ -211,11 +217,17 @@ Examples:
 A ModalState is one of:
 - null - no modal open
 - 'palette' - command palette open
+- 'chapters' - chapter picker open (YouTube)
+- 'description' - description modal open (YouTube)
+
+Note: This is a unified enum. Core owns the field, sites extend with their values.
 
 Examples:
 ```js
-null        // Normal state, no modal
-'palette'   // Command palette is open
+null           // Normal state, no modal
+'palette'      // Command palette is open
+'chapters'     // Chapter picker is open (YouTube)
+'description'  // Description modal is open (YouTube)
 ```
 
 ---
@@ -224,14 +236,14 @@ null        // Normal state, no modal
 
 An AppState is a structure:
 - focusModeActive: Boolean - is focus mode overlay showing?
-- modalState: ModalState - which core modal is open
+- modalState: ModalState - which modal is open (core + site modals)
 - paletteQuery: String - current text in palette input
 - paletteSelectedIdx: Number - selected item index in palette
 - selectedIdx: Number - selected item index in listing
-- filterActive: Boolean - is filter input shown?
-- filterQuery: String - current filter text
-- searchActive: Boolean - is search input focused?
-- searchQuery: String - current search text
+- localFilterActive: Boolean - is local filter input shown?
+- localFilterQuery: String - current local filter text
+- siteSearchActive: Boolean - is site search input focused?
+- siteSearchQuery: String - current site search text
 - keySeq: String - current key sequence being built
 - lastUrl: String - for detecting SPA navigation
 
@@ -239,27 +251,33 @@ Examples:
 ```js
 // Initial state
 { focusModeActive: true, modalState: null, paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 0, filterActive: false,
-  filterQuery: '', searchActive: false, searchQuery: '',
+  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
+  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
   keySeq: '', lastUrl: 'https://youtube.com/' }
 
 // Palette open in command mode
 { focusModeActive: true, modalState: 'palette', paletteQuery: ':speed',
-  paletteSelectedIdx: 2, selectedIdx: 0, filterActive: false,
-  filterQuery: '', searchActive: false, searchQuery: '',
+  paletteSelectedIdx: 2, selectedIdx: 0, localFilterActive: false,
+  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
   keySeq: '', lastUrl: '...' }
 
-// Filtering videos
+// Local filtering of videos
 { focusModeActive: true, modalState: null, paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 3, filterActive: true,
-  filterQuery: 'music', searchActive: false, searchQuery: '',
+  paletteSelectedIdx: 0, selectedIdx: 3, localFilterActive: true,
+  localFilterQuery: 'music', siteSearchActive: false, siteSearchQuery: '',
   keySeq: '', lastUrl: '...' }
 
 // Mid key-sequence (user pressed 'g')
 { focusModeActive: true, modalState: null, paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 0, filterActive: false,
-  filterQuery: '', searchActive: false, searchQuery: '',
+  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
+  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
   keySeq: 'g', lastUrl: '...' }
+
+// Chapter picker open (YouTube)
+{ focusModeActive: true, modalState: 'chapters', paletteQuery: '',
+  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
+  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
+  keySeq: '', lastUrl: '...' }
 ```
 
 ---
@@ -412,26 +430,9 @@ Examples:
 
 ---
 
-### YouTubeModalState
-
-A YouTubeModalState is one of:
-- null - no YouTube-specific modal open
-- 'chapters' - chapter picker open
-- 'description' - description modal open
-
-Examples:
-```js
-null           // Normal state
-'chapters'     // Chapter picker is open
-'description'  // Description modal is open
-```
-
----
-
 ### YouTubeState
 
 A YouTubeState is a structure:
-- modalState: YouTubeModalState - site-specific modals
 - chapterQuery: String - filter text in chapter picker
 - chapterSelectedIdx: Number - selected chapter index
 - commentPage: Number - current page of comments
@@ -440,20 +441,22 @@ A YouTubeState is a structure:
 - watchPageRetryCount: Number - internal retry tracking
 - commentLoadAttempts: Number - internal retry tracking
 
+Note: Modal state is now in AppState.modalState (unified enum).
+
 Examples:
 ```js
 // Initial state on watch page
-{ modalState: null, chapterQuery: '', chapterSelectedIdx: 0,
+{ chapterQuery: '', chapterSelectedIdx: 0,
   commentPage: 0, commentPageStarts: [0],
   settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0 }
 
 // Browsing chapters with filter
-{ modalState: 'chapters', chapterQuery: 'intro', chapterSelectedIdx: 2,
+{ chapterQuery: 'intro', chapterSelectedIdx: 2,
   commentPage: 0, commentPageStarts: [0],
   settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0 }
 
 // Paging through comments
-{ modalState: null, chapterQuery: '', chapterSelectedIdx: 0,
+{ chapterQuery: '', chapterSelectedIdx: 0,
   commentPage: 2, commentPageStarts: [0, 5, 11],
   settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 3 }
 ```
@@ -472,7 +475,7 @@ Examples:
 | ContentItem | Compound | Core | Access all fields |
 | GroupHeader | Compound | Core | Access all fields |
 | Item | Union | Core | Case per variant (Command / ContentItem / GroupHeader) |
-| ModalState | Union | Core | Case per variant (null / 'palette') |
+| ModalState | Union | Core | Case per variant (null / 'palette' / site-specific values) |
 | AppState | Compound | Core | Access all fields |
 | YouTubePageType | Enum | YouTube | Case per variant |
 | VideoContext | Compound | YouTube | Access all fields |
@@ -480,7 +483,6 @@ Examples:
 | Comment | Compound | YouTube | Access all fields |
 | CommentStatus | Enum | YouTube | Case per variant |
 | CommentsResult | Compound | YouTube | Access all fields |
-| YouTubeModalState | Union | YouTube | Case per variant |
 | YouTubeState | Compound | YouTube | Access all fields |
 
 ---
