@@ -115,9 +115,11 @@ function setupCoreBindings(siteConfig) {
  * Handle j/k/gg/G navigation
  */
 function handleNavigation(direction, siteConfig) {
+  console.log('[Vilify] handleNavigation:', direction, 'focusModeActive:', appState.focusModeActive);
   if (!appState.focusModeActive) return;
   
   const items = getItems(siteConfig);
+  console.log('[Vilify] Items count:', items.length, 'current index:', appState.selectedIdx);
   const { index, boundary } = navigateList(direction, appState.selectedIdx, items.length);
   
   if (boundary) {
@@ -213,6 +215,18 @@ function refreshContent(siteConfig) {
   const layout = siteConfig.layouts ? siteConfig.layouts[pageType] : 'listing';
   
   console.log('[Vilify] Refreshing content for page type:', pageType);
+  
+  // Update overlay class for watch page sidebar layout
+  const overlay = document.querySelector('.vilify-overlay');
+  if (overlay) {
+    if (pageType === 'watch') {
+      overlay.classList.add('watch-page');
+      document.body.classList.add('vilify-watch-mode');
+    } else {
+      overlay.classList.remove('watch-page');
+      document.body.classList.remove('vilify-watch-mode');
+    }
+  }
   
   if (typeof layout === 'function') {
     // Custom layout renderer

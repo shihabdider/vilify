@@ -90,15 +90,14 @@ export function getYouTubeCommands(videoContext) {
       group: null,
     });
     commands.push({
-      label: 'Copy URL at current time',
-      icon: '⏱',
+      label: 'Copy title and URL',
+      icon: '📄',
       action: () => {
-        const time = Math.floor(videoContext.currentTime);
-        const url = `${videoContext.cleanUrl}&t=${time}`;
-        copyToClipboard(url, `Copied URL at ${getCurrentTimeFormatted()}`);
+        const text = `${videoContext.title}\n${videoContext.cleanUrl}`;
+        copyToClipboard(text, 'Copied title and URL');
       },
-      keys: 'y c',
-      meta: getCurrentTimeFormatted(),
+      keys: 'y a',
+      meta: null,
       group: null,
     });
     
@@ -113,18 +112,10 @@ export function getYouTubeCommands(videoContext) {
       group: null,
     });
     commands.push({
-      label: 'Speed: Normal (1x)',
+      label: 'Speed: 1x',
       icon: '🐢',
       action: () => setPlaybackRate(1),
-      keys: 'r 1',
-      meta: null,
-      group: null,
-    });
-    commands.push({
-      label: 'Speed: 1.5x',
-      icon: '🏃',
-      action: () => setPlaybackRate(1.5),
-      keys: 'r 2',
+      keys: 'g 1',
       meta: null,
       group: null,
     });
@@ -132,23 +123,7 @@ export function getYouTubeCommands(videoContext) {
       label: 'Speed: 2x',
       icon: '🚀',
       action: () => setPlaybackRate(2),
-      keys: 'r 3',
-      meta: null,
-      group: null,
-    });
-    commands.push({
-      label: 'Toggle Mute',
-      icon: '🔇',
-      action: toggleMute,
-      keys: 'm',
-      meta: null,
-      group: null,
-    });
-    commands.push({
-      label: 'Toggle Fullscreen',
-      icon: '⛶',
-      action: toggleFullscreen,
-      keys: 'f',
+      keys: 'g 2',
       meta: null,
       group: null,
     });
@@ -160,10 +135,9 @@ export function getYouTubeCommands(videoContext) {
         label: `Show chapters (${videoContext.chapters.length})`,
         icon: '📑',
         action: () => {
-          // This would open chapter picker modal
           console.log('[Vilify] Chapter picker not yet implemented');
         },
-        keys: 'c',
+        keys: 'f',
         meta: null,
         group: null,
       });
@@ -212,25 +186,29 @@ export function getYouTubeKeySequences(videoContext) {
     // Copy bindings
     sequences['y y'] = () => copyToClipboard(videoContext.cleanUrl, 'Copied URL');
     sequences['y t'] = () => copyToClipboard(videoContext.title || '', 'Copied title');
-    sequences['y c'] = () => {
-      const time = Math.floor(videoContext.currentTime);
-      const url = `${videoContext.cleanUrl}&t=${time}`;
-      copyToClipboard(url, `Copied URL at ${getCurrentTimeFormatted()}`);
+    sequences['y a'] = () => {
+      const text = `${videoContext.title}\n${videoContext.cleanUrl}`;
+      copyToClipboard(text, 'Copied title and URL');
     };
     
     // Playback bindings
     sequences['space'] = togglePlayPause;
-    sequences['r 1'] = () => setPlaybackRate(1);
-    sequences['r 2'] = () => setPlaybackRate(1.5);
-    sequences['r 3'] = () => setPlaybackRate(2);
-    sequences['m'] = toggleMute;
-    sequences['f'] = toggleFullscreen;
+    sequences['g 1'] = () => setPlaybackRate(1);
+    sequences['g 2'] = () => setPlaybackRate(2);
     
     // Seek bindings
     sequences['l'] = () => seekRelative(10);
     sequences['h'] = () => seekRelative(-10);
     sequences['shift+l'] = () => seekRelative(30);
     sequences['shift+h'] = () => seekRelative(-30);
+    
+    // Chapter picker
+    if (videoContext.chapters && videoContext.chapters.length > 0) {
+      sequences['f'] = () => {
+        // TODO: Open chapter picker modal
+        console.log('[Vilify] Chapter picker not yet implemented');
+      };
+    }
     
     // Channel
     if (videoContext.channelUrl) {

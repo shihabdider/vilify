@@ -30,9 +30,13 @@ export function initKeyboard(siteConfig, getContext) {
  *   bind('yy', () => copyUrl())
  */
 export function bind(keys, callback) {
+  console.log('[Vilify] Binding key:', keys);
   Mousetrap.bind(keys, (e) => {
+    console.log('[Vilify] Key pressed:', keys);
+    
     // Don't trigger in input elements
     if (isInputElement(document.activeElement)) {
+      console.log('[Vilify] Ignoring - in input element');
       return;
     }
     
