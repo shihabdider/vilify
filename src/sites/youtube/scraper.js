@@ -113,6 +113,7 @@ function scrapeLockupLayout() {
     if (href?.includes('/shorts/')) return;
 
     const title = titleLink?.textContent?.trim();
+    if (!title) return;  // Skip if no title found
     
     // Channel can be a link (home page) or just text (history page)
     const channelLink = lockup.querySelector('.yt-content-metadata-view-model__metadata-row a');
@@ -318,15 +319,21 @@ export function getVideos() {
   // Combine all results
   const allRaw = [...lockupVideos, ...searchVideos, ...playlistVideos, ...historyVideos];
 
-  // Deduplicate by videoId
-  const seen = new Set();
-  const deduped = [];
+  // Deduplicate by videoId, preferring entries with titles
+  const videoMap = new Map();
 
   for (const video of allRaw) {
-    if (seen.has(video.videoId)) continue;
-    seen.add(video.videoId);
-    deduped.push(video);
+    const existing = videoMap.get(video.videoId);
+    if (!existing) {
+      // First occurrence
+      videoMap.set(video.videoId, video);
+    } else if (!existing.title && video.title) {
+      // Replace if existing has no title but new one does
+      videoMap.set(video.videoId, video);
+    }
   }
+
+  const deduped = Array.from(videoMap.values());
 
   // Transform to ContentItem format
   return deduped.map(video => {

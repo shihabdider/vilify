@@ -259,9 +259,12 @@ function render() {
     } else if (layout === 'listing') {
       const items = currentConfig.getItems ? currentConfig.getItems() : [];
 
-      // Apply local filter if active
+      // Apply local filter if active (matches title or channel/meta)
       const filtered = state.localFilterActive
-        ? items.filter((i) => i.title?.toLowerCase().includes(state.localFilterQuery.toLowerCase()))
+        ? items.filter((i) => {
+            const q = state.localFilterQuery.toLowerCase();
+            return i.title?.toLowerCase().includes(q) || i.meta?.toLowerCase().includes(q);
+          })
         : items;
 
       renderListing(filtered, state.selectedIdx, container);
@@ -408,10 +411,27 @@ function handleCommandChange(value) {
 function handleCommandSubmit(value, shiftKey) {
   // Check for :q exit command explicitly (like userscript)
   if (value.trim().toLowerCase() === ':q') {
+    // Full cleanup like userscript exitFocusMode()
     state = closePalette(state);
     state.focusModeActive = false;
+    
+    // Stop content polling
+    stopContentPolling();
+    
+    // Remove focus mode overlay and all classes
     removeFocusMode();
-    document.body.classList.remove('vilify-watch-page');
+    document.body.classList.remove('vilify-watch-page', 'vilify-loading');
+    
+    // Remove loading overlay if present
+    hideLoadingScreen();
+    
+    // Remove any modal drawers
+    const modals = document.querySelectorAll(
+      '.vilify-filter-drawer, .vilify-chapter-drawer, .vilify-description-drawer, ' +
+      '#vilify-loading-overlay, .vilify-overlay'
+    );
+    modals.forEach(m => m.remove());
+    
     showMessage('Focus mode off (refresh to re-enable)');
     return;
   }
@@ -485,9 +505,12 @@ function handleInputEscape() {
 function handleListNavigation(direction) {
   const items = currentConfig.getItems ? currentConfig.getItems() : [];
   
-  // Apply filter if active
+  // Apply filter if active (matches title or channel/meta)
   const filtered = state.localFilterActive
-    ? items.filter((i) => i.title?.toLowerCase().includes(state.localFilterQuery.toLowerCase()))
+    ? items.filter((i) => {
+        const q = state.localFilterQuery.toLowerCase();
+        return i.title?.toLowerCase().includes(q) || i.meta?.toLowerCase().includes(q);
+      })
     : items;
 
   const result = navigateList(direction, state.selectedIdx, filtered.length);
@@ -507,9 +530,12 @@ function handleSelect(shiftKey) {
   } else {
     const items = currentConfig.getItems ? currentConfig.getItems() : [];
     
-    // Apply filter if active
+    // Apply filter if active (matches title or channel/meta)
     const filtered = state.localFilterActive
-      ? items.filter((i) => i.title?.toLowerCase().includes(state.localFilterQuery.toLowerCase()))
+      ? items.filter((i) => {
+          const q = state.localFilterQuery.toLowerCase();
+          return i.title?.toLowerCase().includes(q) || i.meta?.toLowerCase().includes(q);
+        })
       : items;
 
     const item = filtered[state.selectedIdx];
