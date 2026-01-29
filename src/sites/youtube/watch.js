@@ -82,7 +82,7 @@ const WATCH_CSS = `
   /* Video info panel */
   .vilify-watch-title { font-size: 14px; color: var(--txt-1); margin: 0 0 8px; line-height: 1.4; }
   .vilify-watch-channel { color: var(--txt-2); font-size: 13px; }
-  .vilify-watch-date { color: var(--txt-3); font-size: 12px; margin-bottom: 8px; }
+  .vilify-watch-date { color: var(--txt-3); font-size: 12px; margin-top: 2px; margin-bottom: 10px; }
   .vilify-watch-hints { color: var(--txt-3); font-size: 11px; }
   .vilify-watch-hints kbd { border: 1px solid var(--bg-3); padding: 1px 5px; font-size: 10px; margin: 0 2px; }
   
@@ -91,7 +91,6 @@ const WATCH_CSS = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
   }
   
   /* Subscribe button */
