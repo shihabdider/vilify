@@ -216,23 +216,45 @@ Fixed async DOM scraping with content polling and retry logic. Fixed keyboard sh
 
 ---
 
-## Iteration 5: Implementation Audit (IN PROGRESS)
+## Iteration 5: Implementation Audit (COMPLETE)
 
 **Date:** January 28, 2026  
-**Version:** 0.1.27+  
+**Version:** 0.1.27 → 0.1.28  
 **Design:** `.design/iterations/005-audit/`
 
 ### Goals
 Audit the codebase against design docs to identify stubs and incomplete implementations.
 
-### Tasks
-- [ ] Compare BLUEPRINT.md functions against actual implementations
-- [ ] Check for TODO/FIXME/stub comments in code
-- [ ] Verify all commands in commands.js are functional
-- [ ] Test description modal (`zo`)
-- [ ] Test chapters picker (`f`)
-- [ ] Document gaps between design and implementation
+### Summary
+Audited all 56 BLUEPRINT functions - all were implemented. Found 2 missing modal UIs that were setting state but never rendered. Fixed both using bottom drawer pattern per STYLES.md.
 
-### Known Gaps (from Iteration 4)
-- `zo` (description modal) - sets modalState but nothing renders it
-- `f` (chapters picker) - sets modalState but nothing renders it
+### Issues Found & Fixed
+
+1. **Description Modal (`zo`)** - state was set but nothing rendered
+   - Added bottom drawer with j/k scrolling
+   - New mode badge: [DESCRIPTION]
+
+2. **Chapter Picker (`f`)** - state was set but nothing rendered
+   - Added bottom drawer with fuzzy filter input
+   - Arrow keys navigate, Enter jumps, Escape closes
+   - New mode badge: [CHAPTERS]
+
+3. **Mode badges** - getMode() only returned 4 modes
+   - Added CHAPTERS and DESCRIPTION modes
+
+4. **Outdated stub comment** - removed misleading comment in keyboard.js
+
+### New Files
+- `src/core/modals.js` - Description and chapter picker drawers
+
+### Key Changes
+
+**v0.1.27**: Initial modal implementations (floating)  
+**v0.1.28**: Converted to bottom drawers, added filter input, fixed j/k in filter
+
+### Files Modified
+- `src/core/state.js` - getMode() returns 6 modes now
+- `src/core/keyboard.js` - description scroll, chapter nav, filter input handling
+- `src/core/index.js` - modal rendering, callbacks
+- `src/sites/youtube/index.js` - added getDescription, getChapters, seekToChapter
+- `.design/STYLES.md` - documented new modes and drawer patterns
