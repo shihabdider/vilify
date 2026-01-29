@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Vilify",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "description": "Vim-style focus mode for websites",
   "permissions": ["clipboardWrite"],
   "content_scripts": [
     {
       "matches": ["*://www.youtube.com/*", "*://youtube.com/*"],
       "js": ["dist/content.js"],
-      "css": ["dist/content.css"],
       "run_at": "document_start"
     }
   ]
