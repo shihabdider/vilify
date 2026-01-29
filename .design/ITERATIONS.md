@@ -315,3 +315,48 @@ Fixed most keybindings and feedback messages. Filter drawer UI created but has i
 1. Fix duplicate inputs - hide status bar input when filter drawer open
 2. Fix getRecommendedVideos() - debug and update selectors
 3. Test :q and subscribe button update
+
+---
+
+## Iteration 7: List Pages Fixes (COMPLETE)
+
+**Date:** January 28, 2026  
+**Version:** 0.1.39 → 0.1.45  
+**Design:** `.design/iterations/007-list-pages/`
+
+### Goals
+Fix 6 issues with list pages (home, history, subs, library, search results).
+
+### Summary
+All 6 issues fixed. No new data types needed - all fixes were behavioral changes using existing data structures.
+
+### Issues Fixed
+- [x] **#1 Instant scroll** - Changed `scrollIntoView` from `smooth` to `instant` (v0.1.40)
+- [x] **#2 Loading on nav** - Show loading screen immediately on `gh`, `gy`, etc. (v0.1.43)
+- [x] **#3 Search scraping** - Added fallback selectors from userscript for title/link (v0.1.42)
+- [x] **#4 Filter routing** - `/` on listing pages uses inline filter; watch page uses modal (v0.1.44)
+- [x] **#5 :q exit** - Added explicit `:q` check in command submit handler (v0.1.45)
+- [x] **#6 Remove trending** - Deleted `gt` sequence and Trending command (v0.1.41)
+
+### Key Design Decision
+Filter mode routing based on page type:
+- **Listing pages**: `/` sets `localFilterActive = true` (inline filter)
+- **Watch page**: `/` sets `modalState = 'filter'` (drawer modal for recommended)
+
+This uses existing data structures - no schema changes needed.
+
+### Files Modified
+- `src/core/layout.js` - instant scroll
+- `src/core/index.js` - loading on nav, :q exit handler
+- `src/core/keyboard.js` - added `openLocalFilter` callback
+- `src/sites/youtube/scraper.js` - search results selector fallbacks
+- `src/sites/youtube/commands.js` - filter routing, removed trending
+
+### Testing Checklist
+- [ ] j/k navigation scrolls instantly (no smooth animation)
+- [ ] `gh`, `gy`, `gs`, `gl` show loading spinner immediately
+- [ ] Search results show all videos with correct titles
+- [ ] `/` on listing pages filters inline (no modal)
+- [ ] `/` on watch page opens filter drawer
+- [ ] `:q` exits focus mode with toast message
+- [ ] `gt` no longer works (removed)
