@@ -406,6 +406,16 @@ function handleCommandChange(value) {
 }
 
 function handleCommandSubmit(value, shiftKey) {
+  // Check for :q exit command explicitly (like userscript)
+  if (value.trim().toLowerCase() === ':q') {
+    state = closePalette(state);
+    state.focusModeActive = false;
+    removeFocusMode();
+    document.body.classList.remove('vilify-watch-page');
+    showMessage('Focus mode off (refresh to re-enable)');
+    return;
+  }
+
   // Execute selected command
   const commands = currentConfig.getCommands
     ? currentConfig.getCommands({ state, siteState, navigateTo, copyToClipboard })
