@@ -500,7 +500,7 @@ export function getYouTubeKeySequences(app) {
     // Copy
     sequences['yy'] = () => copyVideoUrl(ctx);
     sequences['yt'] = () => copyVideoTitle(ctx);
-    sequences['ya'] = () => copyVideoTitleAndUrl(ctx);
+    // Note: Shift+Y (copy URL at time) is handled via getSingleKeyActions
 
     // Description
     sequences['zo'] = () => app?.openDescriptionModal?.();

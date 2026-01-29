@@ -9,6 +9,7 @@ import { setupKeyboardHandler } from './keyboard.js';
 import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar } from './layout.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
+import { injectModalStyles, renderDescriptionModal, showDescriptionModal, hideDescriptionModal, scrollDescription, renderChapterModal, showChapterModal, hideChapterModal, updateChapterSelection, getFilteredChapters, rerenderChapterList } from './modals.js';
 
 // =============================================================================
 // MODULE STATE
@@ -110,6 +111,7 @@ export function initSite(config) {
   injectLoadingStyles();
   injectFocusModeStyles();
   injectPaletteStyles();
+  injectModalStyles();
 
   // Show loading screen with site theme
   showLoadingScreen(config);
@@ -151,6 +153,9 @@ export function initSite(config) {
       onRender: render,
       onNextCommentPage: handleNextCommentPage,
       onPrevCommentPage: handlePrevCommentPage,
+      onChapterNavigate: handleChapterNavigation,
+      onChapterSelect: handleChapterSelect,
+      onDescriptionScroll: handleDescriptionScroll,
     });
 
     // Set up SPA navigation observer
@@ -296,6 +301,25 @@ function render() {
   } else {
     hidePalette();
   }
+
+  // Handle description modal rendering
+  if (state.modalState === 'description') {
+    const description = currentConfig.getDescription ? currentConfig.getDescription() : '';
+    renderDescriptionModal(description);
+    showDescriptionModal();
+  } else {
+    hideDescriptionModal();
+  }
+
+  // Handle chapter picker modal rendering
+  if (state.modalState === 'chapters') {
+    const chapters = currentConfig.getChapters ? currentConfig.getChapters() : [];
+    const selectedIdx = siteState?.chapterSelectedIdx || 0;
+    renderChapterModal(chapters, selectedIdx, handleChapterFilterChange);
+    showChapterModal();
+  } else {
+    hideChapterModal();
+  }
 }
 
 // =============================================================================
@@ -435,9 +459,69 @@ function handleSelect(shiftKey) {
   }
 }
 
+function handleDescriptionScroll(direction) {
+  scrollDescription(direction);
+}
+
+function handleChapterNavigation(direction) {
+  if (!siteState) return;
+  
+  // Use filtered chapters for navigation
+  const filtered = getFilteredChapters();
+  if (filtered.length === 0) return;
+  
+  const currentIdx = siteState.chapterSelectedIdx || 0;
+  let newIdx;
+  
+  if (direction === 'down') {
+    newIdx = Math.min(currentIdx + 1, filtered.length - 1);
+  } else {
+    newIdx = Math.max(currentIdx - 1, 0);
+  }
+  
+  if (newIdx !== currentIdx) {
+    siteState.chapterSelectedIdx = newIdx;
+    updateChapterSelection(newIdx);
+  }
+}
+
+function handleChapterSelect() {
+  if (!siteState) return;
+  
+  // Use filtered chapters for selection
+  const filtered = getFilteredChapters();
+  const chapter = filtered[siteState.chapterSelectedIdx || 0];
+  
+  if (chapter && currentConfig.seekToChapter) {
+    currentConfig.seekToChapter(chapter);
+    showMessage(`Jumped to: ${chapter.title}`);
+  }
+  
+  // Close modal after selection
+  state = { ...state, modalState: null };
+  siteState.chapterSelectedIdx = 0;
+  render();
+}
+
+function handleChapterFilterChange(query) {
+  // Reset selection when filter changes
+  if (siteState) {
+    siteState.chapterSelectedIdx = 0;
+  }
+  rerenderChapterList(0);
+}
+
 function handleEscape() {
-  if (state.modalState) {
+  if (state.modalState === 'palette') {
     state = closePalette(state);
+    render();
+  } else if (state.modalState === 'description' || state.modalState === 'chapters') {
+    // Close description or chapter modal
+    state = { ...state, modalState: null };
+    // Reset chapter selection when closing
+    if (siteState && siteState.chapterSelectedIdx !== undefined) {
+      siteState.chapterSelectedIdx = 0;
+    }
     render();
   } else if (state.localFilterActive) {
     state.localFilterActive = false;

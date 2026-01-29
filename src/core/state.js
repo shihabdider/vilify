@@ -53,20 +53,30 @@ export function resetState(_state) {
  * [PURE]
  *
  * @param {AppState} state - Current application state
- * @returns {'NORMAL' | 'COMMAND' | 'FILTER' | 'SEARCH'} Current mode
+ * @returns {'NORMAL' | 'COMMAND' | 'FILTER' | 'SEARCH' | 'CHAPTERS' | 'DESCRIPTION'} Current mode
  *
  * @example
  * getMode({ modalState: null, localFilterActive: false, siteSearchActive: false, ... })  => 'NORMAL'
  * getMode({ modalState: 'palette', paletteQuery: ':', ... })                              => 'COMMAND'
  * getMode({ modalState: null, localFilterActive: true, ... })                             => 'FILTER'
  * getMode({ modalState: null, siteSearchActive: true, ... })                              => 'SEARCH'
+ * getMode({ modalState: 'chapters', ... })                                                => 'CHAPTERS'
+ * getMode({ modalState: 'description', ... })                                             => 'DESCRIPTION'
  */
 export function getMode(state) {
   // Template: Compound - access modalState, localFilterActive, siteSearchActive
-  // Priority order: palette (COMMAND) > localFilter (FILTER) > siteSearch (SEARCH) > NORMAL
+  // Priority order: modals > localFilter (FILTER) > siteSearch (SEARCH) > NORMAL
 
   if (state.modalState === 'palette') {
     return 'COMMAND';
+  }
+
+  if (state.modalState === 'chapters') {
+    return 'CHAPTERS';
+  }
+
+  if (state.modalState === 'description') {
+    return 'DESCRIPTION';
   }
 
   if (state.localFilterActive) {

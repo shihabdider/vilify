@@ -316,6 +316,22 @@ Vim-like status bar at the bottom of every page.
 └─────────────────────────────────────────────────────┘
 ```
 
+### Chapters Mode (`f` on watch page)
+
+```
+┌─────────────────────────────────────────────────────┐
+│ [CHAPTERS]                                          │
+└─────────────────────────────────────────────────────┘
+```
+
+### Description Mode (`zo` on watch page)
+
+```
+┌─────────────────────────────────────────────────────┐
+│ [DESCRIPTION]                                       │
+└─────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## Bottom Drawer
@@ -358,26 +374,26 @@ Used for command palette, chapter picker, description, and filter results. Appea
 
 ### Chapter Picker (`f` on watch page)
 
+Includes filter input for fuzzy matching chapters. Input is auto-focused.
+
 ```
 │                                                     │
 │              Video Player                           │
 │                                                     │
 ├─────────────────────────────────────────────────────┤
-│ > ┌──────┐ Introduction                      0:00   │
-│   │Thumb │                                          │
-│   └──────┘                                          │
-│   ┌──────┐ Main Topic                        2:34   │
-│   │Thumb │                                          │
-│   └──────┘                                          │
-│   ┌──────┐ Conclusion                       10:15   │
-│   │Thumb │                                          │
-│   └──────┘                                          │
+│ Filter chapters...                                  │ <- filter input
+├─────────────────────────────────────────────────────┤
+│ > Introduction                               0:00   │
+│   Main Topic                                 2:34   │
+│   Conclusion                                10:15   │
 ├─────────────────────────────────────────────────────┤
 │ chapters                      [j/k] [↵] [esc]       │
 └─────────────────────────────────────────────────────┘
 ```
 
 ### Description (`zo` on watch page)
+
+Scrollable with j/k keys.
 
 ```
 │                                                     │
@@ -395,7 +411,7 @@ Used for command palette, chapter picker, description, and filter results. Appea
 │ 0:00 Intro                                          │
 │ 2:34 Main topic                                     │
 ├─────────────────────────────────────────────────────┤
-│ description                            [esc]        │
+│ description                   [j/k] scroll [esc]    │
 └─────────────────────────────────────────────────────┘
 ```
 

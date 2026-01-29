@@ -1,9 +1,9 @@
 // YouTube site configuration
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
-import { getYouTubePageType, getVideos, getVideoContext } from './scraper.js';
-import { getYouTubeCommands, getYouTubeKeySequences } from './commands.js';
-import { applyDefaultVideoSettings } from './player.js';
+import { getYouTubePageType, getVideos, getVideoContext, getDescription, getChapters } from './scraper.js';
+import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
+import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 
 // =============================================================================
@@ -154,6 +154,31 @@ export const youtubeConfig = {
    * @returns {Object<string, Function>}
    */
   getKeySequences: (ctx) => getYouTubeKeySequences(ctx),
+
+  /**
+   * Get single-key actions (including Shift modifiers like Shift+Y)
+   * @param {Object} ctx - Context with state, callbacks
+   * @returns {Object<string, Function>}
+   */
+  getSingleKeyActions: (ctx) => getYouTubeSingleKeyActions(ctx),
+
+  /**
+   * Get video description text.
+   * @returns {string}
+   */
+  getDescription,
+
+  /**
+   * Get video chapters.
+   * @returns {Array<Chapter>}
+   */
+  getChapters,
+
+  /**
+   * Seek to a specific chapter.
+   * @param {Chapter} chapter
+   */
+  seekToChapter,
 
   /**
    * Layout definitions per page type.

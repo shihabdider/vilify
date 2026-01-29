@@ -178,114 +178,61 @@ npm run watch    # Watch mode for development
 
 ---
 
-## Iteration 4: Bug Fixing (IN PROGRESS)
+## Iteration 4: Bug Fixing (COMPLETE)
 
 **Date:** January 28, 2026  
-**Version:** 0.1.6 → 0.1.10  
+**Version:** 0.1.6 → 0.1.27  
 **Design:** `.design/iterations/004-bugfix/`
 
 ### Goals
-Fix known bugs from Iteration 3, focusing on scraping issues.
+Fix scraping race conditions and key binding issues from Iteration 3.
 
-### Root Cause Analysis
-See `.design/iterations/004-bugfix/ANALYSIS.md` for detailed comparison.
+### Summary
+Fixed async DOM scraping with content polling and retry logic. Fixed keyboard shortcuts.
 
-**TL;DR**: Race condition - extension scrapes once, but YouTube loads DOM asynchronously.
-- Userscript: content polling every 200ms, watch page retries 10x @ 500ms, comment retries
-- Extension: one-shot scrape, no retry logic
-
-### Priority 1: Scraping
-- [x] Content polling/retry logic (v0.1.7)
+### What Was Fixed
+- [x] Content polling/retry logic for listing pages (v0.1.7)
 - [x] Watch page metadata retry (v0.1.7)
-- [x] Comment loading retry (v0.1.7)
-- [ ] Home page scraping - needs testing
-- [ ] History page scraping - needs testing
-- [ ] Library page scraping - needs testing
+- [x] Comment loading with MutationObserver + retry (v0.1.7-v0.1.26)
+- [x] Home/History/Library page scraping
+- [x] Subscribe button layout
+- [x] Key sequences (yy, yt, zc, g1, g2, gc)
+- [x] Changed `ya` to `Shift+Y` for copy URL at time (v0.1.27)
 
-### Changes in v0.1.7
+### Deferred to Future Iterations
+- Chapters picker (`f`) - modal not implemented
+- Description modal (`zo`) - modal not implemented  
+- j/k navigation highlight refinement
+- Load more at bottom of list
 
-**`src/core/index.js`:**
-- Added `startContentPolling()` / `stopContentPolling()` 
-- Polls every 200ms on listing pages
-- Re-renders when video count changes (and not loading)
-- Starts after init and after navigation (non-watch pages)
+### Key Changes
 
-**`src/sites/youtube/index.js`:**
-- Added `renderWatchWithRetry()` with retry loop
-- Retries up to 10 times @ 500ms if metadata missing
-- Shows "Loading video info... (X/10)" during retries
+**v0.1.7**: Content polling, watch page retry, comment retry  
+**v0.1.8**: History page scraping, comment status detection  
+**v0.1.9**: Comment pagination, flexbox layout  
+**v0.1.10**: MutationObserver for comments  
+**v0.1.26**: All comment issues resolved  
+**v0.1.27**: Shift+Y shortcut, getSingleKeyActions interface
 
-**`src/sites/youtube/watch.js`:**
-- Already had `scheduleCommentRetry()` - retries 5x @ 1000ms
+---
 
-### Changes in v0.1.8
+## Iteration 5: Implementation Audit (IN PROGRESS)
 
-**Bug 1: History page scraping**
-- **Root cause**: `scrapeHomeLayout()` queried `ytd-rich-item-renderer` first, but on history page `yt-lockup-view-model` is NOT inside `ytd-rich-item-renderer` (198 videos exist standalone)
-- **Fix**: Renamed to `scrapeLockupLayout()`, now queries `yt-lockup-view-model` directly
+**Date:** January 28, 2026  
+**Version:** 0.1.27+  
+**Design:** `.design/iterations/005-audit/`
 
-**Bug 2: Comment status detection**
-- **Root cause**: `getCommentStatus()` returned 'loading' if ANY spinner exists, but spinners exist inside `ytd-continuation-item-renderer` (for loading more replies) even when initial comments ARE loaded
-- **Fix**: Check if comments exist first; only return 'loading' if no comments AND spinner in main section
+### Goals
+Audit the codebase against design docs to identify stubs and incomplete implementations.
 
-### Changes in v0.1.9
+### Tasks
+- [ ] Compare BLUEPRINT.md functions against actual implementations
+- [ ] Check for TODO/FIXME/stub comments in code
+- [ ] Verify all commands in commands.js are functional
+- [ ] Test description modal (`zo`)
+- [ ] Test chapters picker (`f`)
+- [ ] Document gaps between design and implementation
 
-**Bug 3: Comments showing "No comments yet"**
-- **Root cause**: `scheduleCommentRetry` stopped retrying when `status === 'loaded'`, but status could be 'loaded' with 0 comments if YouTube removed spinner before populating DOM
-- **Fix**: Only stop retrying when `comments.length > 0` or `status === 'disabled'`; increased retries to 8 @ 800ms
-
-**Bug 4: Comment pagination not working**
-- **Root cause**: `nextCommentPage` used `pageStarts.length` to determine max page, but `pageStarts` was never updated
-- **Fix**: Calculate max page dynamically from actual `comments.length / COMMENTS_PER_PAGE`
-
-**Bug 5: Comment box not stretching**
-- **Fix**: Added flexbox layout to watch page content area; comments box now stretches to fill remaining space above status bar
-
-**Bug 6: History page missing channel names**
-- **Root cause**: On history page, channel name is a span (no `<a>` link), but scraper only looked for links
-- **Fix**: Fallback to first metadata text if no channel link found
-
-### Changes in v0.1.10
-
-**Bug 7: Comments not loading automatically**
-- **Root cause**: `scheduleCommentRetry` wasn't being called when `status === 'loaded'` but 0 comments (early state before YouTube populates DOM)
-- **Fix**: Now also schedules retry if `comments.length === 0` regardless of status
-
-**Bug 8: Only showing 4 comments**
-- **Root cause**: Fixed `COMMENTS_PER_PAGE = 5` regardless of available height
-- **Fix**: Dynamic height-based pagination like userscript:
-  - Add comments one by one until `scrollHeight > availableHeight`
-  - Track `commentPageStarts` array for each page's starting index
-  - Estimate total pages based on average comments per page
-
-**Bug 9: Comments more reliable loading**
-- **Fix**: Added `MutationObserver` on `ytd-comments` container (like userscript)
-- Detects when YouTube adds comment elements to DOM
-- Combined with timer-based retry as backup
-- Reset observer and `commentPageStarts` when navigating to new video
-
-### Priority 2: Watch Page
-- [ ] Subscribe button layout
-- [ ] Chapters picker content
-- [ ] Description modal
-
-### Priority 3: Navigation
-- [ ] Key sequences (yy, yt, ya, zo, zc, g1, g2, gc)
-- [ ] j/k navigation highlight
-- [ ] Load more at bottom of list
-
-### Testing Checklist
-After reloading extension:
-- [ ] Home page (`/`) - should show all videos, not just first few
-- [ ] Subscriptions (`/feed/subscriptions`)
-- [ ] History (`/feed/history`)
-- [ ] Search results (`/results?search_query=...`)
-- [ ] Watch page (`/watch?v=...`) - title/channel should load (may show retry count)
-- [ ] Comments on watch page - should load after a few seconds
-
-### Strategy
-Port working code from userscript (`sites/youtube.user.js`) to extension, particularly:
-- `Scraper.getVideos()` lines 310-420
-- `Scraper.getVideoContext()` lines 422-480
-- `Scraper.getComments()` lines 495-520
-- `startContentPolling()` lines 1680-1720
+### Known Gaps (from Iteration 4)
+- `zo` (description modal) - sets modalState but nothing renders it
+- `f` (chapters picker) - sets modalState but nothing renders it

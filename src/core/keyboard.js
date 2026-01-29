@@ -103,22 +103,32 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
     const state = getState();
     const target = event.target;
 
-    // Skip if target is input element (except our palette input)
-    // Note: Palette input handling will be done separately
+    // Skip if target is input element (with exceptions for our inputs)
     if (isInputElement(target)) {
-      // But still handle Escape to blur YouTube search
-      if (event.key === 'Escape') {
-        const isYouTubeSearch = target.id === 'search' || 
-                                target.closest?.('ytd-searchbox') || 
-                                target.closest?.('#search-form');
-        if (isYouTubeSearch) {
-          event.preventDefault();
-          event.stopPropagation();
-          target.blur();
+      const isChapterFilter = target.id === 'vilify-chapter-filter-input';
+      const isYouTubeSearch = target.id === 'search' || 
+                              target.closest?.('ytd-searchbox') || 
+                              target.closest?.('#search-form');
+      
+      // For chapter filter: only arrows/Enter/Escape navigate, letters stay in input
+      if (isChapterFilter) {
+        if (event.key === 'Escape' || event.key === 'Enter' || 
+            event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          // Don't return - let these fall through to modal handlers below
+        } else {
+          // j/k and other keys stay in input for typing
           return;
         }
+      } else if (event.key === 'Escape' && isYouTubeSearch) {
+        // Handle Escape to blur YouTube search
+        event.preventDefault();
+        event.stopPropagation();
+        target.blur();
+        return;
+      } else {
+        // All other inputs - don't intercept
+        return;
       }
-      return;
     }
 
     // Skip if focus mode not active
@@ -154,7 +164,55 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       return;
     }
 
-    // Don't process key sequences when modals are open
+    // Handle description scrolling (j/k)
+    if (state.modalState === 'description') {
+      if (event.key === 'j' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (callbacks.onDescriptionScroll) {
+          callbacks.onDescriptionScroll('down');
+        }
+        return;
+      }
+      if (event.key === 'k' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (callbacks.onDescriptionScroll) {
+          callbacks.onDescriptionScroll('up');
+        }
+        return;
+      }
+      // Don't process other keys in description modal
+      return;
+    }
+
+    // Handle chapter picker navigation (j/k/Enter)
+    // Note: Filter input handles its own text input, but j/k/Enter bubble up
+    if (state.modalState === 'chapters') {
+      if (event.key === 'j' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (callbacks.onChapterNavigate) {
+          callbacks.onChapterNavigate('down');
+        }
+        return;
+      }
+      if (event.key === 'k' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (callbacks.onChapterNavigate) {
+          callbacks.onChapterNavigate('up');
+        }
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (callbacks.onChapterSelect) {
+          callbacks.onChapterSelect();
+        }
+        return;
+      }
+      // Don't process other keys in chapter modal
+      return;
+    }
+
+    // Don't process key sequences when other modals are open
     if (state.modalState !== null) {
       return;
     }
@@ -168,8 +226,6 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
     if (event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
       if ((event.key === 'f' || event.key === 'b') && isWatchPage) {
         event.preventDefault();
-        // Callbacks for comment pagination will be wired up later
-        // For now, these are stub placeholders
         if (event.key === 'f' && callbacks.onNextCommentPage) {
           callbacks.onNextCommentPage();
         } else if (event.key === 'b' && callbacks.onPrevCommentPage) {
@@ -257,6 +313,20 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
         const input = document.getElementById('vilify-status-input');
         if (input) input.focus();
       }, 10);
+      return;
+    }
+
+    // Check for single-key actions with modifiers (e.g., Shift+Y)
+    const siteActions = config.getSingleKeyActions ? config.getSingleKeyActions(appCallbacks) : {};
+    if (siteActions[event.key]) {
+      event.preventDefault();
+      event.stopPropagation();
+      keySeq = '';
+      if (keyTimer) {
+        clearTimeout(keyTimer);
+        keyTimer = null;
+      }
+      siteActions[event.key]();
       return;
     }
 
