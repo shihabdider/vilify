@@ -83,7 +83,7 @@ export function updateListSelection(container, selector, index) {
   // Add .selected to item at index and scroll into view
   if (items[index]) {
     items[index].classList.add('selected');
-    items[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    items[index].scrollIntoView({ block: 'nearest', behavior: 'instant' });
   }
 }
 
