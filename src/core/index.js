@@ -595,6 +595,9 @@ function handleEscape() {
 function handleNavigation(oldUrl, newUrl) {
   console.log('[Vilify] Navigation:', oldUrl, '->', newUrl);
 
+  // Show loading screen immediately
+  showLoadingScreen(currentConfig);
+
   // Stop any existing content polling
   stopContentPolling();
 
@@ -613,6 +616,9 @@ function handleNavigation(oldUrl, newUrl) {
 
   waitForContent(currentConfig).then(() => {
     render();
+    
+    // Hide loading screen after content ready
+    hideLoadingScreen();
     
     // Start content polling for listing pages
     const pageType = currentConfig.getPageType ? currentConfig.getPageType() : 'other';
