@@ -538,7 +538,7 @@ export function renderListing(items, selectedIdx, container = null, renderItem =
 
   const selectedEl = targetContainer.querySelector('.vilify-item.selected');
   if (selectedEl) {
-    selectedEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    selectedEl.scrollIntoView({ block: 'nearest', behavior: 'instant' });
   }
 }
 
