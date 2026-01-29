@@ -211,14 +211,6 @@ export function getYouTubeCommands(app) {
     action: () => navigateTo('/feed/library'),
     keys: 'G L',
   });
-  commands.push({
-    type: 'command',
-    label: 'Trending',
-    icon: '🔥',
-    action: () => navigateTo('/feed/trending'),
-    keys: 'G T',
-  });
-
   // --- Search/Filter ---
   commands.push({ group: 'Search' });
   commands.push({
@@ -487,7 +479,6 @@ export function getYouTubeKeySequences(app) {
     'gs': () => navigateTo('/feed/subscriptions'),
     'gy': () => navigateTo('/feed/history'),
     'gl': () => navigateTo('/feed/library'),
-    'gt': () => navigateTo('/feed/trending'),
   };
 
   // Video-specific sequences (watch page only)
