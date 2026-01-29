@@ -156,15 +156,24 @@ function scrapeSearchLayout() {
   const videos = [];
 
   document.querySelectorAll('ytd-video-renderer').forEach(item => {
-    const titleLink = item.querySelector('a#video-title, #video-title-link');
-    const href = titleLink?.href;
+    // Multiple fallbacks for link (from working userscript)
+    const link = item.querySelector('a#video-title') || 
+                 item.querySelector('a.ytd-thumbnail') || 
+                 item.querySelector('a[href*="/watch?v="]');
+    const href = link?.href;
     const videoId = extractVideoId(href);
     if (!videoId) return;
 
     // Filter out Shorts
     if (href?.includes('/shorts/')) return;
 
-    const title = titleLink?.textContent?.trim();
+    // Multiple fallbacks for title (from working userscript)
+    const titleEl = item.querySelector('#video-title') || 
+                    item.querySelector('h3 a') || 
+                    item.querySelector('yt-formatted-string#video-title');
+    const title = titleEl?.textContent?.trim();
+    if (!title) return;  // Skip if no title found
+
     const channelLink = item.querySelector('ytd-channel-name a, #channel-name a');
     const channel = channelLink?.textContent?.trim();
     const channelUrl = channelLink?.getAttribute('href');
