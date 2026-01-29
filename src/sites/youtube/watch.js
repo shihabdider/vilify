@@ -81,7 +81,8 @@ const WATCH_CSS = `
   
   /* Video info panel */
   .vilify-watch-title { font-size: 14px; color: var(--txt-1); margin: 0 0 8px; line-height: 1.4; }
-  .vilify-watch-channel { color: var(--txt-2); font-size: 13px; margin-bottom: 8px; }
+  .vilify-watch-channel { color: var(--txt-2); font-size: 13px; }
+  .vilify-watch-date { color: var(--txt-3); font-size: 12px; margin-bottom: 8px; }
   .vilify-watch-hints { color: var(--txt-3); font-size: 11px; }
   .vilify-watch-hints kbd { border: 1px solid var(--bg-3); padding: 1px 5px; font-size: 10px; margin: 0 2px; }
   
@@ -247,16 +248,16 @@ function renderVideoInfoBox(ctx) {
     [ctx.isSubscribed ? 'Subscribed' : 'Subscribe']
   );
   
-  // Build channel info text (channel name + optional upload date)
-  const channelText = ctx.uploadDate 
-    ? `${ctx.channelName || 'Unknown'} · ${ctx.uploadDate}`
-    : (ctx.channelName || 'Unknown');
-  
   // Channel row with channel name and subscribe button
   const channelRow = el('div', { class: 'vilify-watch-channel-row' }, [
-    el('div', { class: 'vilify-watch-channel' }, [channelText]),
+    el('div', { class: 'vilify-watch-channel' }, [ctx.channelName || 'Unknown']),
     subscribeBtn
   ]);
+  
+  // Upload date on separate line, dimmed
+  const uploadDateEl = ctx.uploadDate 
+    ? el('div', { class: 'vilify-watch-date' }, [ctx.uploadDate])
+    : null;
   
   // Keyboard hints
   const hints = el('div', { class: 'vilify-watch-hints' }, [
@@ -266,11 +267,14 @@ function renderVideoInfoBox(ctx) {
   ]);
   
   // Build info box with TUI pattern
-  const infoBox = el('div', { class: 'vilify-tui-box', 'data-label': 'video' }, [
+  const children = [
     el('h1', { class: 'vilify-watch-title' }, [ctx.title || 'Untitled']),
     channelRow,
-    hints
-  ]);
+  ];
+  if (uploadDateEl) children.push(uploadDateEl);
+  children.push(hints);
+  
+  const infoBox = el('div', { class: 'vilify-tui-box', 'data-label': 'video' }, children);
   
   return infoBox;
 }
