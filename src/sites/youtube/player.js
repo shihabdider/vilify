@@ -1,6 +1,8 @@
 // YouTube player controls
 // All functions fail silently if video element not found (no messages - caller handles that)
 
+import { showMessage } from '../../core/view.js';
+
 // =============================================================================
 // VIDEO ELEMENT
 // =============================================================================
@@ -60,6 +62,10 @@ export function seekRelative(seconds) {
 
   const newTime = video.currentTime + seconds;
   video.currentTime = Math.max(0, Math.min(video.duration || 0, newTime));
+  
+  // Show feedback
+  const sign = seconds >= 0 ? '+' : '−';
+  showMessage(`${sign}${Math.abs(seconds)}s`);
 }
 
 /**
@@ -78,6 +84,7 @@ export function setPlaybackRate(rate) {
   if (!video) return;
 
   video.playbackRate = rate;
+  showMessage(`Speed: ${rate}x`);
 }
 
 /**
@@ -94,6 +101,7 @@ export function toggleMute() {
   if (!video) return;
 
   video.muted = !video.muted;
+  showMessage(video.muted ? 'Muted' : 'Unmuted');
 }
 
 // =============================================================================
@@ -115,7 +123,9 @@ export function toggleFullscreen() {
 
   const fsButton = player.querySelector('.ytp-fullscreen-button');
   if (fsButton) {
+    const isFullscreen = document.fullscreenElement != null;
     fsButton.click();
+    showMessage(isFullscreen ? 'Exit fullscreen' : 'Fullscreen');
   }
 }
 
@@ -128,7 +138,9 @@ export function toggleTheaterMode() {
   // Template: find and click button
   const theaterButton = document.querySelector('.ytp-size-button');
   if (theaterButton) {
+    const isTheater = document.querySelector('ytd-watch-flexy')?.hasAttribute('theater');
     theaterButton.click();
+    showMessage(isTheater ? 'Exit theater' : 'Theater mode');
   }
 }
 
@@ -141,7 +153,9 @@ export function toggleCaptions() {
   // Template: find and click button
   const ccButton = document.querySelector('.ytp-subtitles-button');
   if (ccButton) {
+    const isOn = ccButton.getAttribute('aria-pressed') === 'true';
     ccButton.click();
+    showMessage(isOn ? 'Captions off' : 'Captions on');
   }
 }
 
