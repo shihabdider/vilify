@@ -279,6 +279,9 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       openFilter: () => {
         setState({ ...state, modalState: 'filter' });
       },
+      openLocalFilter: () => {
+        setState({ ...state, localFilterActive: true, localFilterQuery: '' });
+      },
       openSearch: () => {
         // Open our search mode
         setState({ ...state, siteSearchActive: true, siteSearchQuery: '' });

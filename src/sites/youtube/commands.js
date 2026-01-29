@@ -467,9 +467,15 @@ export function getYouTubeKeySequences(app) {
 
   // Base sequences (always available)
   const sequences = {
-    // Search/palette - '/' opens filter on all pages (videos on listing, recommended on watch)
+    // '/' routes based on page type:
+    // - Listing pages: inline filter (localFilterActive)
+    // - Watch page: filter drawer modal for recommended videos
     '/': () => {
-      app?.openFilter?.();
+      if (pageType === 'watch') {
+        app?.openFilter?.();  // Open drawer for recommended videos
+      } else {
+        app?.openLocalFilter?.();  // Inline filter for listing pages
+      }
     },
     ':': () => app?.openPalette?.('command'),
     'i': () => app?.openSearch?.(),
