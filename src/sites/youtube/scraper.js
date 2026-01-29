@@ -633,6 +633,75 @@ export function getComments() {
 }
 
 // =============================================================================
+// RECOMMENDED VIDEOS
+// =============================================================================
+
+/**
+ * Scrape recommended videos from watch page sidebar
+ * Uses ytd-compact-video-renderer in #secondary/#related
+ * @returns {Array<ContentItem>} List of recommended video content items
+ * 
+ * Examples:
+ *   getRecommendedVideos() => [{ type: 'content', id: 'abc', title: 'Related Video', ... }, ...]
+ *   getRecommendedVideos() => []  // Not on watch page or no recommendations
+ */
+export function getRecommendedVideos() {
+  // Inventory: DOM elements from ytd-compact-video-renderer
+  // Template: iterate and accumulate
+
+  if (getYouTubePageType() !== 'watch') return [];
+
+  const videos = [];
+  const seen = new Set();
+
+  // Look for recommended videos in sidebar
+  document.querySelectorAll('#secondary ytd-compact-video-renderer, #related ytd-compact-video-renderer').forEach(item => {
+    const titleEl = item.querySelector('#video-title, .title');
+    const title = titleEl?.textContent?.trim();
+    
+    const linkEl = item.querySelector('a#thumbnail, a.yt-simple-endpoint');
+    const href = linkEl?.href;
+    const videoId = extractVideoId(href);
+    
+    if (!videoId || seen.has(videoId)) return;
+    seen.add(videoId);
+    
+    // Filter out Shorts
+    if (href?.includes('/shorts/')) return;
+    
+    // Get channel name
+    const channelEl = item.querySelector('#channel-name, .ytd-channel-name, yt-formatted-string.ytd-channel-name');
+    const channel = channelEl?.textContent?.trim();
+    
+    // Get view count and upload date
+    const metaEl = item.querySelector('#metadata-line, .metadata');
+    const metaText = metaEl?.textContent?.trim() || '';
+    
+    // Build meta string
+    const metaParts = [];
+    if (channel) metaParts.push(channel);
+    if (metaText) metaParts.push(metaText);
+    const meta = metaParts.join(' · ') || null;
+    
+    videos.push({
+      type: 'content',
+      id: videoId,
+      title: title || 'Untitled',
+      url: `/watch?v=${videoId}`,
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+      meta,
+      subtitle: null,
+      data: {
+        videoId,
+        channelUrl: null,
+      },
+    });
+  });
+
+  return videos;
+}
+
+// =============================================================================
 // DESCRIPTION
 // =============================================================================
 

@@ -3,6 +3,7 @@
 
 import * as player from './player.js';
 import { getYouTubePageType, getVideoContext } from './scraper.js';
+import { showMessage } from '../../core/view.js';
 
 // =============================================================================
 // HELPERS
@@ -32,7 +33,7 @@ function openInNewTab(url) {
 async function copyToClipboard(text, message) {
   try {
     await navigator.clipboard.writeText(text);
-    // Caller handles message display
+    if (message) showMessage(message);
   } catch (e) {
     // Fallback for older browsers
     const textarea = document.createElement('textarea');
@@ -43,6 +44,7 @@ async function copyToClipboard(text, message) {
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
+    if (message) showMessage(message);
   }
 }
 
@@ -72,7 +74,7 @@ function formatTimestamp(seconds) {
  */
 function copyVideoUrl(ctx) {
   if (!ctx) return;
-  copyToClipboard(ctx.cleanUrl);
+  copyToClipboard(ctx.cleanUrl, 'Copied URL');
 }
 
 /**
@@ -82,7 +84,7 @@ function copyVideoUrl(ctx) {
 function copyVideoUrlAtTime(ctx) {
   if (!ctx) return;
   const t = Math.floor(ctx.currentTime || 0);
-  copyToClipboard(`https://www.youtube.com/watch?v=${ctx.videoId}&t=${t}s`);
+  copyToClipboard(`https://www.youtube.com/watch?v=${ctx.videoId}&t=${t}s`, `Copied URL at ${formatTimestamp(t)}`);
 }
 
 /**
@@ -91,7 +93,7 @@ function copyVideoUrlAtTime(ctx) {
  */
 function copyVideoTitle(ctx) {
   if (!ctx?.title) return;
-  copyToClipboard(ctx.title);
+  copyToClipboard(ctx.title, 'Copied title');
 }
 
 /**
@@ -100,7 +102,7 @@ function copyVideoTitle(ctx) {
  */
 function copyVideoTitleAndUrl(ctx) {
   if (!ctx?.title) return;
-  copyToClipboard(`${ctx.title}\n${ctx.cleanUrl}`);
+  copyToClipboard(`${ctx.title}\n${ctx.cleanUrl}`, 'Copied title + URL');
 }
 
 // =============================================================================
@@ -114,6 +116,8 @@ function copyVideoTitleAndUrl(ctx) {
  */
 function toggleSubscribe(ctx, onUpdate) {
   if (!ctx) return;
+
+  const channelName = ctx.channelName || 'channel';
 
   if (ctx.isSubscribed) {
     // Unsubscribe flow - click notification button, then find unsubscribe
@@ -137,7 +141,9 @@ function toggleSubscribe(ctx, onUpdate) {
           const confirmBtn = document.querySelector('#confirm-button button, yt-confirm-dialog-renderer #confirm-button button, button[aria-label="Unsubscribe"]');
           if (confirmBtn) {
             confirmBtn.click();
-            setTimeout(() => onUpdate?.(false), 500);
+            showMessage(`Unsubscribed from ${channelName}`);
+            // Update immediately (optimistic)
+            onUpdate?.(false);
           }
         }, 400);
       }, 400);
@@ -147,7 +153,9 @@ function toggleSubscribe(ctx, onUpdate) {
     const ytSubBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
     if (ytSubBtn) {
       ytSubBtn.click();
-      setTimeout(() => onUpdate?.(true), 500);
+      showMessage(`Subscribed to ${channelName}`);
+      // Update immediately (optimistic)
+      onUpdate?.(true);
     }
   }
 }
@@ -239,9 +247,9 @@ export function getYouTubeCommands(app) {
   commands.push({
     type: 'command',
     label: 'Exit focus mode',
-    icon: '×',
+    icon: '>',
     action: () => app?.exitFocusMode?.(),
-    keys: ':Q',
+    keys: ':q',
   });
 
   // --- Video controls (watch page only) ---
@@ -260,14 +268,14 @@ export function getYouTubeCommands(app) {
       label: 'Skip back 10s',
       icon: '⏪',
       action: () => player.seekRelative(-10),
-      keys: 'H',
+      keys: 'h',
     });
     commands.push({
       type: 'command',
       label: 'Skip forward 10s',
       icon: '⏩',
       action: () => player.seekRelative(10),
-      keys: 'L',
+      keys: 'l',
     });
     commands.push({
       type: 'command',
@@ -333,21 +341,21 @@ export function getYouTubeCommands(app) {
       label: 'Theater mode',
       icon: '🎬',
       action: player.toggleTheaterMode,
-      keys: 'T',
+      keys: 't',
     });
     commands.push({
       type: 'command',
       label: 'Toggle captions',
       icon: '💬',
       action: player.toggleCaptions,
-      keys: 'C',
+      keys: 'c',
     });
     commands.push({
       type: 'command',
       label: 'Toggle mute',
       icon: ctx.muted ? '🔇' : '🔊',
       action: player.toggleMute,
-      keys: 'Shift+M',
+      keys: 'm',
     });
     commands.push({
       type: 'command',
@@ -425,7 +433,7 @@ export function getYouTubeCommands(app) {
         label: ctx.isSubscribed ? 'Unsubscribe' : 'Subscribe',
         icon: ctx.isSubscribed ? '✓' : '⊕',
         action: () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app)),
-        keys: 'M',
+        keys: '⇧M',
       });
       commands.push({
         type: 'command',
@@ -467,13 +475,9 @@ export function getYouTubeKeySequences(app) {
 
   // Base sequences (always available)
   const sequences = {
-    // Search/palette
+    // Search/palette - '/' opens filter on all pages (videos on listing, recommended on watch)
     '/': () => {
-      if (pageType !== 'watch') {
-        app?.openFilter?.();
-      } else {
-        app?.openPalette?.('video');
-      }
+      app?.openFilter?.();
     },
     ':': () => app?.openPalette?.('command'),
     'i': () => app?.openSearch?.(),
@@ -509,8 +513,12 @@ export function getYouTubeKeySequences(app) {
     // Chapters
     sequences['f'] = () => app?.openChapterPicker?.();
 
-    // Subscribe
-    sequences['m'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
+    // Player controls (single keys on watch page)
+    sequences['m'] = player.toggleMute;
+    sequences['c'] = player.toggleCaptions;
+    sequences['h'] = () => player.seekRelative(-10);
+    sequences['l'] = () => player.seekRelative(10);
+    sequences['t'] = player.toggleTheaterMode;
   }
 
   return sequences;
@@ -531,8 +539,8 @@ export function getYouTubeSingleKeyActions(app) {
   if (ctx) {
     // Shift+Y = copy URL at time
     actions['Y'] = () => copyVideoUrlAtTime(ctx);
-    // Shift+M = toggle mute
-    actions['M'] = player.toggleMute;
+    // Shift+M = toggle subscribe
+    actions['M'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
   }
 
   return actions;

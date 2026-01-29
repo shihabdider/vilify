@@ -79,6 +79,10 @@ export function getMode(state) {
     return 'DESCRIPTION';
   }
 
+  if (state.modalState === 'filter') {
+    return 'FILTER';
+  }
+
   if (state.localFilterActive) {
     return 'FILTER';
   }

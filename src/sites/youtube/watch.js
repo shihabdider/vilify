@@ -260,9 +260,10 @@ function renderVideoInfoBox(ctx) {
   
   // Keyboard hints
   const hints = el('div', { class: 'vilify-watch-hints' }, [
-    el('kbd', {}, ['m']), ' subscribe  ',
+    el('kbd', {}, ['M']), ' sub  ',
+    el('kbd', {}, ['m']), ' mute  ',
     el('kbd', {}, ['zo']), ' desc  ',
-    el('kbd', {}, ['f']), ' chapters'
+    el('kbd', {}, ['f']), ' ch'
   ]);
   
   // Build info box with TUI pattern
@@ -754,6 +755,33 @@ function scheduleCommentRetry(state, container, ctx) {
   
   // Start first retry after delay
   commentRetryTimer = setTimeout(retry, retryDelay);
+}
+
+// =============================================================================
+// SUBSCRIBE BUTTON
+// =============================================================================
+
+/**
+ * Update the subscribe button UI in video info box
+ * [I/O]
+ * 
+ * @param {boolean} isSubscribed - New subscription state
+ * 
+ * @example
+ * updateSubscribeButton(true)   // Shows "Subscribed" with subscribed styling
+ * updateSubscribeButton(false)  // Shows "Subscribe" with unsubscribed styling
+ */
+export function updateSubscribeButton(isSubscribed) {
+  const btn = document.querySelector('.vilify-subscribe-btn');
+  if (!btn) return;
+  
+  if (isSubscribed) {
+    btn.classList.add('subscribed');
+    btn.textContent = 'Subscribed';
+  } else {
+    btn.classList.remove('subscribed');
+    btn.textContent = 'Subscribe';
+  }
 }
 
 // =============================================================================

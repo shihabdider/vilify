@@ -132,12 +132,12 @@ export const youtubeConfig = {
 
   /**
    * Get items for current page.
-   * Returns videos for listing pages, empty for watch page.
+   * Returns videos for all pages (including recommended videos on watch page).
    * @returns {Array<ContentItem>}
    */
   getItems: () => {
-    const pageType = getYouTubePageType();
-    if (pageType === 'watch') return [];
+    // getVideos() scrapes all video renderers including ytd-compact-video-renderer
+    // which covers the recommended sidebar videos on watch pages
     return getVideos();
   },
 

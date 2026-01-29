@@ -2,6 +2,7 @@
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
 import { isInputElement } from './view.js';
+import { removeFocusMode } from './layout.js';
 
 /**
  * Returns initial keyboard state.
@@ -276,7 +277,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
         setState(newState);
       },
       openFilter: () => {
-        setState({ ...state, localFilterActive: true, localFilterQuery: '' });
+        setState({ ...state, modalState: 'filter' });
       },
       openSearch: () => {
         // Open our search mode
@@ -292,6 +293,24 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       },
       openChapterPicker: () => {
         setState({ ...state, modalState: 'chapters' });
+      },
+      exitFocusMode: () => {
+        setState({ ...state, focusModeActive: false });
+        removeFocusMode();
+        document.body.classList.remove('vilify-watch-page');
+      },
+      updateSubscribeButton: (isSubscribed) => {
+        // Update the subscribe button in the watch page UI
+        const btn = document.querySelector('.vilify-subscribe-btn');
+        if (btn) {
+          if (isSubscribed) {
+            btn.classList.add('subscribed');
+            btn.textContent = 'Subscribed';
+          } else {
+            btn.classList.remove('subscribed');
+            btn.textContent = 'Subscribe';
+          }
+        }
       },
     };
     const sequences = config.getKeySequences ? config.getKeySequences(appCallbacks) : {};

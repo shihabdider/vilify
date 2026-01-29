@@ -438,10 +438,13 @@ function createStatusBar(state) {
         inputCallbacks.onCommandSubmit(e.target.value, e.shiftKey);
       }
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      // Allow arrow keys for palette navigation
+      // Allow arrow keys for palette/filter navigation
       if (currentMode === 'COMMAND' && inputCallbacks?.onCommandNavigate) {
         e.preventDefault();
         inputCallbacks.onCommandNavigate(e.key === 'ArrowDown' ? 'down' : 'up');
+      } else if (currentMode === 'FILTER' && inputCallbacks?.onFilterNavigate) {
+        e.preventDefault();
+        inputCallbacks.onFilterNavigate(e.key === 'ArrowDown' ? 'down' : 'up');
       }
     }
   });

@@ -270,6 +270,35 @@ Sidebar width: 350px
 Player: calc(100% - 350px)
 ```
 
+### Watch Page with Recommended Videos (`/` on watch page)
+
+When `/` is pressed on watch page, opens filter drawer with recommended videos.
+Same drawer pattern as listing pages - appears above status bar.
+
+```
+┌───────────────────────────────────────┬─────────────────────────────┐
+│                                       │ ┌─ video ────────────────┐  │
+│                                       │ │ Video Title Here       │  │
+│           Video Player                │ │ Channel    [Subscribed]│  │
+│           (YouTube native)            │ │ ...                    │  │
+│                                       │ └────────────────────────┘  │
+│                                       │ ┌─ comments ─────────────┐  │
+│                                       │ │ ...                    │  │
+│                                       │ └────────────────────────┘  │
+├───────────────────────────────────────┴─────────────────────────────┤
+│ > [thumb] Related Video Title                                       │
+│           Channel · 500K views                                      │
+│   [thumb] Another Recommendation                                    │
+│           Other Channel · 1M views                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│ 12 recommended                        [↑↓] nav [↵] [esc]            │
+├─────────────────────────────────────────────────────────────────────┤
+│ Filter recommended..._                                              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Drawer overlays both player and sidebar - full width at bottom.
+
 ---
 
 ## Status Bar
@@ -286,11 +315,35 @@ Vim-like status bar at the bottom of every page.
 
 ### Normal Mode with Message
 
+Messages appear on the right side and auto-clear after 3 seconds.
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ [NORMAL]                               Copied URL   │
 └─────────────────────────────────────────────────────┘
 ```
+
+**Standard feedback messages:**
+
+| Action | Message |
+|--------|---------|
+| Copy URL | `Copied URL` |
+| Copy URL at time | `Copied URL at 2:34` |
+| Copy title | `Copied title` |
+| Copy title + URL | `Copied title and URL` |
+| Mute | `Muted` |
+| Unmute | `Unmuted` |
+| Toggle captions on | `Captions on` |
+| Toggle captions off | `Captions off` |
+| Subscribe | `Subscribed to {channel}` |
+| Unsubscribe | `Unsubscribed from {channel}` |
+| Seek | `−10s` or `+10s` or `+5s` etc. |
+| Speed change | `Speed: 2x` |
+| Jump to chapter | `Jumped to: {chapter title}` |
+| Fullscreen | `Fullscreen` / `Exit fullscreen` |
+| Theater mode | `Theater mode` / `Exit theater` |
+| Navigation | `→ Home` / `→ Subscriptions` etc. |
+| Exit focus mode | (no message, just exits) |
 
 ### Filter Mode (local filtering with `/`)
 
@@ -340,60 +393,94 @@ Used for command palette, chapter picker, description, and filter results. Appea
 
 ### Command Palette (`:` mode)
 
-```
-│                                                     │
-│              (main content above)                   │
-│                                                     │
-├─────────────────────────────────────────────────────┤
-│ > Copy video URL                              [yy]  │
-│   Copy URL at time                            [Y]   │
-│   Copy title                                  [yt]  │
-│   Copy title + URL                            [ya]  │
-├─────────────────────────────────────────────────────┤
-│ [COMMAND] copy_               [j/k] [↵] [esc]       │
-└─────────────────────────────────────────────────────┘
-```
-
-### Filter Results (`/` mode on listing page)
+Compact layout with no emojis. Key badges are close to labels (minimal gap).
+Does NOT wrap at list boundaries - flashes instead (same as video list).
 
 ```
 │                                                     │
 │              (main content above)                   │
 │                                                     │
 ├─────────────────────────────────────────────────────┤
-│ > ┌──────┐ Matching Video Title                     │
-│   │Thumb │ Channel · 2 days ago                     │
-│   └──────┘                                          │
-│   ┌──────┐ Another Match                            │
-│   │Thumb │ Other Channel · 1 week ago               │
-│   └──────┘                                          │
+│ navigation                                          │
+│ > Home                                        [G H] │
+│   Subscriptions                               [G S] │
+│   History                                     [G Y] │
+│ playback                                            │
+│   Pause                                     [Space] │
+│   Skip back 10s                                 [H] │
 ├─────────────────────────────────────────────────────┤
-│ [FILTER] query_               [j/k] [↵] [esc]       │
+│ [COMMAND] _                   [↑↓] nav [↵] [esc]    │
 └─────────────────────────────────────────────────────┘
 ```
+
+**Key design rules:**
+- No emojis/icons - text only
+- Group headers are lowercase, muted color
+- Selected item has `>` prefix
+- Key badges right-aligned, close to label (no excessive gap)
+- Compact padding (8px vertical per item)
+- No wrap at boundaries - flash effect instead
+
+### Filter Drawer (`/` mode)
+
+Bottom drawer with video thumbnails. Input at bottom (like command/chapter modes).
+Does NOT wrap at list boundaries - flashes instead.
+
+```
+│                                                     │
+│              (main content above)                   │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│ > [thumb] Matching Video Title                      │
+│           Channel · 2 days ago                      │
+│   [thumb] Another Match                             │
+│           Other Channel · 1 week ago                │
+│   [thumb] Third Result                              │
+│           Third Channel · 3 days ago                │
+├─────────────────────────────────────────────────────┤
+│ 3 results                     [↑↓] nav [↵] [esc]    │
+├─────────────────────────────────────────────────────┤
+│ Filter videos..._                                   │
+└─────────────────────────────────────────────────────┘
+```
+
+**Key design rules:**
+- Filter input at bottom (consistent with command/chapter modes)
+- Small thumbnails (48x27 or similar) inline with title
+- Selected item has `>` prefix
+- Shows result count in footer
+- No wrap at boundaries - flash effect instead
+- Max height ~50vh, scrollable if more results
 
 ### Chapter Picker (`f` on watch page)
 
-Includes filter input for fuzzy matching chapters. Input is auto-focused.
+Filter input at BOTTOM (like command palette), not top. Input is auto-focused.
+Does NOT wrap at list boundaries - flashes instead.
 
 ```
 │                                                     │
 │              Video Player                           │
 │                                                     │
 ├─────────────────────────────────────────────────────┤
-│ Filter chapters...                                  │ <- filter input
+│ > 0:00   Introduction                               │
+│   2:34   Main Topic                                 │
+│  10:15   Conclusion                                 │
 ├─────────────────────────────────────────────────────┤
-│ > Introduction                               0:00   │
-│   Main Topic                                 2:34   │
-│   Conclusion                                10:15   │
+│ chapters                      [↑↓] nav [↵] [esc]    │
 ├─────────────────────────────────────────────────────┤
-│ chapters                      [j/k] [↵] [esc]       │
+│ Filter chapters..._                                 │
 └─────────────────────────────────────────────────────┘
 ```
 
+**Key design rules:**
+- Filter input at bottom (consistent with command/search modes)
+- Timestamp left-aligned in accent color
+- Chapter title follows timestamp
+- No wrap at boundaries - flash effect instead
+
 ### Description (`zo` on watch page)
 
-Scrollable with j/k keys.
+Scrollable with j/k keys. Text should be compact with no excessive whitespace.
 
 ```
 │                                                     │
@@ -414,6 +501,12 @@ Scrollable with j/k keys.
 │ description                   [j/k] scroll [esc]    │
 └─────────────────────────────────────────────────────┘
 ```
+
+**Key design rules:**
+- Preserve original line breaks from description
+- Collapse excessive blank lines (max 2 consecutive)
+- No extra padding that creates visual gaps
+- `white-space: pre-wrap` to honor intentional formatting
 
 ---
 

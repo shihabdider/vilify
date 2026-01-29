@@ -17,24 +17,26 @@ const PALETTE_CSS = `
   
   .vilify-drawer-list {
     flex: 1; overflow-y: auto; max-height: 400px;
+    scrollbar-width: none;
   }
+  .vilify-drawer-list::-webkit-scrollbar { display: none; }
   
   .vilify-drawer-footer {
-    padding: 8px 16px; border-top: 1px solid var(--bg-3);
+    padding: 6px 12px; border-top: 1px solid var(--bg-3);
     font-size: 11px; color: var(--txt-3);
   }
   
-  /* Command items */
-  .vilify-cmd-group { padding: 12px 16px 4px; color: var(--txt-3); font-size: 11px; text-transform: lowercase; }
+  /* Command items - keys first (fixed width), then label */
+  .vilify-cmd-group { padding: 10px 16px 4px; color: var(--txt-3); font-size: 12px; text-transform: lowercase; }
   .vilify-cmd-item { display: flex; align-items: center; padding: 8px 16px; cursor: pointer; }
   .vilify-cmd-item:hover { background: var(--bg-2); }
   .vilify-cmd-item.selected { background: var(--bg-2); outline: 2px solid var(--accent); outline-offset: -2px; }
-  .vilify-cmd-icon { width: 20px; color: var(--txt-3); margin-right: 8px; }
-  .vilify-cmd-item.selected .vilify-cmd-icon { color: var(--accent); }
-  .vilify-cmd-label { flex: 1; color: var(--txt-2); }
+  .vilify-cmd-keys { font-size: 12px; color: var(--txt-3); min-width: 72px; }
+  .vilify-cmd-keys kbd { background: transparent; border: 1px solid var(--bg-3); padding: 2px 6px; margin-right: 4px; }
+  .vilify-cmd-label { color: var(--txt-2); font-size: 14px; }
   .vilify-cmd-item.selected .vilify-cmd-label { color: var(--txt-1); }
-  .vilify-cmd-keys { font-size: 11px; color: var(--txt-3); }
-  .vilify-cmd-keys kbd { background: transparent; border: 1px solid var(--bg-3); padding: 1px 5px; margin-left: 4px; }
+  .vilify-cmd-item.selected .vilify-cmd-keys { color: var(--txt-2); }
+  .vilify-cmd-item.selected .vilify-cmd-keys kbd { border-color: var(--txt-3); }
 `;
 
 // Module-level state for DOM elements
@@ -189,7 +191,7 @@ export function renderPalette(items, selectedIdx) {
       // Render group header
       listEl.appendChild(el('div', { class: 'vilify-cmd-group' }, [item.group]));
     } else {
-      // Render command item
+      // Render command item (no icon column - just label and keys)
       const isSelected = idx === selectedIdx;
 
       // Build kbd elements for keys
@@ -204,12 +206,10 @@ export function renderPalette(items, selectedIdx) {
           'data-idx': idx,
         },
         [
-          el('span', { class: 'vilify-cmd-icon' }, [item.icon || '>']),
+          // Keys first (fixed width column), then label
+          el('span', { class: 'vilify-cmd-keys' }, keysChildren),
           el('span', { class: 'vilify-cmd-label' }, [item.label]),
-          keysChildren.length > 0
-            ? el('span', { class: 'vilify-cmd-keys' }, keysChildren)
-            : null,
-        ].filter(Boolean)
+        ]
       );
 
       listEl.appendChild(itemEl);

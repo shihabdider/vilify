@@ -258,3 +258,60 @@ Audited all 56 BLUEPRINT functions - all were implemented. Found 2 missing modal
 - `src/core/index.js` - modal rendering, callbacks
 - `src/sites/youtube/index.js` - added getDescription, getChapters, seekToChapter
 - `.design/STYLES.md` - documented new modes and drawer patterns
+
+---
+
+## Iteration 6: Watch Page Fixes (IN PROGRESS)
+
+**Date:** January 28, 2026  
+**Version:** 0.1.28 → 0.1.32  
+**Design:** `.design/iterations/006-watch-fixes/`
+**Status:** See `.design/iterations/006-watch-fixes/STATUS.md` for details
+
+### Goals
+Fix watch page keybindings, add status bar feedback, fix modal UX, and implement recommended video filtering.
+
+### Summary
+Fixed most keybindings and feedback messages. Filter drawer UI created but has issues.
+
+### Issues Fixed
+- [x] `m` now mutes (was subscribe), `Shift+M` subscribes
+- [x] `c` toggles captions
+- [x] `h`/`l` seek -10s/+10s
+- [x] All commands show status bar feedback (muted/unmuted, speed, seek, copy, subscribe)
+- [x] Chapter drawer: input moved to bottom
+- [x] Command palette: larger text (14px), tighter spacing, no wrap at boundaries (flash instead)
+- [x] Description modal: collapses excessive whitespace
+- [x] Scroll behavior changed from 'smooth' to 'instant' for responsive navigation
+- [x] Filter drawer UI created
+
+### Issues Remaining
+- [ ] `:q` exits focus mode - wired up but needs testing
+- [ ] Subscribe button updates on toggle - callback wired but needs testing
+- [ ] Filter drawer shows "No videos available" - `getRecommendedVideos()` scraper not working
+- [ ] Filter drawer has duplicate inputs (drawer input + status bar input)
+- [ ] Cannot exit filter drawer due to duplicate inputs
+
+### Key Changes
+
+**v0.1.30**: Initial fixes from subagent  
+**v0.1.31**: Fixed `/` to open filter modal  
+**v0.1.32**: Added filter drawer UI, fixed callbacks for exitFocusMode and updateSubscribeButton
+
+### Files Modified
+- `src/core/view.js` - instant scroll behavior
+- `src/core/state.js` - getMode() returns 'FILTER' for modalState 'filter'
+- `src/core/keyboard.js` - exitFocusMode, updateSubscribeButton callbacks
+- `src/core/index.js` - command/chapter navigation flash, filter drawer rendering
+- `src/core/palette.js` - larger text, tighter spacing
+- `src/core/modals.js` - chapter input at bottom, description whitespace fix, filter drawer
+- `src/sites/youtube/player.js` - feedback messages for all player controls
+- `src/sites/youtube/commands.js` - fixed keybindings, feedback messages
+- `src/sites/youtube/scraper.js` - added getRecommendedVideos() (not working)
+- `src/sites/youtube/watch.js` - added updateSubscribeButton()
+- `src/sites/youtube/index.js` - getItems returns recommended videos on watch page
+
+### Next Session Tasks
+1. Fix duplicate inputs - hide status bar input when filter drawer open
+2. Fix getRecommendedVideos() - debug and update selectors
+3. Test :q and subscribe button update

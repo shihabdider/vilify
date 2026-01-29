@@ -6,10 +6,10 @@ import { el, clear, updateListSelection, showMessage, flashBoundary, navigateLis
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
 import { setupNavigationObserver } from './navigation.js';
 import { setupKeyboardHandler } from './keyboard.js';
-import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar } from './layout.js';
+import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, removeFocusMode } from './layout.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
-import { injectModalStyles, renderDescriptionModal, showDescriptionModal, hideDescriptionModal, scrollDescription, renderChapterModal, showChapterModal, hideChapterModal, updateChapterSelection, getFilteredChapters, rerenderChapterList } from './modals.js';
+import { injectModalStyles, renderDescriptionModal, showDescriptionModal, hideDescriptionModal, scrollDescription, renderChapterModal, showChapterModal, hideChapterModal, updateChapterSelection, getFilteredChapters, rerenderChapterList, renderFilterDrawer, showFilterDrawer, hideFilterDrawer, updateFilterQuery, navigateFilterSelection, selectFilterItem } from './modals.js';
 
 // =============================================================================
 // MODULE STATE
@@ -137,6 +137,7 @@ export function initSite(config) {
     setInputCallbacks({
       onFilterChange: handleFilterChange,
       onFilterSubmit: handleFilterSubmit,
+      onFilterNavigate: handleFilterNavigate,
       onSearchChange: handleSearchChange,
       onSearchSubmit: handleSearchSubmit,
       onCommandChange: handleCommandChange,
@@ -280,12 +281,17 @@ function render() {
             render();
           },
           openFilter: () => {
-            state = { ...state, localFilterActive: true, localFilterQuery: '' };
+            state = { ...state, modalState: 'filter' };
             render();
           },
           openSearch: () => {
             const searchInput = document.querySelector('input#search');
             if (searchInput) searchInput.focus();
+          },
+          exitFocusMode: () => {
+            state.focusModeActive = false;
+            removeFocusMode();
+            document.body.classList.remove('vilify-watch-page');
           },
         })
       : [];
@@ -320,6 +326,24 @@ function render() {
   } else {
     hideChapterModal();
   }
+
+  // Handle filter drawer rendering
+  if (state.modalState === 'filter') {
+    const items = currentConfig.getItems ? currentConfig.getItems() : [];
+    renderFilterDrawer(items, 
+      (query) => { /* filter change handled internally */ },
+      (item) => {
+        // Navigate to selected item
+        if (item?.url) {
+          state = { ...state, modalState: null };
+          navigateTo(item.url);
+        }
+      }
+    );
+    showFilterDrawer();
+  } else {
+    hideFilterDrawer();
+  }
 }
 
 // =============================================================================
@@ -328,11 +352,23 @@ function render() {
 
 function handleFilterChange(value) {
   state.localFilterQuery = value;
-  render();
+  
+  // If filter drawer is open, update it
+  if (state.modalState === 'filter') {
+    updateFilterQuery(value);
+  } else {
+    render();
+  }
 }
 
 function handleFilterSubmit(value, shiftKey) {
-  // Select the current item
+  // If filter drawer is open, select from drawer
+  if (state.modalState === 'filter') {
+    selectFilterItem();
+    return;
+  }
+  
+  // Otherwise select from main list
   const items = currentConfig.getItems ? currentConfig.getItems() : [];
   const filtered = items.filter((i) => i.title?.toLowerCase().includes(value.toLowerCase()));
   const item = filtered[state.selectedIdx];
@@ -343,6 +379,13 @@ function handleFilterSubmit(value, shiftKey) {
     } else {
       navigateTo(item.url);
     }
+  }
+}
+
+function handleFilterNavigate(direction) {
+  // If filter drawer is open, navigate within it
+  if (state.modalState === 'filter') {
+    navigateFilterSelection(direction);
   }
 }
 
@@ -393,18 +436,30 @@ function handleCommandNavigate(direction) {
 
   if (count === 0) return;
 
+  // Don't wrap at boundaries - flash instead
   if (direction === 'down') {
-    state.paletteSelectedIdx = (state.paletteSelectedIdx + 1) % count;
+    if (state.paletteSelectedIdx >= count - 1) {
+      flashBoundary();
+      return;
+    }
+    state.paletteSelectedIdx = state.paletteSelectedIdx + 1;
   } else {
-    state.paletteSelectedIdx = (state.paletteSelectedIdx - 1 + count) % count;
+    if (state.paletteSelectedIdx <= 0) {
+      flashBoundary();
+      return;
+    }
+    state.paletteSelectedIdx = state.paletteSelectedIdx - 1;
   }
 
   render();
 }
 
 function handleInputEscape() {
+  // Close any open modal
   if (state.modalState === 'palette') {
     state = closePalette(state);
+  } else if (state.modalState === 'filter') {
+    state = { ...state, modalState: null };
   }
   state.localFilterActive = false;
   state.localFilterQuery = '';
@@ -482,6 +537,9 @@ function handleChapterNavigation(direction) {
   if (newIdx !== currentIdx) {
     siteState.chapterSelectedIdx = newIdx;
     updateChapterSelection(newIdx);
+  } else {
+    // At boundary - flash
+    flashBoundary();
   }
 }
 
