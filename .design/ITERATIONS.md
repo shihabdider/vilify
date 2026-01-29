@@ -353,10 +353,15 @@ This uses existing data structures - no schema changes needed.
 - `src/sites/youtube/commands.js` - filter routing, removed trending
 
 ### Testing Checklist
-- [ ] j/k navigation scrolls instantly (no smooth animation)
-- [ ] `gh`, `gy`, `gs`, `gl` show loading spinner immediately
+- [x] j/k navigation scrolls instantly (no smooth animation)
+- [x] `gh`, `gy`, `gs`, `gl` show loading spinner immediately
 - [ ] Search results show all videos with correct titles
-- [ ] `/` on listing pages filters inline (no modal)
-- [ ] `/` on watch page opens filter drawer
-- [ ] `:q` exits focus mode with toast message
-- [ ] `gt` no longer works (removed)
+- [x] `/` on listing pages filters inline (no modal)
+- [x] `/` on watch page opens filter drawer
+- [x] `:q` exits focus mode with toast message
+- [x] `gt` no longer works (removed)
+
+### v0.1.46 Fixes (test failures)
+- **Search scraping**: Prefer videos with titles during deduplication; skip videos without titles in scrapeLockupLayout
+- **Exit cleanup**: Full cleanup on `:q` - stop polling, remove modals, loading overlays
+- **Filter by channel**: Inline filter now matches channel name (meta) in addition to title
