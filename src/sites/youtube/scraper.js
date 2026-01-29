@@ -433,6 +433,37 @@ export function getVideoContext() {
   const subLabel = subBtn?.getAttribute('aria-label') || '';
   const isSubscribed = subLabel.toLowerCase().includes('unsubscribe');
 
+  // Get upload date and views from info strings
+  // YouTube shows these in #info-strings or the description area
+  let uploadDate = null;
+  let views = null;
+  
+  const infoSelectors = [
+    '#info-strings yt-formatted-string',
+    '#info span',
+    'ytd-watch-metadata #info yt-formatted-string',
+    '#description-inner ytd-video-primary-info-renderer #info-strings span',
+  ];
+  
+  for (const sel of infoSelectors) {
+    const els = document.querySelectorAll(sel);
+    if (els.length > 0) {
+      els.forEach(el => {
+        const text = el.textContent?.trim() || '';
+        // Check for view count pattern
+        if (text.match(/views?$/i) || text.match(/^\d[\d,\.]*[KMB]?\s*views?$/i)) {
+          views = text;
+        }
+        // Check for date patterns: "X ago", specific dates, "Premiered", "Streamed"
+        if (text.match(/ago$/i) || text.match(/premiered/i) || text.match(/streamed/i) ||
+            text.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d/i)) {
+          uploadDate = text;
+        }
+      });
+      if (uploadDate) break;
+    }
+  }
+
   // Get description
   const description = getDescription();
 
@@ -449,7 +480,7 @@ export function getVideoContext() {
     title,
     channelName,
     channelUrl,
-    uploadDate: null, // Not easily accessible, would need to expand description
+    uploadDate,
     description,
     views: null, // Not easily accessible
     isSubscribed,

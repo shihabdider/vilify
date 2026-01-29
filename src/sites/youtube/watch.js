@@ -236,7 +236,7 @@ export function renderWatchPage(ctx, state, container) {
  */
 function renderVideoInfoBox(ctx) {
   // Template: Compound - access all fields from ctx
-  // Inventory: ctx.title, ctx.channelName, ctx.isSubscribed
+  // Inventory: ctx.title, ctx.channelName, ctx.isSubscribed, ctx.uploadDate
   
   // Subscribe button
   const subscribeBtn = el(
@@ -247,9 +247,14 @@ function renderVideoInfoBox(ctx) {
     [ctx.isSubscribed ? 'Subscribed' : 'Subscribe']
   );
   
+  // Build channel info text (channel name + optional upload date)
+  const channelText = ctx.uploadDate 
+    ? `${ctx.channelName || 'Unknown'} · ${ctx.uploadDate}`
+    : (ctx.channelName || 'Unknown');
+  
   // Channel row with channel name and subscribe button
   const channelRow = el('div', { class: 'vilify-watch-channel-row' }, [
-    el('div', { class: 'vilify-watch-channel' }, [ctx.channelName || 'Unknown']),
+    el('div', { class: 'vilify-watch-channel' }, [channelText]),
     subscribeBtn
   ]);
   
