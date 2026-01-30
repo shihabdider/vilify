@@ -1,1 +1,1 @@
-make sure to always increment version of user scripts on change (patch/minor/major)
+make sure to always increment the version of the extension when making changes.
