@@ -1,10 +1,10 @@
-# Iteration 010: Scraping Engine
+# Iteration 010: Data Layer (Hybrid Scraping)
 
 ## Status: PLANNED
 
 ## Goal
 
-Create a robust, site-agnostic scraping engine that handles the timing and reliability issues we've encountered with YouTube DOM scraping.
+Replace fragile DOM scraping with a hybrid data layer that extracts from YouTube's embedded JSON (`ytInitialData`) with DOM scraping as fallback.
 
 ## Problem
 
@@ -15,94 +15,171 @@ Current scraping issues:
 4. **Partial data** - Scrapers return incomplete results without knowing it
 5. **Page-specific** - Each page type needs custom scraping logic
 
-## Proposed Solution
+## Spike Findings (spike/FINDINGS.md)
 
-### Core Scraping Engine
+Tested data interception approach:
 
-A site-agnostic engine that provides:
+| Source | Quality | Use Case |
+|--------|---------|----------|
+| `ytInitialData` | ✅ Excellent | Primary - search, watch, most pages |
+| `ytInitialPlayerResponse` | ✅ Excellent | Watch page video details |
+| Fetch intercept | ⚠️ Complex | SPA navigation, infinite scroll |
+| DOM scraping | ⚠️ Fragile | Fallback only |
 
-1. **Wait strategies**
-   - Wait for selector to appear
-   - Wait for N items
-   - Wait for content to stabilize (no changes for X ms)
-   - Timeout with partial results
+Key discoveries:
+- Search results have full metadata in `ytInitialData`
+- Watch page recommendations use new `lockupViewModel` format
+- `ytInitialPlayerResponse` has keywords, full description, view count
+- Data available immediately (before DOM renders)
 
-2. **Retry logic**
-   - Configurable retry count and delay
-   - Exponential backoff option
-   - Partial success handling
+## Proposed Solution: Hybrid Data Layer
 
-3. **MutationObserver integration**
-   - Watch for DOM changes
-   - Re-scrape on relevant mutations
-   - Debounced updates
+### Architecture
 
-4. **Declarative selector config**
-   - Multiple fallback selectors per field
-   - Required vs optional fields
-   - Validation rules
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      DataProvider                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ InitialData  │  │    Fetch     │  │     DOM      │       │
+│  │  Extractor   │  │ Interceptor  │  │   Scraper    │       │
+│  │  (primary)   │  │  (SPA nav)   │  │  (fallback)  │       │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │
+│         │                 │                 │                │
+│         └────────────┬────┴─────────────────┘                │
+│                      ▼                                       │
+│              ┌──────────────┐                                │
+│              │  Normalizer  │  Maps renderer formats → Video │
+│              └──────┬───────┘                                │
+│                     ▼                                        │
+│              ┌──────────────┐                                │
+│              │  VideoStore  │  Deduped Map<videoId, Video>   │
+│              └──────────────┘                                │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Site-Specific Configuration
+### Strategy
 
-Sites provide:
-- Selector definitions per page type
-- Field extraction logic
-- Validation rules
-- Custom wait conditions
+1. **On page load**: Parse `ytInitialData` from `<script>` tag (immediate, no waiting)
+2. **On SPA navigation**: URL change triggers re-parse of `ytInitialData`
+3. **Fallback**: If ytInitialData missing/empty, use DOM scraping
+4. **Watch page**: Also parse `ytInitialPlayerResponse` for video details
 
-## Potential Behaviors
+### Renderer Support
 
-| ID | Behavior | Test Method |
-|----|----------|-------------|
-| B1 | Engine waits for content before returning | Load slow page, items appear complete |
-| B2 | Engine retries on partial results | Mock slow DOM, verify retry |
-| B3 | Engine uses fallback selectors | Primary selector fails, fallback works |
-| B4 | Engine validates required fields | Missing title = item skipped |
-| B5 | Observer detects new content | Scroll to load more, new items appear |
-| B6 | Channel page scrapes reliably | Load channel, all videos shown |
+Must handle both old and new YouTube formats:
+
+| Format | Where Used | Extractor |
+|--------|------------|-----------|
+| `videoRenderer` | Search results | `extractVideoRenderer()` |
+| `compactVideoRenderer` | Old recommendations | `extractCompactVideo()` |
+| `gridVideoRenderer` | Channel grids | `extractGridVideo()` |
+| `lockupViewModel` | New recommendations | `extractLockupModel()` |
+| `richItemRenderer` | Home feed | `extractRichItem()` |
+
+### Module Structure
+
+```
+src/sites/youtube/
+├── data/
+│   ├── index.js           # DataProvider facade
+│   ├── initial-data.js    # ytInitialData parser
+│   ├── extractors.js      # Renderer → Video extractors  
+│   ├── normalizer.js      # Unify formats
+│   └── store.js           # VideoStore (reactive?)
+├── scraper.js             # Existing DOM scraper (becomes fallback)
+└── ...
+```
+
+## Behaviors
+
+| ID | Behavior | Test Method | Priority |
+|----|----------|-------------|----------|
+| B1 | Parse ytInitialData on page load | Search page shows videos immediately | P0 |
+| B2 | Extract from videoRenderer | Search results have title, channel, views | P0 |
+| B3 | Extract from lockupViewModel | Watch page recommendations work | P0 |
+| B4 | Fallback to DOM when ytInitialData empty | Home page (logged out) still works | P1 |
+| B5 | Re-parse on SPA navigation | Navigate search→watch, both work | P1 |
+| B6 | Watch page has video context | Title, channel, chapters available | P0 |
+| B7 | Normalize all formats to Video | Same output regardless of source | P0 |
 
 ## Data Types (Preliminary)
 
 ```
-ScraperConfig is a structure:
-- waitStrategy: WaitStrategy
-- retryConfig: RetryConfig
-- selectors: SelectorConfig
-- validate: Function | null
+Video is a structure:
+- videoId: String
+- title: String
+- channel: String | null
+- channelUrl: String | null
+- views: String | null
+- published: String | null
+- duration: String | null
+- thumbnail: String | null
+- description: String | null
+- _source: 'initialData' | 'fetch' | 'dom'
 
-WaitStrategy is one of:
-- { type: 'selector', selector: String, timeout: Number }
-- { type: 'count', minimum: Number, timeout: Number }
-- { type: 'stable', debounceMs: Number, timeout: Number }
+VideoContext is a structure (watch page):
+- videoId: String
+- title: String
+- channel: String
+- channelUrl: String | null
+- description: String
+- chapters: Array<Chapter>
+- duration: Number
+- viewCount: String | null
+- keywords: Array<String>
+- _source: 'playerResponse' | 'dom'
 
-RetryConfig is a structure:
-- maxRetries: Number
-- delayMs: Number
-- backoff: Boolean
+DataProvider is a structure:
+- getVideos: () -> Array<Video>
+- getVideoContext: () -> VideoContext | null
+- getRecommendations: () -> Array<Video>
+- subscribe: (callback) -> unsubscribe
 
-SelectorConfig is a structure:
-- container: Array<String> - fallback selectors for item container
-- fields: Record<String, FieldConfig>
-
-FieldConfig is a structure:
-- selectors: Array<String> - fallback selectors
-- required: Boolean
-- extract: 'text' | 'href' | 'src' | Function
+InitialDataResult is one of:
+- { ok: true, data: Object, pageType: PageType }
+- { ok: false, error: String }
 ```
+
+## Scope Decisions
+
+### In Scope
+- ytInitialData extraction
+- ytInitialPlayerResponse extraction (watch page)
+- Normalizer for all renderer types
+- DOM fallback for edge cases
+- URL change detection for SPA
+
+### Out of Scope (Future)
+- Fetch interception (complex, may not be needed)
+- Infinite scroll handling (current polling approach works)
+- MutationObserver reactivity (can add later if needed)
+- Caching/persistence
 
 ## Dependencies
 
-- Should be done after 009 (module boundaries) since it adds new core module
-- Will require updates to youtube/scraper.js to use new engine
+- ✅ Iteration 009 (module boundaries) complete
+- Updates to existing scraper.js to use new data layer
+- No new external dependencies
 
-## Notes
+## Risks
 
-- This is infrastructure work - improves reliability, no new features
-- Measure before/after: success rate on channel page, history page
-- Consider making wait strategies composable
+| Risk | Likelihood | Mitigation |
+|------|------------|------------|
+| YouTube changes JSON structure | Medium | Support both old/new formats, log unknown |
+| ytInitialData not present | Low | DOM fallback |
+| Performance regression | Low | JSON parse is fast, measure |
+
+## Success Metrics
+
+- Search page: Videos appear without 200ms polling delay
+- Watch page: Recommendations load reliably
+- Channel page: All videos extracted (currently flaky)
+- No increase in "0 videos found" errors
 
 ## References
 
-- Current scraper: `src/sites/youtube/scraper.js` (~700 lines)
-- Working userscript reference: `sites/youtube.user.js` (Scraper object)
-- Issues documented in ITERATIONS.md iterations 3-4
+- Spike: `.design/iterations/010-scraping-engine/spike/`
+- Current scraper: `src/sites/youtube/scraper.js`
+- Working userscript: `sites/youtube.user.js`
