@@ -9,7 +9,7 @@
  *
  * @example
  * createAppState()
- *   => { focusModeActive: false, modalState: null, paletteQuery: '',
+ *   => { focusModeActive: false, drawerState: null, paletteQuery: '',
  *        paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
  *        localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
  *        keySeq: '', lastUrl: '' }
@@ -18,9 +18,9 @@ export function createAppState() {
   // Template: Compound - construct all fields
   return {
     focusModeActive: false,
-    modalState: null,
-    paletteQuery: '',
-    paletteSelectedIdx: 0,
+    drawerState: null,  // DrawerState: null | 'palette' | site-specific string
+    paletteQuery: '',   // TODO: Move to palette drawer internal state in future iteration
+    paletteSelectedIdx: 0, // TODO: Move to palette drawer internal state in future iteration
     selectedIdx: 0,
     localFilterActive: false,
     localFilterQuery: '',
@@ -53,34 +53,28 @@ export function resetState(_state) {
  * [PURE]
  *
  * @param {AppState} state - Current application state
- * @returns {'NORMAL' | 'COMMAND' | 'FILTER' | 'SEARCH' | 'CHAPTERS' | 'DESCRIPTION'} Current mode
+ * @returns {string} Current mode (NORMAL, COMMAND, FILTER, SEARCH, or drawer name uppercased)
  *
  * @example
- * getMode({ modalState: null, localFilterActive: false, siteSearchActive: false, ... })  => 'NORMAL'
- * getMode({ modalState: 'palette', paletteQuery: ':', ... })                              => 'COMMAND'
- * getMode({ modalState: null, localFilterActive: true, ... })                             => 'FILTER'
- * getMode({ modalState: null, siteSearchActive: true, ... })                              => 'SEARCH'
- * getMode({ modalState: 'chapters', ... })                                                => 'CHAPTERS'
- * getMode({ modalState: 'description', ... })                                             => 'DESCRIPTION'
+ * getMode({ drawerState: null, localFilterActive: false, siteSearchActive: false, ... })  => 'NORMAL'
+ * getMode({ drawerState: 'palette', ... })                                                 => 'COMMAND'
+ * getMode({ drawerState: null, localFilterActive: true, ... })                             => 'FILTER'
+ * getMode({ drawerState: null, siteSearchActive: true, ... })                              => 'SEARCH'
+ * getMode({ drawerState: 'chapters', ... })                                                => 'CHAPTERS'
+ * getMode({ drawerState: 'description', ... })                                             => 'DESCRIPTION'
+ * getMode({ drawerState: 'filter', ... })                                                  => 'FILTER'
  */
 export function getMode(state) {
-  // Template: Compound - access modalState, localFilterActive, siteSearchActive
-  // Priority order: modals > localFilter (FILTER) > siteSearch (SEARCH) > NORMAL
+  // Template: Compound - access drawerState, localFilterActive, siteSearchActive
+  // Priority order: drawers > localFilter (FILTER) > siteSearch (SEARCH) > NORMAL
 
-  if (state.modalState === 'palette') {
+  if (state.drawerState === 'palette') {
     return 'COMMAND';
   }
 
-  if (state.modalState === 'chapters') {
-    return 'CHAPTERS';
-  }
-
-  if (state.modalState === 'description') {
-    return 'DESCRIPTION';
-  }
-
-  if (state.modalState === 'filter') {
-    return 'FILTER';
+  // Any other drawer state - return uppercased drawer name
+  if (state.drawerState !== null) {
+    return state.drawerState.toUpperCase();
   }
 
   if (state.localFilterActive) {
@@ -94,27 +88,4 @@ export function getMode(state) {
   return 'NORMAL';
 }
 
-/**
- * Creates initial YouTube-specific state.
- * [PURE]
- *
- * @returns {YouTubeState} Initial YouTube state
- *
- * @example
- * createYouTubeState()
- *   => { chapterQuery: '', chapterSelectedIdx: 0,
- *        commentPage: 0, commentPageStarts: [0],
- *        settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0 }
- */
-export function createYouTubeState() {
-  // Template: Compound - construct all fields per YouTubeState definition
-  return {
-    chapterQuery: '',
-    chapterSelectedIdx: 0,
-    commentPage: 0,
-    commentPageStarts: [0],
-    settingsApplied: false,
-    watchPageRetryCount: 0,
-    commentLoadAttempts: 0
-  };
-}
+

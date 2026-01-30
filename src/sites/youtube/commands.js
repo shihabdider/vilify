@@ -353,21 +353,21 @@ export function getYouTubeCommands(app) {
       type: 'command',
       label: 'Show description',
       icon: '📖',
-      action: () => app?.openDescriptionModal?.(),
+      action: () => app?.openDrawer?.('description'),
       keys: 'Z O',
     });
     commands.push({
       type: 'command',
       label: 'Close description',
       icon: '📕',
-      action: () => app?.closeDescriptionModal?.(),
+      action: () => app?.closeDrawer?.(),
       keys: 'Z C',
     });
     commands.push({
       type: 'command',
       label: 'Jump to chapter',
       icon: '📑',
-      action: () => app?.openChapterPicker?.(),
+      action: () => app?.openDrawer?.('chapters'),
       keys: 'F',
     });
     commands.push({
@@ -503,12 +503,12 @@ export function getYouTubeKeySequences(app) {
     sequences['yt'] = () => copyVideoTitle(ctx);
     // Note: Shift+Y (copy URL at time) is handled via getSingleKeyActions
 
-    // Description
-    sequences['zo'] = () => app?.openDescriptionModal?.();
-    sequences['zc'] = () => app?.closeDescriptionModal?.();
+    // Description drawer
+    sequences['zo'] = () => app?.openDrawer?.('description');
+    sequences['zc'] = () => app?.closeDrawer?.();
 
-    // Chapters
-    sequences['f'] = () => app?.openChapterPicker?.();
+    // Chapter drawer
+    sequences['f'] = () => app?.openDrawer?.('chapters');
 
     // Player controls (single keys on watch page)
     sequences['m'] = player.toggleMute;

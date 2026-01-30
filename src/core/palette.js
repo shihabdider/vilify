@@ -108,16 +108,16 @@ export function filterItems(items, query) {
  *
  * @example
  * openPalette(state, 'command')
- *   => { ...state, modalState: 'palette', paletteQuery: ':', paletteSelectedIdx: 0 }
+ *   => { ...state, drawerState: 'palette', paletteQuery: ':', paletteSelectedIdx: 0 }
  *
  * openPalette(state, 'video')
- *   => { ...state, modalState: 'palette', paletteQuery: '', paletteSelectedIdx: 0 }
+ *   => { ...state, drawerState: 'palette', paletteQuery: '', paletteSelectedIdx: 0 }
  */
 export function openPalette(state, mode) {
   // Template: Compound - return new state with updated fields
   return {
     ...state,
-    modalState: 'palette',
+    drawerState: 'palette',
     paletteQuery: mode === 'command' ? ':' : '',
     paletteSelectedIdx: 0,
   };
@@ -133,13 +133,13 @@ export function openPalette(state, mode) {
  *
  * @example
  * closePalette(state)
- *   => { ...state, modalState: null, paletteQuery: '' }
+ *   => { ...state, drawerState: null, paletteQuery: '' }
  */
 export function closePalette(state) {
   // Template: Compound - return new state with cleared fields
   return {
     ...state,
-    modalState: null,
+    drawerState: null,
     paletteQuery: '',
   };
 }

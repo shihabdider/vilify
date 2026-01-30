@@ -106,18 +106,34 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
 
     // Skip if target is input element (with exceptions for our inputs)
     if (isInputElement(target)) {
-      const isChapterFilter = target.id === 'vilify-chapter-filter-input';
+      const isDrawerFilter = target.id?.startsWith('vilify-drawer-') && target.id?.endsWith('-input');
+      const isStatusBarFilter = target.id === 'vilify-status-input' && state.localFilterActive;
+      const isSiteDrawerInput = target.id === 'vilify-status-input' && 
+                                state.drawerState !== null && 
+                                state.drawerState !== 'palette' && 
+                                state.drawerState !== 'filter';
       const isYouTubeSearch = target.id === 'search' || 
                               target.closest?.('ytd-searchbox') || 
                               target.closest?.('#search-form');
       
-      // For chapter filter: only arrows/Enter/Escape navigate, letters stay in input
-      if (isChapterFilter) {
+      // For filter inputs: arrows/Enter/Escape navigate, letters stay in input
+      if (isDrawerFilter || isStatusBarFilter) {
         if (event.key === 'Escape' || event.key === 'Enter' || 
             event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-          // Don't return - let these fall through to modal handlers below
+          // Don't return - let these fall through to handlers below
         } else {
           // j/k and other keys stay in input for typing
+          return;
+        }
+      } else if (isSiteDrawerInput) {
+        // For site-specific drawers with input (chapters): 
+        // - Escape/Enter fall through to keyboard handler
+        // - Arrow keys are handled by input's onkeydown (don't duplicate here)
+        // - j/k stay in input for typing
+        if (event.key === 'Escape' || event.key === 'Enter') {
+          // Don't return - let these fall through to handlers below
+        } else {
+          // Arrow keys handled by input handler, letters stay in input
           return;
         }
       } else if (event.key === 'Escape' && isYouTubeSearch) {
@@ -142,8 +158,8 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       event.preventDefault();
       
       // Close any open modal first
-      if (state.modalState !== null) {
-        setState({ ...state, modalState: null, paletteQuery: '', paletteSelectedIdx: 0 });
+      if (state.drawerState !== null) {
+        setState({ ...state, drawerState: null, paletteQuery: '', paletteSelectedIdx: 0 });
         if (callbacks.onRender) callbacks.onRender();
         return;
       }
@@ -165,56 +181,22 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       return;
     }
 
-    // Handle description scrolling (j/k)
-    if (state.modalState === 'description') {
-      if (event.key === 'j' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        if (callbacks.onDescriptionScroll) {
-          callbacks.onDescriptionScroll('down');
-        }
-        return;
+    // Handle site-specific drawer keys (delegates to drawer handler)
+    // Palette is handled separately, filter drawer is handled by status bar input
+    if (state.drawerState !== null && 
+        state.drawerState !== 'palette' && 
+        state.drawerState !== 'filter') {
+      event.preventDefault();
+      if (callbacks.onDrawerKey) {
+        const handled = callbacks.onDrawerKey(event.key);
+        if (handled) return;
       }
-      if (event.key === 'k' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        if (callbacks.onDescriptionScroll) {
-          callbacks.onDescriptionScroll('up');
-        }
-        return;
-      }
-      // Don't process other keys in description modal
+      // Don't process other keys when drawer is open
       return;
     }
 
-    // Handle chapter picker navigation (j/k/Enter)
-    // Note: Filter input handles its own text input, but j/k/Enter bubble up
-    if (state.modalState === 'chapters') {
-      if (event.key === 'j' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        if (callbacks.onChapterNavigate) {
-          callbacks.onChapterNavigate('down');
-        }
-        return;
-      }
-      if (event.key === 'k' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        if (callbacks.onChapterNavigate) {
-          callbacks.onChapterNavigate('up');
-        }
-        return;
-      }
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        if (callbacks.onChapterSelect) {
-          callbacks.onChapterSelect();
-        }
-        return;
-      }
-      // Don't process other keys in chapter modal
-      return;
-    }
-
-    // Don't process key sequences when other modals are open
-    if (state.modalState !== null) {
+    // Don't process key sequences when palette is open
+    if (state.drawerState === 'palette') {
       return;
     }
 
@@ -236,9 +218,13 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       }
     }
 
-    // Handle j/k for list navigation on listing pages
-    if (isListingPage && !state.localFilterActive && !state.siteSearchActive) {
-      if (event.key === 'j' || event.key === 'ArrowDown') {
+    // Handle list navigation on listing pages
+    // - Arrow keys work even when filtering (passthrough from input)
+    // - Enter works even when filtering
+    // - j/k only when NOT filtering (user might type those letters)
+    if (isListingPage) {
+      // Arrow keys always navigate (even in filter mode)
+      if (event.key === 'ArrowDown') {
         event.preventDefault();
         if (callbacks.onNavigate) {
           callbacks.onNavigate('down');
@@ -246,7 +232,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
         return;
       }
       
-      if (event.key === 'k' || event.key === 'ArrowUp') {
+      if (event.key === 'ArrowUp') {
         event.preventDefault();
         if (callbacks.onNavigate) {
           callbacks.onNavigate('up');
@@ -254,13 +240,32 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
         return;
       }
       
-      // Handle Enter for selection
+      // Enter always selects (even in filter mode)
       if (event.key === 'Enter') {
         event.preventDefault();
         if (callbacks.onSelect) {
           callbacks.onSelect(event.shiftKey);
         }
         return;
+      }
+      
+      // j/k only navigate when NOT filtering (user might type those letters)
+      if (!state.localFilterActive && !state.siteSearchActive) {
+        if (event.key === 'j') {
+          event.preventDefault();
+          if (callbacks.onNavigate) {
+            callbacks.onNavigate('down');
+          }
+          return;
+        }
+        
+        if (event.key === 'k') {
+          event.preventDefault();
+          if (callbacks.onNavigate) {
+            callbacks.onNavigate('up');
+          }
+          return;
+        }
       }
     }
 
@@ -270,14 +275,14 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       return;
     }
 
-    // Get key sequences from config, passing callbacks for modal openers
+    // Get key sequences from config, passing callbacks for drawer openers
     const appCallbacks = {
       openPalette: (mode) => {
-        const newState = { ...state, modalState: 'palette', paletteQuery: mode === 'command' ? ':' : '', paletteSelectedIdx: 0 };
+        const newState = { ...state, drawerState: 'palette', paletteQuery: mode === 'command' ? ':' : '', paletteSelectedIdx: 0 };
         setState(newState);
       },
       openFilter: () => {
-        setState({ ...state, modalState: 'filter' });
+        setState({ ...state, drawerState: 'filter' });
       },
       openLocalFilter: () => {
         setState({ ...state, localFilterActive: true, localFilterQuery: '' });
@@ -286,16 +291,11 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
         // Open our search mode
         setState({ ...state, siteSearchActive: true, siteSearchQuery: '' });
       },
-      openDescriptionModal: () => {
-        setState({ ...state, modalState: 'description' });
+      openDrawer: (drawerId) => {
+        setState({ ...state, drawerState: drawerId });
       },
-      closeDescriptionModal: () => {
-        if (state.modalState === 'description') {
-          setState({ ...state, modalState: null });
-        }
-      },
-      openChapterPicker: () => {
-        setState({ ...state, modalState: 'chapters' });
+      closeDrawer: () => {
+        setState({ ...state, drawerState: null });
       },
       exitFocusMode: () => {
         setState({ ...state, focusModeActive: false });

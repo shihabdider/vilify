@@ -9,7 +9,8 @@ import { setupKeyboardHandler } from './keyboard.js';
 import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, removeFocusMode } from './layout.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
-import { injectModalStyles, renderDescriptionModal, showDescriptionModal, hideDescriptionModal, scrollDescription, renderChapterModal, showChapterModal, hideChapterModal, updateChapterSelection, getFilteredChapters, rerenderChapterList, renderFilterDrawer, showFilterDrawer, hideFilterDrawer, updateFilterQuery, navigateFilterSelection, selectFilterItem } from './modals.js';
+import { injectModalStyles, renderFilterDrawer, showFilterDrawer, hideFilterDrawer, updateFilterQuery, navigateFilterSelection, selectFilterItem } from './modals.js';
+import { injectDrawerStyles, renderDrawer, handleDrawerKey, closeDrawer } from './drawer.js';
 
 // =============================================================================
 // MODULE STATE
@@ -29,6 +30,9 @@ let pollTimer = null;
 
 /** @type {number} Last seen video count for polling */
 let lastVideoCount = 0;
+
+/** @type {string|null} Previously rendered drawer state (to avoid re-render) */
+let lastRenderedDrawer = null;
 
 // =============================================================================
 // CONSTANTS
@@ -112,6 +116,7 @@ export function initSite(config) {
   injectFocusModeStyles();
   injectPaletteStyles();
   injectModalStyles();
+  injectDrawerStyles();
 
   // Show loading screen with site theme
   showLoadingScreen(config);
@@ -143,6 +148,9 @@ export function initSite(config) {
       onCommandChange: handleCommandChange,
       onCommandSubmit: handleCommandSubmit,
       onCommandNavigate: handleCommandNavigate,
+      onDrawerChange: handleDrawerChange,
+      onDrawerSubmit: handleDrawerSubmit,
+      onDrawerNavigate: handleDrawerNavigate,
       onEscape: handleInputEscape,
     });
 
@@ -154,9 +162,7 @@ export function initSite(config) {
       onRender: render,
       onNextCommentPage: handleNextCommentPage,
       onPrevCommentPage: handlePrevCommentPage,
-      onChapterNavigate: handleChapterNavigation,
-      onChapterSelect: handleChapterSelect,
-      onDescriptionScroll: handleDescriptionScroll,
+      onDrawerKey: handleSiteDrawerKey,
     });
 
     // Set up SPA navigation observer
@@ -248,7 +254,25 @@ function render() {
   }
 
   // Update status bar (mode badge, input visibility)
-  updateStatusBar(state);
+  // Focus input when entering filter, command, or drawer mode
+  const isSiteDrawer = state.drawerState !== null && 
+                       state.drawerState !== 'palette' && 
+                       state.drawerState !== 'filter';
+  const shouldFocusInput = state.drawerState === 'filter' || 
+                           state.drawerState === 'palette' || 
+                           state.localFilterActive ||
+                           isSiteDrawer;
+  
+  // Get drawer placeholder if site drawer is open
+  let drawerPlaceholder = null;
+  if (isSiteDrawer && currentConfig.getDrawerHandler) {
+    const handler = currentConfig.getDrawerHandler(state.drawerState);
+    if (handler?.getFilterPlaceholder) {
+      drawerPlaceholder = handler.getFilterPlaceholder();
+    }
+  }
+  
+  updateStatusBar(state, shouldFocusInput, drawerPlaceholder);
 
   // Render content based on page type and layout config
   if (currentConfig.layouts && currentConfig.layouts[pageType]) {
@@ -272,7 +296,7 @@ function render() {
   }
 
   // Handle palette rendering
-  if (state.modalState === 'palette') {
+  if (state.drawerState === 'palette') {
     const commands = currentConfig.getCommands
       ? currentConfig.getCommands({
           state,
@@ -284,7 +308,7 @@ function render() {
             render();
           },
           openFilter: () => {
-            state = { ...state, modalState: 'filter' };
+            state = { ...state, drawerState: 'filter' };
             render();
           },
           openSearch: () => {
@@ -311,34 +335,33 @@ function render() {
     hidePalette();
   }
 
-  // Handle description modal rendering
-  if (state.modalState === 'description') {
-    const description = currentConfig.getDescription ? currentConfig.getDescription() : '';
-    renderDescriptionModal(description);
-    showDescriptionModal();
-  } else {
-    hideDescriptionModal();
-  }
-
-  // Handle chapter picker modal rendering
-  if (state.modalState === 'chapters') {
-    const chapters = currentConfig.getChapters ? currentConfig.getChapters() : [];
-    const selectedIdx = siteState?.chapterSelectedIdx || 0;
-    renderChapterModal(chapters, selectedIdx, handleChapterFilterChange);
-    showChapterModal();
-  } else {
-    hideChapterModal();
+  // Handle site-specific drawer rendering (description, chapters, etc.)
+  // isSiteDrawer already declared above for status bar
+  // Only render drawer when drawer state changes (avoid resetting scroll/selection)
+  if (isSiteDrawer) {
+    if (state.drawerState !== lastRenderedDrawer) {
+      const handler = currentConfig.getDrawerHandler ? 
+                      currentConfig.getDrawerHandler(state.drawerState) : null;
+      renderDrawer(state.drawerState, handler);
+      lastRenderedDrawer = state.drawerState;
+    }
+  } else if (state.drawerState !== 'filter') {
+    // Close any open site drawer when switching to palette or closing
+    if (lastRenderedDrawer !== null) {
+      closeDrawer();
+      lastRenderedDrawer = null;
+    }
   }
 
   // Handle filter drawer rendering
-  if (state.modalState === 'filter') {
+  if (state.drawerState === 'filter') {
     const items = currentConfig.getItems ? currentConfig.getItems() : [];
     renderFilterDrawer(items, 
       (query) => { /* filter change handled internally */ },
       (item) => {
         // Navigate to selected item
         if (item?.url) {
-          state = { ...state, modalState: null };
+          state = { ...state, drawerState: null };
           navigateTo(item.url);
         }
       }
@@ -357,7 +380,7 @@ function handleFilterChange(value) {
   state.localFilterQuery = value;
   
   // If filter drawer is open, update it
-  if (state.modalState === 'filter') {
+  if (state.drawerState === 'filter') {
     updateFilterQuery(value);
   } else {
     render();
@@ -366,7 +389,7 @@ function handleFilterChange(value) {
 
 function handleFilterSubmit(value, shiftKey) {
   // If filter drawer is open, select from drawer
-  if (state.modalState === 'filter') {
+  if (state.drawerState === 'filter') {
     selectFilterItem();
     return;
   }
@@ -387,8 +410,63 @@ function handleFilterSubmit(value, shiftKey) {
 
 function handleFilterNavigate(direction) {
   // If filter drawer is open, navigate within it
-  if (state.modalState === 'filter') {
+  if (state.drawerState === 'filter') {
     navigateFilterSelection(direction);
+  }
+}
+
+// =============================================================================
+// DRAWER INPUT HANDLERS (for site-specific drawers like chapters)
+// =============================================================================
+
+function handleDrawerChange(value, mode) {
+  // Update the active drawer's filter query
+  if (!state.drawerState || state.drawerState === 'palette' || state.drawerState === 'filter') {
+    return;
+  }
+  
+  const handler = currentConfig.getDrawerHandler ? 
+                  currentConfig.getDrawerHandler(state.drawerState) : null;
+  
+  if (handler?.updateQuery) {
+    handler.updateQuery(value);
+  }
+}
+
+function handleDrawerSubmit(value, shiftKey, mode) {
+  // Trigger selection in the active drawer via keyboard handler
+  if (!state.drawerState || state.drawerState === 'palette' || state.drawerState === 'filter') {
+    return;
+  }
+  
+  const handler = currentConfig.getDrawerHandler ? 
+                  currentConfig.getDrawerHandler(state.drawerState) : null;
+  
+  if (handler?.onKey) {
+    const result = handler.onKey('Enter', state);
+    if (result.handled) {
+      state = result.newState;
+      render();
+    }
+  }
+}
+
+function handleDrawerNavigate(direction, mode) {
+  // Navigate in the active drawer
+  if (!state.drawerState || state.drawerState === 'palette' || state.drawerState === 'filter') {
+    return;
+  }
+  
+  const handler = currentConfig.getDrawerHandler ? 
+                  currentConfig.getDrawerHandler(state.drawerState) : null;
+  
+  if (handler?.onKey) {
+    const key = direction === 'down' ? 'ArrowDown' : 'ArrowUp';
+    const result = handler.onKey(key, state);
+    if (result.handled) {
+      state = result.newState;
+      // Don't need full render, just navigation
+    }
   }
 }
 
@@ -486,10 +564,10 @@ function handleCommandNavigate(direction) {
 
 function handleInputEscape() {
   // Close any open modal
-  if (state.modalState === 'palette') {
+  if (state.drawerState === 'palette') {
     state = closePalette(state);
-  } else if (state.modalState === 'filter') {
-    state = { ...state, modalState: null };
+  } else if (state.drawerState === 'filter') {
+    state = { ...state, drawerState: null };
   }
   state.localFilterActive = false;
   state.localFilterQuery = '';
@@ -525,7 +603,7 @@ function handleListNavigation(direction) {
 }
 
 function handleSelect(shiftKey) {
-  if (state.modalState === 'palette') {
+  if (state.drawerState === 'palette') {
     handleCommandSubmit(state.paletteQuery, shiftKey);
   } else {
     const items = currentConfig.getItems ? currentConfig.getItems() : [];
@@ -550,72 +628,42 @@ function handleSelect(shiftKey) {
   }
 }
 
-function handleDescriptionScroll(direction) {
-  scrollDescription(direction);
-}
-
-function handleChapterNavigation(direction) {
-  if (!siteState) return;
+/**
+ * Handle key events for site-specific drawers
+ * Delegates to the drawer handler from site config
+ */
+function handleSiteDrawerKey(key) {
+  if (!state.drawerState) return false;
+  if (state.drawerState === 'palette' || state.drawerState === 'filter') return false;
   
-  // Use filtered chapters for navigation
-  const filtered = getFilteredChapters();
-  if (filtered.length === 0) return;
+  const handler = currentConfig.getDrawerHandler ? 
+                  currentConfig.getDrawerHandler(state.drawerState) : null;
   
-  const currentIdx = siteState.chapterSelectedIdx || 0;
-  let newIdx;
+  if (!handler) return false;
   
-  if (direction === 'down') {
-    newIdx = Math.min(currentIdx + 1, filtered.length - 1);
-  } else {
-    newIdx = Math.max(currentIdx - 1, 0);
+  const result = handleDrawerKey(key, state, handler);
+  
+  if (result.handled) {
+    const drawerClosed = result.newState.drawerState === null;
+    state = result.newState;
+    // Only full render when drawer closes - drawer handles its own internal updates
+    if (drawerClosed) {
+      render();
+    }
+    return true;
   }
   
-  if (newIdx !== currentIdx) {
-    siteState.chapterSelectedIdx = newIdx;
-    updateChapterSelection(newIdx);
-  } else {
-    // At boundary - flash
-    flashBoundary();
-  }
-}
-
-function handleChapterSelect() {
-  if (!siteState) return;
-  
-  // Use filtered chapters for selection
-  const filtered = getFilteredChapters();
-  const chapter = filtered[siteState.chapterSelectedIdx || 0];
-  
-  if (chapter && currentConfig.seekToChapter) {
-    currentConfig.seekToChapter(chapter);
-    showMessage(`Jumped to: ${chapter.title}`);
-  }
-  
-  // Close modal after selection
-  state = { ...state, modalState: null };
-  siteState.chapterSelectedIdx = 0;
-  render();
-}
-
-function handleChapterFilterChange(query) {
-  // Reset selection when filter changes
-  if (siteState) {
-    siteState.chapterSelectedIdx = 0;
-  }
-  rerenderChapterList(0);
+  return false;
 }
 
 function handleEscape() {
-  if (state.modalState === 'palette') {
+  if (state.drawerState === 'palette') {
     state = closePalette(state);
     render();
-  } else if (state.modalState === 'description' || state.modalState === 'chapters') {
-    // Close description or chapter modal
-    state = { ...state, modalState: null };
-    // Reset chapter selection when closing
-    if (siteState && siteState.chapterSelectedIdx !== undefined) {
-      siteState.chapterSelectedIdx = 0;
-    }
+  } else if (state.drawerState !== null) {
+    // Close any open drawer (site-specific drawers)
+    closeDrawer();
+    state = { ...state, drawerState: null };
     render();
   } else if (state.localFilterActive) {
     state.localFilterActive = false;
@@ -640,7 +688,9 @@ function handleNavigation(oldUrl, newUrl) {
   state.selectedIdx = 0;
   state.localFilterQuery = '';
   state.localFilterActive = false;
+  state.drawerState = null;
   state.lastUrl = newUrl;
+  lastRenderedDrawer = null;
 
   // Reset site-specific state if needed
   if (currentConfig.createSiteState) {

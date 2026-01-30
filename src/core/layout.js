@@ -415,6 +415,9 @@ function createStatusBar(state) {
       inputCallbacks.onSearchChange(e.target.value);
     } else if (currentMode === 'COMMAND' && inputCallbacks?.onCommandChange) {
       inputCallbacks.onCommandChange(e.target.value);
+    } else if (inputCallbacks?.onDrawerChange) {
+      // For site-specific drawers (CHAPTERS, etc.)
+      inputCallbacks.onDrawerChange(e.target.value, currentMode);
     }
   });
 
@@ -436,15 +439,23 @@ function createStatusBar(state) {
         inputCallbacks.onSearchSubmit(e.target.value);
       } else if (currentMode === 'COMMAND' && inputCallbacks?.onCommandSubmit) {
         inputCallbacks.onCommandSubmit(e.target.value, e.shiftKey);
+      } else if (inputCallbacks?.onDrawerSubmit) {
+        // For site-specific drawers (CHAPTERS, etc.)
+        inputCallbacks.onDrawerSubmit(e.target.value, e.shiftKey, currentMode);
       }
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       // Allow arrow keys for palette/filter navigation
+      const direction = e.key === 'ArrowDown' ? 'down' : 'up';
       if (currentMode === 'COMMAND' && inputCallbacks?.onCommandNavigate) {
         e.preventDefault();
-        inputCallbacks.onCommandNavigate(e.key === 'ArrowDown' ? 'down' : 'up');
+        inputCallbacks.onCommandNavigate(direction);
       } else if (currentMode === 'FILTER' && inputCallbacks?.onFilterNavigate) {
         e.preventDefault();
-        inputCallbacks.onFilterNavigate(e.key === 'ArrowDown' ? 'down' : 'up');
+        inputCallbacks.onFilterNavigate(direction);
+      } else if (inputCallbacks?.onDrawerNavigate) {
+        // For site-specific drawers (CHAPTERS, etc.)
+        e.preventDefault();
+        inputCallbacks.onDrawerNavigate(direction, currentMode);
       }
     }
   });
@@ -465,8 +476,12 @@ function createStatusBar(state) {
  * Update status bar to reflect current mode.
  * Shows/hides input, updates badge, focuses input when needed.
  * [I/O]
+ * 
+ * @param {AppState} state
+ * @param {boolean} focusInput - Whether to focus the input
+ * @param {string|null} drawerPlaceholder - Placeholder for site-specific drawers
  */
-export function updateStatusBar(state, focusInput = false) {
+export function updateStatusBar(state, focusInput = false, drawerPlaceholder = null) {
   const mode = getMode(state);
   
   // Update mode badge
@@ -474,6 +489,11 @@ export function updateStatusBar(state, focusInput = false) {
   if (badge) {
     badge.textContent = mode;
   }
+
+  // Check if this is a site-specific drawer mode (not NORMAL, COMMAND, FILTER, SEARCH)
+  const isSiteDrawer = mode !== 'NORMAL' && mode !== 'COMMAND' && 
+                       mode !== 'FILTER' && mode !== 'SEARCH' && 
+                       mode !== 'DESCRIPTION'; // Description doesn't need input
 
   // Update input visibility and value
   const input = document.getElementById('vilify-status-input');
@@ -493,6 +513,12 @@ export function updateStatusBar(state, focusInput = false) {
       input.placeholder = 'Command...';
       input.value = state.paletteQuery || '';
       if (focusInput) input.focus();
+    } else if (isSiteDrawer) {
+      // Site-specific drawer (CHAPTERS, etc.) - show input
+      input.classList.add('visible');
+      input.placeholder = drawerPlaceholder || `Filter ${mode.toLowerCase()}...`;
+      input.value = '';
+      if (focusInput) input.focus();
     } else {
       input.classList.remove('visible');
       input.blur();
@@ -502,7 +528,11 @@ export function updateStatusBar(state, focusInput = false) {
   // Update hints
   const hints = document.getElementById('vilify-status-hints');
   if (hints) {
-    if (mode === 'FILTER' || mode === 'COMMAND') {
+    if (mode === 'DESCRIPTION') {
+      // Content drawer - scroll with j/k
+      hints.innerHTML = '<kbd>j</kbd> <kbd>k</kbd> scroll <kbd>esc</kbd> close';
+    } else if (mode === 'FILTER' || mode === 'COMMAND' || isSiteDrawer) {
+      // List drawer or palette - navigate with arrows
       hints.innerHTML = '<kbd>↑↓</kbd> navigate <kbd>↵</kbd> select <kbd>esc</kbd> close';
     } else {
       hints.innerHTML = '';

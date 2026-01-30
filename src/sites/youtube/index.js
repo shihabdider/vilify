@@ -5,6 +5,7 @@ import { getYouTubePageType, getVideos, getVideoContext, getDescription, getChap
 import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
+import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js';
 
 // =============================================================================
 // THEME
@@ -181,6 +182,13 @@ export const youtubeConfig = {
   seekToChapter,
 
   /**
+   * Get drawer handler for site-specific drawers.
+   * @param {string} drawerState - Current drawer state
+   * @returns {DrawerHandler|null}
+   */
+  getDrawerHandler: getYouTubeDrawerHandler,
+
+  /**
    * Layout definitions per page type.
    * Maps YouTubePageType to LayoutDef.
    * @type {Layouts}
@@ -198,6 +206,7 @@ export const youtubeConfig = {
     watch: (state, siteState, container) => {
       // Custom watch page layout with retry logic for async metadata
       clearWatchRetry();
+      resetYouTubeDrawers(); // Clean up any open drawers
       renderWatchWithRetry(state, siteState, container, 0);
     },
   },
