@@ -198,7 +198,7 @@ export function renderWatchPage(ctx, state, container) {
   }
   
   // Render video info section
-  const infoBox = renderVideoInfoBox(ctx);
+  const infoBox = renderVideoInfoBox(ctx, state);
   container.appendChild(infoBox);
   
   // Trigger comment loading (YouTube lazy loads comments)
@@ -232,9 +232,10 @@ export function renderWatchPage(ctx, state, container) {
  * [PURE]
  * 
  * @param {VideoContext} ctx - Video context
+ * @param {YouTubeState} siteState - YouTube-specific state (optional)
  * @returns {HTMLElement} Video info box
  */
-function renderVideoInfoBox(ctx) {
+function renderVideoInfoBox(ctx, siteState = null) {
   // Template: Compound - access all fields from ctx
   // Inventory: ctx.title, ctx.channelName, ctx.isSubscribed, ctx.uploadDate
   
@@ -267,6 +268,12 @@ function renderVideoInfoBox(ctx) {
     hintChildren.push('  ');
     hintChildren.push(el('kbd', {}, ['f']));
     hintChildren.push(' ch');
+  }
+  // Only show transcript hint if transcript is loaded
+  if (siteState?.transcript?.status === 'loaded') {
+    hintChildren.push('  ');
+    hintChildren.push(el('kbd', {}, ['t']));
+    hintChildren.push(' transcript');
   }
   const hints = el('div', { class: 'vilify-watch-hints' }, hintChildren);
   

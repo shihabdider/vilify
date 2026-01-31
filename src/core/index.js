@@ -163,7 +163,7 @@ export function initSite(config) {
       onNextCommentPage: handleNextCommentPage,
       onPrevCommentPage: handlePrevCommentPage,
       onDrawerKey: handleSiteDrawerKey,
-    });
+    }, () => siteState);
 
     // Set up SPA navigation observer
     setupNavigationObserver(handleNavigation);
@@ -234,6 +234,23 @@ function setState(newState) {
   render();
 }
 
+/**
+ * Get current site-specific state.
+ * @returns {Object|null}
+ */
+export function getSiteState() {
+  return siteState;
+}
+
+/**
+ * Update site-specific state and re-render.
+ * @param {Object} newState - New site state
+ */
+export function setSiteState(newState) {
+  siteState = newState;
+  render();
+}
+
 // =============================================================================
 // RENDERING
 // =============================================================================
@@ -266,7 +283,7 @@ function render() {
   // Get drawer placeholder if site drawer is open
   let drawerPlaceholder = null;
   if (isSiteDrawer && currentConfig.getDrawerHandler) {
-    const handler = currentConfig.getDrawerHandler(state.drawerState);
+    const handler = currentConfig.getDrawerHandler(state.drawerState, siteState);
     if (handler?.getFilterPlaceholder) {
       drawerPlaceholder = handler.getFilterPlaceholder();
     }
@@ -341,7 +358,7 @@ function render() {
   if (isSiteDrawer) {
     if (state.drawerState !== lastRenderedDrawer) {
       const handler = currentConfig.getDrawerHandler ? 
-                      currentConfig.getDrawerHandler(state.drawerState) : null;
+                      currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
       renderDrawer(state.drawerState, handler);
       lastRenderedDrawer = state.drawerState;
     }
@@ -426,7 +443,7 @@ function handleDrawerChange(value, mode) {
   }
   
   const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState) : null;
+                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
   
   if (handler?.updateQuery) {
     handler.updateQuery(value);
@@ -440,7 +457,7 @@ function handleDrawerSubmit(value, shiftKey, mode) {
   }
   
   const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState) : null;
+                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
   
   if (handler?.onKey) {
     const result = handler.onKey('Enter', state);
@@ -458,7 +475,7 @@ function handleDrawerNavigate(direction, mode) {
   }
   
   const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState) : null;
+                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
   
   if (handler?.onKey) {
     const key = direction === 'down' ? 'ArrowDown' : 'ArrowUp';
@@ -637,7 +654,7 @@ function handleSiteDrawerKey(key) {
   if (state.drawerState === 'palette' || state.drawerState === 'filter') return false;
   
   const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState) : null;
+                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
   
   if (!handler) return false;
   
@@ -705,6 +722,11 @@ function handleNavigation(oldUrl, newUrl) {
     
     // Hide loading screen after content ready
     hideLoadingScreen();
+    
+    // Call site's onContentReady hook (for transcript loading, etc.)
+    if (currentConfig.onContentReady) {
+      currentConfig.onContentReady();
+    }
     
     // Start content polling for listing pages
     const pageType = currentConfig.getPageType ? currentConfig.getPageType() : 'other';

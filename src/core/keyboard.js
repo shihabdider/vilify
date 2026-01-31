@@ -1,7 +1,7 @@
 // Keyboard handler - Core keyboard functions for Vilify
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
-import { isInputElement } from './view.js';
+import { isInputElement, showMessage } from './view.js';
 import { removeFocusMode } from './layout.js';
 
 /**
@@ -91,7 +91,7 @@ export function handleKeyEvent(event, keySeq, sequences, timeout) {
  * })
  * // Registers capture-phase keydown listener
  */
-export function setupKeyboardHandler(config, getState, setState, callbacks) {
+export function setupKeyboardHandler(config, getState, setState, callbacks, getSiteState = null) {
   // Template: I/O - Set up event listener with closure over state
   
   // Keyboard state (mutable, managed locally)
@@ -296,6 +296,33 @@ export function setupKeyboardHandler(config, getState, setState, callbacks) {
       },
       closeDrawer: () => {
         setState({ ...state, drawerState: null });
+      },
+      openTranscriptDrawer: () => {
+        const siteState = getSiteState?.();
+        if (!siteState) return;
+        
+        const state = getState();
+        
+        // Toggle off if already open
+        if (state.drawerState === 'transcript') {
+          setState({ ...state, drawerState: null });
+          return;
+        }
+        
+        // Check availability
+        if (!siteState.transcript || siteState.transcript.status !== 'loaded') {
+          // Show appropriate message based on transcript state
+          if (siteState.transcript === null || siteState.transcript.status === 'loading') {
+            showMessage('Loading transcript...');
+          } else {
+            // status === 'unavailable'
+            showMessage('No transcript available');
+          }
+          return;
+        }
+        
+        // Open drawer
+        setState({ ...state, drawerState: 'transcript' });
       },
       exitFocusMode: () => {
         setState({ ...state, focusModeActive: false });

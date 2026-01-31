@@ -82,7 +82,9 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 
 ### In Progress
 
-(none)
+| # | Name | Summary | Status |
+|---|------|---------|--------|
+| 011 | youtube-transcripts | View, search, and navigate video transcripts | Brainstorm ✓ |
 
 ### Planned
 

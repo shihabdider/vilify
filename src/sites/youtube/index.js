@@ -1,12 +1,14 @@
 // YouTube site configuration
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
-import { getYouTubePageType, getDescription, getChapters } from './scraper.js';
+import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
 import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js';
+import { fetchTranscript } from './transcript.js';
+import { getSiteState, setSiteState } from '../../core/index.js';
 
 // =============================================================================
 // THEME
@@ -54,6 +56,7 @@ function createYouTubeState() {
     settingsApplied: false,
     watchPageRetryCount: 0,
     commentLoadAttempts: 0,
+    transcript: null,  // TranscriptResult | null - cached transcript data
   };
 }
 
@@ -222,10 +225,26 @@ export const youtubeConfig = {
   /**
    * Called after initial render completes.
    * Applies default video settings on watch page.
+   * Fetches transcript for watch page.
    */
-  onContentReady: () => {
+  onContentReady: async () => {
     if (getYouTubePageType() === 'watch') {
       applyDefaultVideoSettings();
+      
+      // Fetch transcript (with small delay to ensure player API is ready)
+      const videoId = extractVideoId(location.href);
+      if (videoId) {
+        // Wait for player to be fully initialized
+        setTimeout(async () => {
+          console.log('[Vilify] Fetching transcript for', videoId);
+          const transcript = await fetchTranscript(videoId);
+          console.log('[Vilify] Transcript result:', transcript.status, transcript.lines.length, 'lines');
+          const currentState = getSiteState();
+          if (currentState) {
+            setSiteState({ ...currentState, transcript });
+          }
+        }, 500);
+      }
     }
   },
 
