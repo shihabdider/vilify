@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vilify",
-  "version": "0.3.15",
+  "version": "0.3.16",
   "description": "Vim-style focus mode for websites",
   "permissions": ["clipboardWrite"],
   "content_scripts": [

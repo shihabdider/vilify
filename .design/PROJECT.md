@@ -85,7 +85,7 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | # | Name | Summary | Status |
 |---|------|---------|--------|
 | 011 | youtube-transcripts | View, search, and navigate video transcripts | Brainstorm ✓ |
-| 012 | metadata-display | Show views/duration in listings, fix watch page metadata | Blueprint ✓ |
+| 012 | metadata-display | Show views/duration in listings, fix watch page metadata | Implement ✓ |
 
 ### Planned
 
