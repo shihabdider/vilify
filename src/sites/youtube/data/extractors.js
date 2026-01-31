@@ -278,6 +278,27 @@ export function extractLockupViewModel(model) {
   const altThumbPath = 'contentImage.thumbnailViewModel.image.sources';
   const altThumbnails = get(model, altThumbPath);
   
+  // Extract duration from overlay
+  // Try multiple paths where duration might be stored
+  let duration = null;
+  const overlayPaths = [
+    'contentImage.collectionThumbnailViewModel.primaryThumbnail.thumbnailViewModel.overlays',
+    'contentImage.thumbnailViewModel.overlays',
+  ];
+  for (const path of overlayPaths) {
+    const overlays = get(model, path);
+    if (overlays) {
+      for (const overlay of overlays) {
+        const timeText = overlay?.thumbnailOverlayTimeStatusViewModel?.text;
+        if (timeText) {
+          duration = getText(timeText);
+          break;
+        }
+      }
+    }
+    if (duration) break;
+  }
+  
   return {
     videoId: contentId,
     title: getText(meta.title),
@@ -285,7 +306,7 @@ export function extractLockupViewModel(model) {
     channelUrl: null, // Not easily available in lockup format
     views,
     published,
-    duration: null, // Duration in overlay, complex to extract
+    duration,
     thumbnail: getBestThumbnail(thumbnails || altThumbnails),
     _source: 'initialData',
   };
