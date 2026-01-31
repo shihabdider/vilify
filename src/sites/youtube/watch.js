@@ -245,7 +245,10 @@ function renderVideoInfoBox(ctx, siteState = null) {
     { 
       class: ctx.isSubscribed ? 'vilify-subscribe-btn subscribed' : 'vilify-subscribe-btn'
     },
-    [ctx.isSubscribed ? '[M] Subscribed' : '[M] Subscribe']
+    [
+      el('kbd', {}, ['M']),
+      ctx.isSubscribed ? ' Subscribed' : ' Subscribe'
+    ]
   );
   
   // Channel row with channel name and subscribe button
