@@ -54,6 +54,84 @@ function getThumbnailUrl(videoId) {
   return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
 }
 
+/**
+ * Extract duration text from a video item's thumbnail overlay
+ * @param {HTMLElement} element - Video item container
+ * @returns {string|null} Duration like '12:34' or null
+ * 
+ * Examples:
+ *   scrapeDuration(videoElement) => '12:34'
+ *   scrapeDuration(liveElement) => null
+ */
+function scrapeDuration(element) {
+  const selectors = [
+    'ytd-thumbnail-overlay-time-status-renderer #text',
+    'span.ytd-thumbnail-overlay-time-status-renderer',
+    '#overlays #text',
+    '.badge-shape-wiz__text',
+  ];
+  for (const sel of selectors) {
+    const el = element.querySelector(sel);
+    const text = el?.textContent?.trim();
+    // Match duration pattern: digits and colons (e.g., 1:23, 1:23:45)
+    if (text && text.match(/^\d+:\d{2}(:\d{2})?$/)) {
+      return text;
+    }
+  }
+  return null;
+}
+
+/**
+ * Scrape view count from watch page
+ * @returns {string|null} View count like '1.2M views' or null
+ * 
+ * Examples:
+ *   getWatchPageViews() => '1,234,567 views'
+ *   getWatchPageViews() => '5,432 watching now'
+ */
+function getWatchPageViews() {
+  const selectors = [
+    '#info-strings yt-formatted-string',
+    'ytd-watch-metadata #info span',
+    'ytd-video-primary-info-renderer #info-text',
+    '#info yt-formatted-string',
+  ];
+  
+  for (const sel of selectors) {
+    const els = document.querySelectorAll(sel);
+    for (const el of els) {
+      const text = el.textContent?.trim();
+      if (text?.match(/views?$|watching/i)) {
+        return text;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Convert duration in seconds to human-readable format
+ * @param {number} seconds
+ * @returns {string} Like '1:05' or '1:01:01'
+ * 
+ * Examples:
+ *   formatDuration(65) => '1:05'
+ *   formatDuration(3661) => '1:01:01'
+ *   formatDuration(0) => '0:00'
+ */
+export function formatDuration(seconds) {
+  if (!seconds || seconds <= 0) return '0:00';
+  
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 // =============================================================================
 // PAGE TYPE DETECTION
 // =============================================================================
@@ -134,6 +212,7 @@ function scrapeLockupLayout() {
     
     const views = metaTexts[1]?.textContent?.trim();
     const uploadDate = metaTexts[2]?.textContent?.trim();
+    const duration = scrapeDuration(lockup);
 
     videos.push({
       videoId,
@@ -142,6 +221,7 @@ function scrapeLockupLayout() {
       channelUrl,
       views,
       uploadDate,
+      duration,
     });
   });
 
@@ -182,6 +262,7 @@ function scrapeSearchLayout() {
     const metaSpans = item.querySelectorAll('#metadata-line span, .inline-metadata-item');
     const views = metaSpans[0]?.textContent?.trim();
     const uploadDate = metaSpans[1]?.textContent?.trim();
+    const duration = scrapeDuration(item);
 
     videos.push({
       videoId,
@@ -190,6 +271,7 @@ function scrapeSearchLayout() {
       channelUrl,
       views,
       uploadDate,
+      duration,
     });
   });
 
@@ -223,6 +305,7 @@ function scrapeHistoryLayout() {
     const metaSpans = item.querySelectorAll('#metadata-line span, .inline-metadata-item');
     const views = metaSpans[0]?.textContent?.trim();
     const uploadDate = metaSpans[1]?.textContent?.trim();
+    const duration = scrapeDuration(item);
 
     videos.push({
       videoId,
@@ -231,6 +314,7 @@ function scrapeHistoryLayout() {
       channelUrl,
       views,
       uploadDate,
+      duration,
     });
   });
 
@@ -248,6 +332,7 @@ function scrapeHistoryLayout() {
     const title = titleEl?.textContent?.trim();
     const channelEl = item.querySelector('#channel-name, .ytd-channel-name');
     const channel = channelEl?.textContent?.trim();
+    const duration = scrapeDuration(item);
 
     videos.push({
       videoId,
@@ -256,6 +341,7 @@ function scrapeHistoryLayout() {
       channelUrl: null,
       views: null,
       uploadDate: null,
+      duration,
     });
   });
 
@@ -282,6 +368,7 @@ function scrapePlaylistLayout() {
     const channelEl = item.querySelector('ytd-channel-name a, #channel-name, .ytd-channel-name');
     const channel = channelEl?.textContent?.trim();
     const channelUrl = channelEl?.getAttribute?.('href');
+    const duration = scrapeDuration(item);
 
     videos.push({
       videoId,
@@ -290,6 +377,7 @@ function scrapePlaylistLayout() {
       channelUrl,
       views: null,
       uploadDate: null,
+      duration,
     });
   });
 
@@ -337,10 +425,9 @@ export function getVideos() {
 
   // Transform to ContentItem format
   return deduped.map(video => {
-    // Build meta string from available data
+    // Build meta string from channel and upload date (views/duration go in data)
     const metaParts = [];
     if (video.channel) metaParts.push(video.channel);
-    if (video.views) metaParts.push(video.views);
     if (video.uploadDate) metaParts.push(video.uploadDate);
     const meta = metaParts.join(' · ') || null;
 
@@ -355,6 +442,8 @@ export function getVideos() {
       data: {
         videoId: video.videoId,
         channelUrl: video.channelUrl || null,
+        viewCount: video.views || null,
+        duration: video.duration || null,
       },
     };
   });
@@ -498,7 +587,7 @@ export function getVideoContext() {
     channelUrl,
     uploadDate,
     description,
-    views: null, // Not easily accessible
+    views: getWatchPageViews(),
     isSubscribed,
     isLiked: false, // Complex to detect reliably
     currentTime: video?.currentTime || 0,

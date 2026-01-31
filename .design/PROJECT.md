@@ -85,6 +85,7 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | # | Name | Summary | Status |
 |---|------|---------|--------|
 | 011 | youtube-transcripts | View, search, and navigate video transcripts | Brainstorm ✓ |
+| 012 | metadata-display | Show views/duration in listings, fix watch page metadata | Blueprint ✓ |
 
 ### Planned
 
@@ -151,3 +152,15 @@ npm run watch    # Watch mode for development
 # 3. Load unpacked → select project folder
 # 4. Refresh YouTube to test
 ```
+
+## TODO
+
+Future work and ideas:
+
+1. Subscribe button itself should contain the key hint `[M]`
+2. Go to channel (`gc`) should go to the channel videos link instead of just the channel page (should also handle lazy loading more videos)
+3. Add ability to sort on lists (alphabetical title, channel, by upload date, views, duration)
+4. Show views and duration in listings
+5. Bug: upload date missing in the watch page (should also show views and duration after #4)
+6. Implement `gg` and `G` to go to top or bottom of the list
+7. Bug: sometimes comments don't all load on initial load
