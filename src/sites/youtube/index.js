@@ -1,12 +1,14 @@
 // YouTube site configuration
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
-import { getYouTubePageType, getDescription, getChapters } from './scraper.js';
+import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
 import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js';
+import { fetchTranscript } from './transcript.js';
+import { getSiteState, setSiteState } from '../../core/index.js';
 
 // =============================================================================
 // THEME
@@ -223,10 +225,21 @@ export const youtubeConfig = {
   /**
    * Called after initial render completes.
    * Applies default video settings on watch page.
+   * Fetches transcript for watch page.
    */
-  onContentReady: () => {
+  onContentReady: async () => {
     if (getYouTubePageType() === 'watch') {
       applyDefaultVideoSettings();
+      
+      // Fetch transcript
+      const videoId = extractVideoId(location.href);
+      if (videoId) {
+        const transcript = await fetchTranscript(videoId);
+        const currentState = getSiteState();
+        if (currentState) {
+          setSiteState({ ...currentState, transcript });
+        }
+      }
     }
   },
 

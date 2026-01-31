@@ -17,8 +17,8 @@ B1 (open drawer) ──── B2 (fetch) ──┬┴── B3 (scroll)
 
 | Wave | Behaviors | Est. Tokens | Subagents | Status |
 |------|-----------|-------------|-----------|--------|
-| 1 | B1, B6, B7 | 5K | 1 | → In Progress |
-| 2 | B2 | 5K | 1 | Pending |
+| 1 | B1, B6, B7 | 5K | 1 | ✓ Complete |
+| 2 | B2 | 5K | 1 | → In Progress |
 | 3 | B3, B4, B5 | 7K | 1 | Pending |
 
 **Wave 1 includes core changes:**
@@ -29,14 +29,18 @@ B1 (open drawer) ──── B2 (fetch) ──┬┴── B3 (scroll)
 
 | ID | Behavior | Status | Tested | Notes |
 |----|----------|--------|--------|-------|
-| B1 | Open transcript drawer (keybinding `t`) | → In Progress | - | Via appCallbacks.openTranscriptDrawer |
-| B2 | Transcript content fetched and displayed | Pending | - | |
+| B1 | Open transcript drawer (keybinding `t`) | ✓ Done | ✓ Pass | Via appCallbacks.openTranscriptDrawer |
+| B2 | Transcript content fetched and displayed | → In Progress | - | |
 | B3 | Scroll through transcript lines | Pending | - | Handled by createListDrawer |
 | B4 | Search/filter within transcript | Pending | - | Handled by createListDrawer |
 | B5 | Jump to video position on Enter | Pending | - | Handled by onSelect callback |
-| B6 | Badge hint shows when captions available | → In Progress | - | |
-| B7 | Status message when no transcript | → In Progress | - | Via appCallbacks.openTranscriptDrawer |
+| B6 | Badge hint shows when captions available | ✓ Done | ✓ Pass | |
+| B7 | Status message when no transcript | ✓ Done | ✓ Pass | Via appCallbacks.openTranscriptDrawer |
 
 ## Wave Log
 
-(populated during execution)
+### Wave 1 - 2026-01-30 23:32
+- Subagent 1: B1, B6, B7
+- Result: ✓ All pass
+- Files: keyboard.js, index.js (core), index.js, commands.js, watch.js (youtube), package.json
+- Duration: ~2m
