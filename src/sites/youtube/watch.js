@@ -2,7 +2,7 @@
 // Implements watch page rendering following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
 import { el, clear, showMessage } from '../../core/view.js';
-import { getComments, getYouTubePageType } from './scraper.js';
+import { getComments, getYouTubePageType, formatDuration } from './scraper.js';
 
 // =============================================================================
 // CSS STYLES
@@ -83,6 +83,7 @@ const WATCH_CSS = `
   .vilify-watch-title { font-size: 14px; color: var(--txt-1); margin: 0 0 8px; line-height: 1.4; }
   .vilify-watch-channel { color: var(--txt-2); font-size: 13px; }
   .vilify-watch-date { color: var(--txt-3); font-size: 12px; margin-top: 2px; margin-bottom: 10px; }
+  .vilify-watch-stats { color: var(--txt-3); font-size: 12px; margin-bottom: 10px; }
   .vilify-watch-hints { color: var(--txt-3); font-size: 11px; margin-top: 10px; }
   .vilify-watch-hints kbd { border: 1px solid var(--bg-3); padding: 1px 5px; font-size: 10px; margin: 0 2px; }
   
@@ -259,6 +260,15 @@ function renderVideoInfoBox(ctx, siteState = null) {
     ? el('div', { class: 'vilify-watch-date' }, [ctx.uploadDate])
     : null;
   
+  // Stats row: views and duration
+  const statsParts = [];
+  if (ctx.views) statsParts.push(ctx.views);
+  if (ctx.duration) statsParts.push(formatDuration(ctx.duration));
+  const statsText = statsParts.join(' · ');
+  const statsEl = statsText
+    ? el('div', { class: 'vilify-watch-stats' }, [statsText])
+    : null;
+  
   // Keyboard hints - only show zo (description) and f (chapters if available)
   const hintChildren = [
     el('kbd', {}, ['zo']), ' desc'
@@ -283,6 +293,7 @@ function renderVideoInfoBox(ctx, siteState = null) {
     channelRow,
   ];
   if (uploadDateEl) children.push(uploadDateEl);
+  if (statsEl) children.push(statsEl);
   children.push(hints);
   
   const infoBox = el('div', { class: 'vilify-tui-box', 'data-label': 'video' }, children);

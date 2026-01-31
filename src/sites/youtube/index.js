@@ -9,6 +9,8 @@ import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } 
 import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js';
 import { fetchTranscript } from './transcript.js';
 import { getSiteState, setSiteState } from '../../core/index.js';
+import { renderYouTubeItem, injectYouTubeItemStyles } from './items.js';
+import { renderListing } from '../../core/layout.js';
 
 // =============================================================================
 // THEME
@@ -66,6 +68,36 @@ function createYouTubeState() {
 
 const WATCH_MAX_RETRIES = 10;
 const WATCH_RETRY_DELAY = 500;
+
+// =============================================================================
+// LISTING LAYOUT
+// =============================================================================
+
+/**
+ * Render YouTube listing page with custom item renderer.
+ * [I/O]
+ * 
+ * @param {AppState} state - App state
+ * @param {YouTubeState} siteState - YouTube state
+ * @param {HTMLElement} container - Container to render into
+ */
+function renderYouTubeListing(state, siteState, container) {
+  injectYouTubeItemStyles();
+  
+  const dp = getDataProvider();
+  let items = dp.getVideos();
+  
+  // Apply local filter if active
+  if (state.localFilterActive) {
+    const q = state.localFilterQuery.toLowerCase();
+    items = items.filter(i => 
+      i.title?.toLowerCase().includes(q) || 
+      i.meta?.toLowerCase().includes(q)
+    );
+  }
+  
+  renderListing(items, state.selectedIdx, container, renderYouTubeItem);
+}
 
 /** Current watch page retry timer */
 let watchRetryTimer = null;
@@ -196,18 +228,19 @@ export const youtubeConfig = {
   /**
    * Layout definitions per page type.
    * Maps YouTubePageType to LayoutDef.
+   * Uses custom renderYouTubeListing for two-column layout with views/duration.
    * @type {Layouts}
    */
   layouts: {
-    home: 'listing',
-    search: 'listing',
-    subscriptions: 'listing',
-    channel: 'listing',
-    playlist: 'listing',
-    history: 'listing',
-    library: 'listing',
-    shorts: 'listing',
-    other: 'listing',
+    home: renderYouTubeListing,
+    search: renderYouTubeListing,
+    subscriptions: renderYouTubeListing,
+    channel: renderYouTubeListing,
+    playlist: renderYouTubeListing,
+    history: renderYouTubeListing,
+    library: renderYouTubeListing,
+    shorts: renderYouTubeListing,
+    other: renderYouTubeListing,
     watch: (state, siteState, container) => {
       // Custom watch page layout with retry logic for async metadata
       clearWatchRetry();
