@@ -25,10 +25,9 @@ function getThumbnailUrl(videoId) {
  * @returns {ContentItem} Formatted content item
  */
 function toContentItem(video) {
-  // Build meta string from available data (channel · views · date)
+  // Build meta string from channel and date (views/duration go in data for second row)
   const metaParts = [];
   if (video.channel) metaParts.push(video.channel);
-  if (video.views) metaParts.push(video.views);
   if (video.published) metaParts.push(video.published);
   const meta = metaParts.join(' · ') || null;
 
@@ -43,6 +42,8 @@ function toContentItem(video) {
     data: {
       videoId: video.videoId,
       channelUrl: video.channelUrl || null,
+      viewCount: video.views || null,
+      duration: video.duration || null,
     },
   };
 }

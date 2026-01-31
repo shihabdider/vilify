@@ -362,9 +362,23 @@ export function extractVideoContext(initialData, playerResponse) {
   const chapters = extractChaptersFromData(initialData);
   
   // Format view count with commas
-  let viewCount = null;
+  let views = null;
   if (videoDetails.viewCount) {
-    viewCount = parseInt(videoDetails.viewCount, 10).toLocaleString();
+    const count = parseInt(videoDetails.viewCount, 10);
+    views = count.toLocaleString() + ' views';
+  }
+  
+  // Try to get upload date from primary info
+  let uploadDate = null;
+  const primary = initialData?.contents?.twoColumnWatchNextResults?.results?.results?.contents;
+  if (primary) {
+    for (const content of primary) {
+      const dateText = content?.videoPrimaryInfoRenderer?.dateText;
+      if (dateText) {
+        uploadDate = getText(dateText);
+        break;
+      }
+    }
   }
   
   return {
@@ -377,7 +391,8 @@ export function extractVideoContext(initialData, playerResponse) {
     chapters,
     duration: parseInt(videoDetails.lengthSeconds, 10) || 0,
     currentTime: 0, // Will be updated from video element
-    viewCount,
+    views,
+    uploadDate,
     keywords: videoDetails.keywords || [],
     isSubscribed: false, // Need DOM for this
     paused: true, // Will be updated from video element

@@ -14,28 +14,6 @@ const YOUTUBE_ITEM_CSS = `
     font-size: 12px;
     margin-top: 2px;
   }
-
-  /* Two-column layout: info left, actions right */
-  .vilify-item-row {
-    display: flex;
-    align-items: flex-start;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .vilify-item-actions {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    margin-left: 16px;
-  }
-
-  /* Subscribe button in listing */
-  .vilify-item-actions .vilify-subscribe-btn {
-    font-size: 11px;
-    padding: 3px 8px;
-    white-space: nowrap;
-  }
 `;
 
 // Track if styles have been injected
@@ -115,14 +93,5 @@ export function renderYouTubeItem(item, isSelected) {
 
   const infoEl = el('div', { class: 'vilify-item-info' }, infoChildren);
 
-  // Subscribe button
-  const subscribeBtn = el('button', { class: 'vilify-subscribe-btn' }, ['[M] Subscribe']);
-
-  // Actions column
-  const actionsEl = el('div', { class: 'vilify-item-actions' }, [subscribeBtn]);
-
-  // Row container for info + actions
-  const rowEl = el('div', { class: 'vilify-item-row' }, [infoEl, actionsEl]);
-
-  return el('div', { class: classes }, [thumbEl, rowEl]);
+  return el('div', { class: classes }, [thumbEl, infoEl]);
 }
