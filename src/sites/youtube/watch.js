@@ -82,8 +82,7 @@ const WATCH_CSS = `
   /* Video info panel */
   .vilify-watch-title { font-size: 14px; color: var(--txt-1); margin: 0 0 8px; line-height: 1.4; }
   .vilify-watch-channel { color: var(--txt-2); font-size: 13px; }
-  .vilify-watch-date { color: var(--txt-3); font-size: 12px; margin-top: 2px; margin-bottom: 10px; }
-  .vilify-watch-stats { color: var(--txt-3); font-size: 12px; margin-bottom: 10px; }
+  .vilify-watch-stats { color: var(--txt-3); font-size: 12px; margin-top: 4px; margin-bottom: 10px; }
   .vilify-watch-hints { color: var(--txt-3); font-size: 11px; margin-top: 10px; }
   .vilify-watch-hints kbd { border: 1px solid var(--bg-3); padding: 1px 5px; font-size: 10px; margin: 0 2px; }
   
@@ -255,13 +254,9 @@ function renderVideoInfoBox(ctx, siteState = null) {
     subscribeBtn
   ]);
   
-  // Upload date on separate line, dimmed
-  const uploadDateEl = ctx.uploadDate 
-    ? el('div', { class: 'vilify-watch-date' }, [ctx.uploadDate])
-    : null;
-  
-  // Stats row: views and duration
+  // Stats row: upload date · views · duration (all on one line)
   const statsParts = [];
+  if (ctx.uploadDate) statsParts.push(ctx.uploadDate);
   if (ctx.views) statsParts.push(ctx.views);
   if (ctx.duration) statsParts.push(formatDuration(ctx.duration));
   const statsText = statsParts.join(' · ');
@@ -292,7 +287,6 @@ function renderVideoInfoBox(ctx, siteState = null) {
     el('h1', { class: 'vilify-watch-title' }, [ctx.title || 'Untitled']),
     channelRow,
   ];
-  if (uploadDateEl) children.push(uploadDateEl);
   if (statsEl) children.push(statsEl);
   children.push(hints);
   
