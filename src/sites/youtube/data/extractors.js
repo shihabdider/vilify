@@ -251,22 +251,22 @@ export function extractLockupViewModel(model) {
     r.metadataParts?.map(p => getText(p.text)).filter(Boolean) || []
   );
   
-  // Typically: [channel, views, date] or [channel, "views · date"]
+  // First part is usually channel, rest could be views, date, or description
+  // Filter out long text (likely description) - keep only short metadata
   const channel = parts[0] || null;
-  const viewsAndDate = parts.slice(1).join(' · ');
+  const metaParts = parts.slice(1).filter(p => p.length < 50); // Filter out descriptions
   
-  // Try to split views and date
+  // Try to extract views and date from remaining parts
   let views = null;
   let published = null;
-  if (viewsAndDate) {
-    // Common patterns: "1M views", "2 days ago"
-    const viewsMatch = viewsAndDate.match(/[\d.,]+[KMB]?\s*views?/i);
-    if (viewsMatch) {
-      views = viewsMatch[0];
-      published = viewsAndDate.replace(views, '').replace(/^[\s·]+|[\s·]+$/g, '') || null;
-    } else {
-      // Might just be date
-      published = viewsAndDate;
+  for (const part of metaParts) {
+    // Check for view count pattern
+    if (!views && part.match(/[\d.,]+[KMB]?\s*views?/i)) {
+      views = part;
+    }
+    // Check for date patterns: "X ago", "Streamed X ago", etc.
+    else if (!published && (part.match(/ago$/i) || part.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i))) {
+      published = part;
     }
   }
   

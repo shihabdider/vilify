@@ -10,18 +10,9 @@ import { getVideos as scrapeVideos, getVideoContext as scrapeVideoContext, getRe
 export function scrapeDOMVideos() {
   const items = scrapeVideos();
   
-  // Convert ContentItem format to Video format with _source
-  return items.map(item => ({
-    videoId: item.id,
-    title: item.title,
-    channel: item.meta?.split(' · ')[0] || null,
-    channelUrl: item.data?.channelUrl || null,
-    views: item.meta?.split(' · ')[1] || null,
-    published: item.meta?.split(' · ')[2] || null,
-    duration: null,
-    thumbnail: item.thumbnail,
-    _source: 'dom',
-  }));
+  // Return items as-is since scraper.js already returns ContentItem format
+  // with data.viewCount and data.duration populated
+  return items;
 }
 
 /**
