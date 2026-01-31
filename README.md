@@ -6,18 +6,31 @@ Unlike generic browser extensions that try to handle all websites with one-size-
 
 ## Supported Sites
 
-| Site | Install | Description |
-|------|---------|-------------|
-| YouTube | [Install](https://raw.githubusercontent.com/shihabdider/vilify/main/sites/youtube.user.js) | Video controls, navigation, copy URLs |
+| Site | Description |
+|------|-------------|
+| YouTube | Video controls, navigation, copy URLs |
 
 ## Installation
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser
-2. Click the **Install** link for your site
-3. Click "Install" in the Tampermonkey dialog
-4. Refresh the site
+### From Source
 
-Scripts auto-update when changes are pushed to this repo.
+1. Clone this repo
+2. Install dependencies and build:
+   ```bash
+   npm install
+   npm run build
+   ```
+3. Open Chrome and go to `chrome://extensions`
+4. Enable "Developer mode" (toggle in top right)
+5. Click "Load unpacked" and select the repo directory
+6. Navigate to YouTube
+
+### Development
+
+```bash
+npm run watch   # Rebuild on file changes
+npm run clean   # Remove build artifacts
+```
 
 ## Usage
 
@@ -48,13 +61,27 @@ Each Vilify implementation:
 - **Feels native** — commands that make sense for that site
 - **Works reliably** — selectors tuned to each site's DOM
 
+## Project Structure
+
+```
+├── src/
+│   ├── core/          # Shared palette, keyboard, and filtering logic
+│   ├── sites/         # Site-specific implementations
+│   │   └── youtube/   # YouTube integration
+│   └── content.js     # Entry point
+├── dist/              # Built extension files
+├── manifest.json      # Chrome extension manifest
+└── build.js           # esbuild configuration
+```
+
 ## Contributing
 
 Want to add a new site? See [Contributing Guide](docs/contributing.md).
 
-1. Copy `template/site.template.js`
-2. Fill in the TODOs
-3. Submit a PR
+1. Create a new directory in `src/sites/`
+2. Implement the site adapter following the YouTube example
+3. Add the site's URL pattern to `manifest.json`
+4. Submit a PR
 
 ## License
 

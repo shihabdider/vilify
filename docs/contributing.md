@@ -4,30 +4,54 @@ This guide walks you through adding support for a new website.
 
 ## Overview
 
-Each site in Vilify is a standalone Tampermonkey userscript. You'll create one file that contains everything: theme, commands, scraping logic, and keybindings.
+Vilify is a Chrome extension with modular site-specific implementations. Each site lives in its own directory under `src/sites/` and shares common palette, keyboard, and filtering logic from `src/core/`.
 
 **Time estimate:** 2-4 hours for a basic implementation
 
-## Step 1: Copy the Template
+## Project Structure
+
+```
+src/
+├── core/              # Shared infrastructure
+│   ├── palette.js     # Command palette UI
+│   ├── keyboard.js    # Key sequence handling
+│   ├── filter.js      # Fuzzy filtering
+│   └── ...
+├── sites/
+│   └── youtube/       # Example implementation
+│       ├── index.js   # Main entry point
+│       ├── commands.js
+│       ├── keybindings.js
+│       └── styles.css
+└── content.js         # Site router
+```
+
+## Step 1: Create Site Directory
 
 ```bash
-cp template/site.template.js sites/[sitename].user.js
+mkdir src/sites/[sitename]
 ```
 
 Replace `[sitename]` with your site's name in lowercase (e.g., `reddit`, `twitter`, `notion`).
 
-## Step 2: Update Userscript Metadata
+## Step 2: Update manifest.json
 
-Edit the header block at the top:
+Add your site's URL pattern to the content script matches:
 
-```javascript
-// @name         Vilify - [Your Site Name]
-// @match        https://www.yoursite.com/*
-// @updateURL    https://raw.githubusercontent.com/shihabdider/vilify/main/sites/[sitename].user.js
-// @downloadURL  https://raw.githubusercontent.com/shihabdider/vilify/main/sites/[sitename].user.js
+```json
+{
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://www.yoursite.com/*"
+      ],
+      "js": ["dist/content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
 ```
-
-The `@match` pattern determines which URLs your script runs on. See [Tampermonkey match patterns](https://www.tampermonkey.net/documentation.php#_match).
 
 ## Step 3: Design Your Theme
 
@@ -36,22 +60,19 @@ Inspect the target site and extract its design language:
 1. Open DevTools → Elements
 2. Find the main colors: backgrounds, text, accents, borders
 3. Identify the font family
-4. Update the CSS variables in your script
+4. Create a `styles.css` in your site directory
 
-```javascript
-const CSS = `
-  :root {
-    --bg-primary: #1a1a1b;      /* Main background */
-    --bg-secondary: #272729;    /* Card/input background */
-    --bg-hover: #3a3a3c;        /* Hover state */
-    --text-primary: #d7dadc;    /* Main text */
-    --text-secondary: #818384;  /* Muted text */
-    --accent: #ff4500;          /* Brand color for selection */
-    --border: #343536;          /* Borders */
-    --font: 'IBM Plex Sans', sans-serif;
-  }
-  ...
-`;
+```css
+:root {
+  --bg-primary: #1a1a1b;      /* Main background */
+  --bg-secondary: #272729;    /* Card/input background */
+  --bg-hover: #3a3a3c;        /* Hover state */
+  --text-primary: #d7dadc;    /* Main text */
+  --text-secondary: #818384;  /* Muted text */
+  --accent: #ff4500;          /* Brand color for selection */
+  --border: #343536;          /* Borders */
+  --font: 'IBM Plex Sans', sans-serif;
+}
 ```
 
 **Tip:** The accent color is used for the selected item highlight. Use the site's primary brand color.
@@ -61,17 +82,16 @@ const CSS = `
 Context detection lets you show different commands based on what page the user is on.
 
 ```javascript
-function getPageType() {
+export function getPageType() {
   const path = location.pathname;
   
   if (path === '/') return 'home';
   if (path.startsWith('/r/')) return 'subreddit';
   if (path.includes('/comments/')) return 'post';
-  // ...
   return 'other';
 }
 
-function getContext() {
+export function getContext() {
   const pageType = getPageType();
   
   if (pageType === 'post') {
@@ -95,8 +115,7 @@ Commands are the heart of your implementation. Think about:
 - **Context actions:** What's relevant to the current page?
 
 ```javascript
-function getCommands() {
-  const ctx = getContext();
+export function getCommands(ctx) {
   const cmds = [];
 
   // Always available
@@ -127,7 +146,7 @@ Key sequences work when the palette is closed. Follow vim conventions:
 | Single key | Frequent action | `u` = upvote |
 
 ```javascript
-function getKeySequences() {
+export function getKeySequences(openPalette, navigateTo) {
   return {
     '/': () => openPalette('content'),
     ':': () => openPalette('command'),
@@ -143,7 +162,7 @@ function getKeySequences() {
 If the site shows lists (posts, videos, emails), scrape them for the palette:
 
 ```javascript
-function scrapeContent() {
+export function scrapeContent() {
   const posts = document.querySelectorAll('[data-testid="post-container"]');
   
   return Array.from(posts).slice(0, 15).map(el => {
@@ -160,11 +179,22 @@ function scrapeContent() {
 }
 ```
 
-## Step 8: Test Locally
+## Step 8: Wire Up the Site
 
-1. Open Tampermonkey → Create New Script
-2. Paste your entire script
-3. Save and refresh the target site
+Create an `index.js` that exports a site adapter matching the interface expected by `content.js`. Study `src/sites/youtube/index.js` for the full pattern.
+
+Update `src/content.js` to route to your site based on hostname.
+
+## Step 9: Build and Test
+
+```bash
+npm run build    # Build the extension
+npm run watch    # Or watch for changes
+```
+
+1. Go to `chrome://extensions`
+2. Click "Reload" on Vilify (or load it if first time)
+3. Navigate to your target site
 4. Test all commands and keybindings
 
 **Testing checklist:**
@@ -177,12 +207,13 @@ function scrapeContent() {
 - [ ] Theme looks native to the site
 - [ ] Works on different page types
 
-## Step 9: Submit a Pull Request
+## Step 10: Submit a Pull Request
 
 1. Fork the repo
-2. Add your file to `sites/`
-3. Update `README.md` to list your site
-4. Submit PR with:
+2. Add your site directory to `src/sites/`
+3. Update `manifest.json` with your site's URL patterns
+4. Update `README.md` to list your site
+5. Submit PR with:
    - Screenshot of the palette on the site
    - List of implemented commands
    - Any known limitations
@@ -191,11 +222,11 @@ function scrapeContent() {
 
 ### Dealing with SPAs
 
-Most modern sites don't do full page reloads. The template includes SPA detection that watches for URL changes. If you need to clear caches or reset state on navigation, do it in `onNavigate()`.
+Most modern sites don't do full page reloads. Use `MutationObserver` or URL change detection to handle navigation. The YouTube implementation has examples of this.
 
 ### Handling CSP Restrictions
 
-Some sites (like YouTube) block `innerHTML`. The template uses `createElement()` which works everywhere. Stick to this pattern.
+Some sites block `innerHTML`. Use `document.createElement()` which works everywhere.
 
 ### Finding Reliable Selectors
 
@@ -209,13 +240,12 @@ Avoid relying on class names that look auto-generated (e.g., `css-1a2b3c`).
 
 ### Debugging
 
-Add `console.log('[Vilify]', ...)` statements. Check the browser console for errors. The template logs navigation events by default.
+Add `console.log('[Vilify]', ...)` statements. Check the browser console for errors.
 
 ## Examples
 
-Study the existing implementations:
-- `sites/youtube.user.js` - Video site with playback controls, content scraping
-- (more to come)
+Study the existing implementation:
+- `src/sites/youtube/` - Video site with playback controls, content scraping
 
 ## Questions?
 
