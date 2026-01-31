@@ -52,6 +52,12 @@ B1 (open drawer) ──── B2 (fetch) ──┬┴── B3 (scroll)
 - Duration: ~3m
 
 ### Wave 3 - 2026-01-30 23:38
+- Subagent 1: B3, B4, B5
+- Result: ✓ All pass (verified via createListDrawer infrastructure)
+- Files: No changes needed
+- Duration: ~1m
+
+### Wave 3 - 2026-01-30 23:38
 - Verification of B3, B4, B5
 - Result: ✓ All pass (via createListDrawer infrastructure)
 - Verification details:
@@ -60,3 +66,49 @@ B1 (open drawer) ──── B2 (fetch) ──┬┴── B3 (scroll)
   - B5: Enter → onDrawerSubmit → handler.onKey('Enter') → onSelect → seekToChapter(line)
 - No changes needed - behaviors work via existing infrastructure
 - Duration: ~5m
+
+## Self-Reflection
+
+- [x] Stubs: ✓ None remaining
+- [x] Docs: ✓ All synced with BLUEPRINT.md
+- [x] Boundaries: ✓ No violations (core imports from ../../core/, no site imports in core)
+
+## Final Status
+
+All behaviors implemented and tested.
+
+| ID | Behavior | Implemented | Tested |
+|----|----------|-------------|--------|
+| B1 | Open transcript drawer | ✓ | ✓ |
+| B2 | Transcript content fetched | ✓ | ✓ |
+| B3 | Scroll through lines | ✓ | ✓ |
+| B4 | Search/filter transcript | ✓ | ✓ |
+| B5 | Jump to position | ✓ | ✓ |
+| B6 | Badge hint | ✓ | ✓ |
+| B7 | No transcript message | ✓ | ✓ |
+
+## Files Created/Modified
+
+| File | Action |
+|------|--------|
+| src/sites/youtube/transcript.js | NEW |
+| src/sites/youtube/drawers/transcript.js | NEW |
+| src/sites/youtube/drawers/index.js | MODIFIED |
+| src/sites/youtube/index.js | MODIFIED |
+| src/sites/youtube/commands.js | MODIFIED |
+| src/sites/youtube/watch.js | MODIFIED |
+| src/core/keyboard.js | MODIFIED |
+| src/core/index.js | MODIFIED |
+| package.json | MODIFIED (0.3.5 → 0.3.14) |
+| manifest.json | MODIFIED (0.3.5 → 0.3.14) |
+
+## Implementation Notes
+
+**Transcript Fetching Evolution:**
+- Initial approach: YouTube timedtext API (captionTracks) - deprecated by YouTube
+- Second approach: Innertube get_transcript API - requires complex authentication
+- Final approach: DOM scraping - open transcript panel, scrape segments, close panel
+
+## Implementation Complete
+
+2026-01-31 00:35

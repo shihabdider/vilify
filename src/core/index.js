@@ -723,6 +723,11 @@ function handleNavigation(oldUrl, newUrl) {
     // Hide loading screen after content ready
     hideLoadingScreen();
     
+    // Call site's onContentReady hook (for transcript loading, etc.)
+    if (currentConfig.onContentReady) {
+      currentConfig.onContentReady();
+    }
+    
     // Start content polling for listing pages
     const pageType = currentConfig.getPageType ? currentConfig.getPageType() : 'other';
     if (pageType !== 'watch') {
