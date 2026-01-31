@@ -97,7 +97,23 @@ export function createDataProvider() {
       const videos = extractVideosFromData(cachedInitialData);
       if (videos.length > 0) {
         // Transform raw Video objects to ContentItem format
-        return videos.map(toContentItem);
+        const items = videos.map(toContentItem);
+        
+        // Augment with DOM-scraped duration if missing
+        // (ytInitialData often doesn't have duration in lockup format)
+        const domVideos = scrapeDOMVideos();
+        const domMap = new Map(domVideos.map(v => [v.id, v]));
+        
+        for (const item of items) {
+          if (!item.data.duration) {
+            const domItem = domMap.get(item.id);
+            if (domItem?.data?.duration) {
+              item.data.duration = domItem.data.duration;
+            }
+          }
+        }
+        
+        return items;
       }
     }
     

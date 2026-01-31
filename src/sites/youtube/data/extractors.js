@@ -279,24 +279,38 @@ export function extractLockupViewModel(model) {
   const altThumbnails = get(model, altThumbPath);
   
   // Extract duration from overlay
-  // Try multiple paths where duration might be stored
+  // Try multiple paths where duration might be stored in the new lockup format
   let duration = null;
   const overlayPaths = [
     'contentImage.collectionThumbnailViewModel.primaryThumbnail.thumbnailViewModel.overlays',
     'contentImage.thumbnailViewModel.overlays',
+    'rendererContext.thumbnail.overlays',
   ];
   for (const path of overlayPaths) {
     const overlays = get(model, path);
-    if (overlays) {
+    if (overlays && Array.isArray(overlays)) {
       for (const overlay of overlays) {
-        const timeText = overlay?.thumbnailOverlayTimeStatusViewModel?.text;
+        // Try various property names YouTube uses
+        const timeText = overlay?.thumbnailOverlayTimeStatusViewModel?.text
+          || overlay?.thumbnailOverlayTimeStatusRenderer?.text
+          || overlay?.text;
         if (timeText) {
           duration = getText(timeText);
-          break;
+          if (duration) break;
         }
       }
     }
     if (duration) break;
+  }
+  
+  // Also try inlinePlayerData path
+  if (!duration) {
+    const inlineDuration = get(model, 'inlinePlayerData.videoId');
+    // If we have inlinePlayerData, duration might be in lengthSeconds
+    const lengthSeconds = get(model, 'inlinePlayerData.lengthSeconds');
+    if (lengthSeconds) {
+      duration = formatTimestamp(parseInt(lengthSeconds, 10));
+    }
   }
   
   return {
