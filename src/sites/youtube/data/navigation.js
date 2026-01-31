@@ -22,10 +22,11 @@ export function createNavigationWatcher(callback) {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
+    // Use longer delay for SPA navigation to ensure ytInitialData is updated
     debounceTimer = setTimeout(() => {
       callback();
       debounceTimer = null;
-    }, DEBOUNCE_MS);
+    }, 200);
   }
   
   // Method 1: Listen for popstate (back/forward)

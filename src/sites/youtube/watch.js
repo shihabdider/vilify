@@ -2,7 +2,7 @@
 // Implements watch page rendering following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
 import { el, clear, showMessage } from '../../core/view.js';
-import { getVideoContext, getComments, getDescription, getChapters, getYouTubePageType } from './scraper.js';
+import { getComments, getYouTubePageType } from './scraper.js';
 
 // =============================================================================
 // CSS STYLES
@@ -83,7 +83,7 @@ const WATCH_CSS = `
   .vilify-watch-title { font-size: 14px; color: var(--txt-1); margin: 0 0 8px; line-height: 1.4; }
   .vilify-watch-channel { color: var(--txt-2); font-size: 13px; }
   .vilify-watch-date { color: var(--txt-3); font-size: 12px; margin-top: 2px; margin-bottom: 10px; }
-  .vilify-watch-hints { color: var(--txt-3); font-size: 11px; }
+  .vilify-watch-hints { color: var(--txt-3); font-size: 11px; margin-top: 10px; }
   .vilify-watch-hints kbd { border: 1px solid var(--bg-3); padding: 1px 5px; font-size: 10px; margin: 0 2px; }
   
   /* Channel row with subscribe button */
@@ -258,13 +258,17 @@ function renderVideoInfoBox(ctx) {
     ? el('div', { class: 'vilify-watch-date' }, [ctx.uploadDate])
     : null;
   
-  // Keyboard hints
-  const hints = el('div', { class: 'vilify-watch-hints' }, [
-    el('kbd', {}, ['M']), ' sub  ',
-    el('kbd', {}, ['m']), ' mute  ',
-    el('kbd', {}, ['zo']), ' desc  ',
-    el('kbd', {}, ['f']), ' ch'
-  ]);
+  // Keyboard hints - only show zo (description) and f (chapters if available)
+  const hintChildren = [
+    el('kbd', {}, ['zo']), ' desc'
+  ];
+  // Only show chapters hint if video has chapters
+  if (ctx.chapters && ctx.chapters.length > 0) {
+    hintChildren.push('  ');
+    hintChildren.push(el('kbd', {}, ['f']));
+    hintChildren.push(' ch');
+  }
+  const hints = el('div', { class: 'vilify-watch-hints' }, hintChildren);
   
   // Build info box with TUI pattern
   const children = [

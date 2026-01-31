@@ -1,7 +1,8 @@
 // YouTube site configuration
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
-import { getYouTubePageType, getVideos, getVideoContext, getDescription, getChapters } from './scraper.js';
+import { getYouTubePageType, getDescription, getChapters } from './scraper.js';
+import { getDataProvider } from './data/index.js';
 import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
@@ -84,7 +85,8 @@ function renderWatchWithRetry(state, siteState, container, retryCount = 0) {
   injectWatchStyles();
   document.body.classList.add('vilify-watch-page');
   
-  const ctx = getVideoContext();
+  const dp = getDataProvider();
+  const ctx = dp.getVideoContext();
   
   // Check if metadata is loaded (title AND channel should be present)
   const hasMetadata = ctx && (ctx.title || ctx.channelName);
@@ -137,9 +139,9 @@ export const youtubeConfig = {
    * @returns {Array<ContentItem>}
    */
   getItems: () => {
-    // getVideos() scrapes all video renderers including ytd-compact-video-renderer
-    // which covers the recommended sidebar videos on watch pages
-    return getVideos();
+    // Use DataProvider which extracts from ytInitialData (with DOM fallback)
+    const dp = getDataProvider();
+    return dp.getVideos();
   },
 
   /**

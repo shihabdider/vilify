@@ -2,8 +2,14 @@
 // Provides command palette items and key sequence bindings
 
 import * as player from './player.js';
-import { getYouTubePageType, getVideoContext } from './scraper.js';
+import { getYouTubePageType } from './scraper.js';
+import { getDataProvider } from './data/index.js';
 import { showMessage } from '../../core/view.js';
+
+/** Get video context using DataProvider */
+function getVideoContext() {
+  return getDataProvider().getVideoContext();
+}
 
 // =============================================================================
 // HELPERS

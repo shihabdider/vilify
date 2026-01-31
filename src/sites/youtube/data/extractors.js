@@ -22,9 +22,14 @@ function get(obj, path) {
  */
 function getText(textObj) {
   if (!textObj) return null;
+  if (typeof textObj === 'string') return textObj;
   if (textObj.simpleText) return textObj.simpleText;
   if (textObj.runs) return textObj.runs.map(r => r.text).join('');
   if (textObj.content) return textObj.content; // New format
+  // Try accessibility fallback
+  if (textObj.accessibility?.accessibilityData?.label) {
+    return textObj.accessibility.accessibilityData.label;
+  }
   return null;
 }
 
@@ -91,13 +96,18 @@ export function extractVideoRenderer(renderer) {
   const channelNav = renderer.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint;
   const channelUrl = channelNav?.canonicalBaseUrl || null;
   
+  const title = getText(renderer.title);
+  const channel = getText(renderer.ownerText) || getText(renderer.shortBylineText);
+  const views = getText(renderer.viewCountText);
+  const published = getText(renderer.publishedTimeText);
+  
   return {
     videoId,
-    title: getText(renderer.title),
-    channel: getText(renderer.ownerText) || getText(renderer.shortBylineText),
+    title,
+    channel,
     channelUrl,
-    views: getText(renderer.viewCountText),
-    published: getText(renderer.publishedTimeText),
+    views,
+    published,
     duration: getText(renderer.lengthText),
     thumbnail: getBestThumbnail(renderer.thumbnail?.thumbnails),
     _source: 'initialData',
@@ -308,7 +318,8 @@ export function extractChaptersFromData(data) {
       if (!item) continue;
       
       const title = getText(item.title);
-      const timeMs = item.timeRangeStartMillis;
+      // Time can be in startTimeSeconds (new) or timeRangeStartMillis (old)
+      const timeMs = item.onTap?.watchEndpoint?.startTimeSeconds ?? item.timeRangeStartMillis;
       
       if (!title || timeMs === undefined) continue;
       
@@ -359,7 +370,8 @@ export function extractVideoContext(initialData, playerResponse) {
   return {
     videoId: videoDetails.videoId,
     title: videoDetails.title || null,
-    channel: videoDetails.author || null,
+    channelName: videoDetails.author || null,
+    channel: videoDetails.author || null, // Alias for compatibility
     channelUrl: videoDetails.channelId ? `/channel/${videoDetails.channelId}` : null,
     description: videoDetails.shortDescription || '',
     chapters,

@@ -7,6 +7,47 @@ import { scrapeDOMVideos, scrapeDOMVideoContext, scrapeDOMRecommendations } from
 import { createNavigationWatcher } from './navigation.js';
 
 // =============================================================================
+// NORMALIZATION
+// =============================================================================
+
+/**
+ * Get thumbnail URL for a video ID
+ * @param {string} videoId - YouTube video ID
+ * @returns {string} Thumbnail URL
+ */
+function getThumbnailUrl(videoId) {
+  return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+}
+
+/**
+ * Transform raw Video to ContentItem format expected by the UI
+ * @param {Video} video - Raw video object from extractors
+ * @returns {ContentItem} Formatted content item
+ */
+function toContentItem(video) {
+  // Build meta string from available data (channel · views · date)
+  const metaParts = [];
+  if (video.channel) metaParts.push(video.channel);
+  if (video.views) metaParts.push(video.views);
+  if (video.published) metaParts.push(video.published);
+  const meta = metaParts.join(' · ') || null;
+
+  return {
+    type: 'content',
+    id: video.videoId,
+    title: video.title || 'Untitled',
+    url: `/watch?v=${video.videoId}`,
+    thumbnail: video.thumbnail || getThumbnailUrl(video.videoId),
+    meta,
+    subtitle: null,
+    data: {
+      videoId: video.videoId,
+      channelUrl: video.channelUrl || null,
+    },
+  };
+}
+
+// =============================================================================
 // DATA PROVIDER
 // =============================================================================
 
@@ -44,23 +85,22 @@ export function createDataProvider() {
   
   /**
    * Get videos for current page
-   * @returns {Array<Video>}
+   * @returns {Array<ContentItem>}
    */
   function getVideos() {
-    // Ensure we have data
-    if (cachedInitialData === null) {
-      refresh();
-    }
+    // Always refresh to get latest data (handles SPA navigation timing)
+    refresh();
     
     // Try extraction from initial data first
     if (cachedInitialData) {
       const videos = extractVideosFromData(cachedInitialData);
       if (videos.length > 0) {
-        return videos;
+        // Transform raw Video objects to ContentItem format
+        return videos.map(toContentItem);
       }
     }
     
-    // Fallback to DOM scraping
+    // Fallback to DOM scraping (already returns ContentItem format)
     return scrapeDOMVideos();
   }
   
@@ -69,10 +109,8 @@ export function createDataProvider() {
    * @returns {VideoContext|null}
    */
   function getVideoContext() {
-    // Ensure we have data
-    if (cachedInitialData === null) {
-      refresh();
-    }
+    // Always refresh to get latest data (handles SPA navigation timing)
+    refresh();
     
     // Try extraction from initial data + player response
     if (cachedInitialData && cachedPlayerResponse) {
@@ -133,11 +171,12 @@ export function createDataProvider() {
       }
       
       if (videos.length > 0) {
-        return videos;
+        // Transform raw Video objects to ContentItem format
+        return videos.map(toContentItem);
       }
     }
     
-    // Fallback to DOM
+    // Fallback to DOM (already returns ContentItem format)
     return scrapeDOMRecommendations();
   }
   

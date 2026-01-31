@@ -95,11 +95,34 @@ Implemented all behaviors in single pass:
   dist/content.js: 116.7kb
 ```
 
-## Next Steps
+## Integration - Jan 28, 2026
 
-1. **Integration Testing** - Test in browser on various page types
-2. **Wire up to UI** - Replace scraper.js calls with dataProvider
-3. **Measure improvement** - Compare reliability before/after
+Wired DataProvider into the YouTube module:
+
+1. **src/sites/youtube/index.js**
+   - `getItems()` now uses `getDataProvider().getVideos()`
+   - `renderWatchWithRetry()` uses `getDataProvider().getVideoContext()`
+
+2. **src/sites/youtube/commands.js**
+   - `getVideoContext()` wrapper uses DataProvider
+
+3. **src/sites/youtube/watch.js**
+   - Cleaned up imports (removed unused getVideoContext, getDescription, getChapters)
+   - Chapter hint badge now conditional on chapters existing
+
+4. **Fixes applied during integration:**
+   - Always refresh on getVideos/getVideoContext calls (fixes SPA race condition)
+   - Transform raw Video to ContentItem format with `meta` field
+   - Added `channelName` field to VideoContext (watch page expects this)
+   - Chapter time extraction: support both `startTimeSeconds` (new) and `timeRangeStartMillis` (old)
+   - Added accessibility text fallback in `getText()` helper
+
+## Build Verification
+
+```
+✓ npm run build passes
+  dist/content.js: 140.6kb
+```
 
 ## Self-Reflection Checkpoint
 
@@ -108,3 +131,6 @@ Implemented all behaviors in single pass:
 - [x] _source field tracks data provenance
 - [x] DOM fallback preserves existing behavior
 - [x] No YouTube-specific code in core modules
+- [x] DataProvider wired into youtube module
+- [x] Tested on search, channel, and watch pages
+- [x] Chapters extraction working
