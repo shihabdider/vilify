@@ -64,11 +64,17 @@ function getThumbnailUrl(videoId) {
  *   scrapeDuration(liveElement) => null
  */
 function scrapeDuration(element) {
+  // Try specific selectors first
   const selectors = [
     'ytd-thumbnail-overlay-time-status-renderer #text',
+    'ytd-thumbnail-overlay-time-status-renderer span',
     'span.ytd-thumbnail-overlay-time-status-renderer',
     '#overlays #text',
     '.badge-shape-wiz__text',
+    'ytd-thumbnail-overlay-time-status-renderer',
+    '[overlay-style="DEFAULT"] #text',
+    'ytd-thumbnail #overlays span',
+    '#thumbnail-container #overlays span',
   ];
   for (const sel of selectors) {
     const el = element.querySelector(sel);
@@ -78,6 +84,17 @@ function scrapeDuration(element) {
       return text;
     }
   }
+  
+  // Fallback: search all spans/divs for duration pattern
+  const allElements = element.querySelectorAll('span, div');
+  for (const el of allElements) {
+    const text = el.textContent?.trim();
+    // Only match exact duration format (not timestamps in descriptions)
+    if (text && text.match(/^\d{1,2}:\d{2}(:\d{2})?$/) && text.length <= 10) {
+      return text;
+    }
+  }
+  
   return null;
 }
 
