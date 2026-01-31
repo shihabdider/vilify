@@ -311,9 +311,11 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         
         // Check availability
         if (!siteState.transcript || siteState.transcript.status !== 'loaded') {
-          if (siteState.transcript === null) {
+          // Show appropriate message based on transcript state
+          if (siteState.transcript === null || siteState.transcript.status === 'loading') {
             showMessage('Loading transcript...');
           } else {
+            // status === 'unavailable'
             showMessage('No transcript available');
           }
           return;
