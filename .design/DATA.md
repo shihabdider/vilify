@@ -13,35 +13,55 @@ A SiteConfig is a structure:
 - getItems: Function - () => Array\<Item\>
 - getCommands: Function - (ctx) => Array\<Command\>
 - getKeySequences: Function - (ctx) => Object
+- getSingleKeyActions: Function - (ctx) => Object - single-key actions including Shift modifiers
+- getDrawerHandler: Function - (drawerState) => DrawerHandler | null
+- getDescription: Function | null - () => String - get description text (YouTube)
+- getChapters: Function | null - () => Array\<Chapter\> - get chapters (YouTube)
+- seekToChapter: Function | null - (chapter) => void - seek to chapter (YouTube)
 - layouts: Layouts - mapping of page types to layout definitions
-- renderItem: Function | null - (item, isSelected) => HTMLElement, optional override
+- createSiteState: Function | null - () => SiteState - factory for site-specific state
 - onContentReady: Function | null - () => void, called after render completes
+- watch: Object | null - watch page specific functions (YouTube)
+  - nextCommentPage: Function - (siteState) => siteState
+  - prevCommentPage: Function - (siteState) => siteState
 
 Examples:
 ```js
-// YouTube - custom watch layout, custom item rendering
+// YouTube - custom watch layout, drawers, custom item rendering
 {
   name: 'youtube',
-  matches: ['*://www.youtube.com/*'],
+  matches: ['*://www.youtube.com/*', '*://youtube.com/*'],
   theme: { bg1: '#002b36', accent: '#ff0000', ... },
-  logo: createYouTubeLogo(),  // returns HTMLElement
+  logo: null,
   getPageType: () => 'watch',
   getItems: () => [...],
   getCommands: (ctx) => [...],
   getKeySequences: (ctx) => ({ 'gh': goHome, ... }),
+  getSingleKeyActions: (ctx) => ({ 'Y': copyUrl, ... }),
+  getDrawerHandler: (drawerState) => drawerState === 'chapters' ? chapterDrawer : null,
+  getDescription: () => getDescription(),
+  getChapters: () => getChapters(),
+  seekToChapter: (ch) => seekTo(ch.time),
   layouts: { home: 'listing', watch: renderWatchPage },
-  renderItem: null,  // use default
-  onContentReady: () => applyDefaultVideoSettings()
+  createSiteState: () => ({ settingsApplied: false, ... }),
+  onContentReady: () => applyDefaultVideoSettings(),
+  watch: { nextCommentPage, prevCommentPage }
 }
 
-// Google Search - simple listing, default rendering
+// Minimal site config
 {
   name: 'google',
   matches: ['*://www.google.com/search*'],
   theme: { bg1: '#002b36', accent: '#4285f4', ... },
-  logo: null,  // use default
+  logo: null,
+  getPageType: () => 'results',
+  getItems: () => [...],
+  getCommands: (ctx) => [...],
+  getKeySequences: (ctx) => ({}),
+  getSingleKeyActions: (ctx) => ({}),
+  getDrawerHandler: () => null,
   layouts: { results: 'listing' },
-  renderItem: null,
+  createSiteState: null,
   onContentReady: null
 }
 ```
@@ -86,13 +106,13 @@ Examples:
 A LayoutDef is one of:
 - 'listing' - built-in scrollable item list
 - 'detail' - built-in main + optional sidebar
-- RenderFunction - custom: (ctx, container) => void
+- RenderFunction - custom: (state, siteState, container) => void
 
 Examples:
 ```js
-'listing'                              // Use built-in listing layout
-'detail'                               // Use built-in detail layout
-(ctx, container) => renderWatch(ctx)   // Custom render function
+'listing'                                       // Use built-in listing layout
+'detail'                                        // Use built-in detail layout
+(state, siteState, container) => renderWatch()  // Custom render function
 ```
 
 ---
@@ -107,7 +127,7 @@ Examples:
 ```js
 // YouTube
 { home: 'listing', search: 'listing', subscriptions: 'listing',
-  watch: (ctx, container) => renderWatchPage(ctx, container) }
+  watch: (state, siteState, container) => renderWatchPage(state, siteState, container) }
 
 // Gmail
 { inbox: 'listing', thread: 'detail', compose: renderCompose }
@@ -212,22 +232,89 @@ Examples:
 
 ---
 
-### ModalState
+### DrawerState
 
-A ModalState is one of:
-- null - no modal open
+A DrawerState is one of:
+- null - no drawer open
 - 'palette' - command palette open
+- 'filter' - filter drawer open
 - 'chapters' - chapter picker open (YouTube)
-- 'description' - description modal open (YouTube)
+- 'description' - description drawer open (YouTube)
 
-Note: This is a unified enum. Core owns the field, sites extend with their values.
+Note: This is a unified enum. Core owns null, 'palette', and 'filter'. Sites extend with their own values.
 
 Examples:
 ```js
-null           // Normal state, no modal
+null           // Normal state, no drawer
 'palette'      // Command palette is open
+'filter'       // Filter drawer is open
 'chapters'     // Chapter picker is open (YouTube)
-'description'  // Description modal is open (YouTube)
+'description'  // Description drawer is open (YouTube)
+```
+
+---
+
+### DrawerHandler
+
+A DrawerHandler is a structure returned by drawer factory functions:
+- render: Function - (container: HTMLElement) => void - render drawer into container
+- onKey: Function - (key: string, state: AppState) => { handled: boolean, newState: AppState }
+- cleanup: Function - () => void - cleanup drawer state and DOM
+- updateQuery: Function | null - (query: string) => void - update filter query (list drawers only)
+- getFilterPlaceholder: Function | null - () => string - get placeholder text for status bar input
+
+Examples:
+```js
+// List drawer handler (chapters)
+{
+  render: (container) => { /* create and append drawer DOM */ },
+  onKey: (key, state) => {
+    if (key === 'Escape') return { handled: true, newState: { ...state, drawerState: null } };
+    if (key === 'Enter') { selectItem(); return { handled: true, newState: { ...state, drawerState: null } }; }
+    return { handled: false, newState: state };
+  },
+  cleanup: () => { /* remove DOM, reset internal state */ },
+  updateQuery: (q) => { /* filter items by query */ },
+  getFilterPlaceholder: () => 'Filter chapters...'
+}
+
+// Content drawer handler (description)
+{
+  render: (container) => { /* render scrollable text */ },
+  onKey: (key, state) => {
+    if (key === 'Escape') return { handled: true, newState: { ...state, drawerState: null } };
+    if (key === 'j') { scrollDown(); return { handled: true, newState: state }; }
+    return { handled: false, newState: state };
+  },
+  cleanup: () => { /* remove DOM */ },
+  updateQuery: null,
+  getFilterPlaceholder: null
+}
+```
+
+---
+
+### ListDrawerConfig
+
+A ListDrawerConfig is a structure passed to createListDrawer:
+- id: String - unique drawer identifier
+- getItems: Function - () => Array\<Item\> - get items to display
+- renderItem: Function - (item, isSelected) => HTMLElement - render single item
+- onSelect: Function - (item) => void - called when item is selected
+- filterPlaceholder: String - placeholder text for filter input
+- matchesFilter: Function | null - (item, query) => boolean - custom filter matcher
+
+Examples:
+```js
+// Chapter drawer config
+{
+  id: 'chapters',
+  getItems: () => getChapters(),
+  renderItem: (ch, selected) => el('div', {}, [ch.title]),
+  onSelect: (ch) => seekToChapter(ch),
+  filterPlaceholder: 'Filter chapters...',
+  matchesFilter: null  // Use default title matching
+}
 ```
 
 ---
@@ -236,7 +323,7 @@ null           // Normal state, no modal
 
 An AppState is a structure:
 - focusModeActive: Boolean - is focus mode overlay showing?
-- modalState: ModalState - which modal is open (core + site modals)
+- drawerState: DrawerState - which drawer is open (core + site drawers)
 - paletteQuery: String - current text in palette input
 - paletteSelectedIdx: Number - selected item index in palette
 - selectedIdx: Number - selected item index in listing
@@ -250,31 +337,37 @@ An AppState is a structure:
 Examples:
 ```js
 // Initial state
-{ focusModeActive: true, modalState: null, paletteQuery: '',
+{ focusModeActive: true, drawerState: null, paletteQuery: '',
   paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
   localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
   keySeq: '', lastUrl: 'https://youtube.com/' }
 
 // Palette open in command mode
-{ focusModeActive: true, modalState: 'palette', paletteQuery: ':speed',
+{ focusModeActive: true, drawerState: 'palette', paletteQuery: ':speed',
   paletteSelectedIdx: 2, selectedIdx: 0, localFilterActive: false,
   localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
   keySeq: '', lastUrl: '...' }
 
 // Local filtering of videos
-{ focusModeActive: true, modalState: null, paletteQuery: '',
+{ focusModeActive: true, drawerState: null, paletteQuery: '',
   paletteSelectedIdx: 0, selectedIdx: 3, localFilterActive: true,
   localFilterQuery: 'music', siteSearchActive: false, siteSearchQuery: '',
   keySeq: '', lastUrl: '...' }
 
 // Mid key-sequence (user pressed 'g')
-{ focusModeActive: true, modalState: null, paletteQuery: '',
+{ focusModeActive: true, drawerState: null, paletteQuery: '',
   paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
   localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
   keySeq: 'g', lastUrl: '...' }
 
-// Chapter picker open (YouTube)
-{ focusModeActive: true, modalState: 'chapters', paletteQuery: '',
+// Chapter drawer open (YouTube)
+{ focusModeActive: true, drawerState: 'chapters', paletteQuery: '',
+  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
+  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
+  keySeq: '', lastUrl: '...' }
+
+// Description drawer open (YouTube)
+{ focusModeActive: true, drawerState: 'description', paletteQuery: '',
   paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
   localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
   keySeq: '', lastUrl: '...' }
@@ -340,12 +433,12 @@ Examples:
   title: 'Rick Astley - Never Gonna Give You Up',
   channelName: 'Rick Astley', channelUrl: '/@RickAstley',
   uploadDate: 'Oct 25, 2009', description: 'Official video...',
-  views: '1.4B views', isSubscribed: false, isLiked: false,
+  views: null, isSubscribed: false, isLiked: false,
   currentTime: 47, duration: 213, paused: false,
   playbackRate: 2, volume: 0.8, muted: false,
   chapters: [
-    { title: 'Intro', time: 0, timeText: '0:00' },
-    { title: 'Chorus', time: 43, timeText: '0:43' }
+    { title: 'Intro', time: 0, timeText: '0:00', thumbnailUrl: null },
+    { title: 'Chorus', time: 43, timeText: '0:43', thumbnailUrl: null }
   ]
 }
 
@@ -364,13 +457,14 @@ A Chapter is a structure:
 - title: String - chapter name
 - time: Number - timestamp in seconds
 - timeText: String - formatted time
+- thumbnailUrl: String | null - chapter thumbnail URL
 
 Examples:
 ```js
-{ title: 'Intro', time: 0, timeText: '0:00' }
-{ title: 'The Problem', time: 45, timeText: '0:45' }
-{ title: 'Solution', time: 180, timeText: '3:00' }
-{ title: 'Conclusion', time: 3661, timeText: '1:01:01' }
+{ title: 'Intro', time: 0, timeText: '0:00', thumbnailUrl: null }
+{ title: 'The Problem', time: 45, timeText: '0:45', thumbnailUrl: 'https://...' }
+{ title: 'Solution', time: 180, timeText: '3:00', thumbnailUrl: null }
+{ title: 'Conclusion', time: 3661, timeText: '1:01:01', thumbnailUrl: null }
 ```
 
 Note: Deduplication should be handled when scraping chapters.
@@ -433,23 +527,27 @@ Examples:
 ### YouTubeState
 
 A YouTubeState is a structure:
-- chapterQuery: String - filter text in chapter picker
-- chapterSelectedIdx: Number - selected chapter index
+- chapterQuery: String - filter text in chapter picker (used by drawer internally)
+- chapterSelectedIdx: Number - selected chapter index (used by drawer internally)
+- commentPage: Number - current comment page index (0-based)
+- commentPageStarts: Array\<Number\> - start indices for each comment page
 - settingsApplied: Boolean - have we set default playback rate?
 - watchPageRetryCount: Number - internal retry tracking
 - commentLoadAttempts: Number - internal retry tracking
 
-Note: Modal state is now in AppState.modalState (unified enum).
-Note: Comment window state (startIdx, endIdx, history) is tracked at module level in watch.js, not in YouTubeState.
+Note: Drawer state (which drawer is open) is in AppState.drawerState.
+Note: Drawer handlers manage their own internal state (query, selection index) via closures.
 
 Examples:
 ```js
 // Initial state on watch page
 { chapterQuery: '', chapterSelectedIdx: 0,
+  commentPage: 0, commentPageStarts: [0],
   settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0 }
 
-// Browsing chapters with filter
-{ chapterQuery: 'intro', chapterSelectedIdx: 2,
+// After navigating to second comment page
+{ chapterQuery: '', chapterSelectedIdx: 0,
+  commentPage: 1, commentPageStarts: [0, 5],
   settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0 }
 ```
 
@@ -467,7 +565,9 @@ Examples:
 | ContentItem | Compound | Core | Access all fields |
 | GroupHeader | Compound | Core | Access all fields |
 | Item | Union | Core | Case per variant (Command / ContentItem / GroupHeader) |
-| ModalState | Union | Core | Case per variant (null / 'palette' / site-specific values) |
+| DrawerState | Union | Core | Case per variant (null / 'palette' / 'filter' / site-specific values) |
+| DrawerHandler | Compound | Core | Access all fields |
+| ListDrawerConfig | Compound | Core | Access all fields |
 | AppState | Compound | Core | Access all fields |
 | YouTubePageType | Enum | YouTube | Case per variant |
 | VideoContext | Compound | YouTube | Access all fields |
