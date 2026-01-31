@@ -163,7 +163,7 @@ export function initSite(config) {
       onNextCommentPage: handleNextCommentPage,
       onPrevCommentPage: handlePrevCommentPage,
       onDrawerKey: handleSiteDrawerKey,
-    });
+    }, () => siteState);
 
     // Set up SPA navigation observer
     setupNavigationObserver(handleNavigation);

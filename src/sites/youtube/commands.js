@@ -339,7 +339,6 @@ export function getYouTubeCommands(app) {
       label: 'Theater mode',
       icon: '🎬',
       action: player.toggleTheaterMode,
-      keys: 't',
     });
     commands.push({
       type: 'command',
@@ -521,7 +520,7 @@ export function getYouTubeKeySequences(app) {
     sequences['c'] = player.toggleCaptions;
     sequences['h'] = () => player.seekRelative(-10);
     sequences['l'] = () => player.seekRelative(10);
-    sequences['t'] = player.toggleTheaterMode;
+    sequences['t'] = () => app?.openTranscriptDrawer?.();
   }
 
   return sequences;

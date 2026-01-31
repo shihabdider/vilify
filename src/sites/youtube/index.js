@@ -54,6 +54,7 @@ function createYouTubeState() {
     settingsApplied: false,
     watchPageRetryCount: 0,
     commentLoadAttempts: 0,
+    transcript: null,  // TranscriptResult | null - cached transcript data
   };
 }
 
