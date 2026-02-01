@@ -79,20 +79,14 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 006 | watch-fixes | Watch page keybindings, status feedback, filter drawer |
 | 007 | list-pages | Instant scroll, loading on nav, search scraping, filter routing |
 | 008 | filter-keybindings | Arrow keys/Enter work in filter mode on listing pages |
-
-### In Progress
-
-| # | Name | Summary | Status |
-|---|------|---------|--------|
-| 011 | youtube-transcripts | View, search, and navigate video transcripts | Brainstorm ✓ |
-| 012 | metadata-display | Show views/duration in listings, fix watch page metadata | Implement ✓ |
+| 009 | module-boundaries | Move YouTube-specific code out of core (modals.js, state.js, keyboard.js) |
+| 010 | scraping-engine | Robust scraping with declarative selectors, MutationObserver |
+| 011 | youtube-transcripts | View, search, and navigate video transcripts |
+| 012 | metadata-display | Show views/duration in listings, fix watch page metadata |
 
 ### Planned
 
-| # | Name | Summary | Design |
-|---|------|---------|--------|
-| 009 | module-boundaries | Move YouTube-specific code out of core (modals.js, state.js, keyboard.js) | BRAINSTORM ✓ |
-| 010 | scraping-engine | Robust scraping with declarative selectors, wait/retry strategies, MutationObserver | BRAINSTORM ✓ |
+(None currently)
 
 ## Current Issues
 
