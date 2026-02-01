@@ -152,10 +152,11 @@ npm run watch    # Watch mode for development
 
 Future work and ideas:
 
-1. Subscribe button itself should contain the key hint `[M]`
+1. ~~Subscribe button itself should contain the key hint `[M]`~~ ✓ Done
 2. Go to channel (`gc`) should go to the channel videos link instead of just the channel page (should also handle lazy loading more videos)
 3. Add ability to sort on lists (alphabetical title, channel, by upload date, views, duration)
-4. Show views and duration in listings
-5. Bug: upload date missing in the watch page (should also show views and duration after #4)
+4. ~~Show views and duration in listings~~ ✓ Done (iteration 012)
+5. ~~Bug: upload date missing in the watch page~~ ✓ Done (iteration 012)
 6. Implement `gg` and `G` to go to top or bottom of the list
-7. Bug: sometimes comments don't all load on initial load
+7. ~~Bug: sometimes comments don't all load on initial load~~ ✓ Fixed (iteration 013)
+8. Improve subscribe button styling - kbd element looks awkward inside button, needs better visual integration
