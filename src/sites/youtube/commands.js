@@ -266,7 +266,7 @@ export function getYouTubeCommands(app) {
       type: 'command',
       label: 'Filter videos',
       icon: '🔎',
-      action: () => app?.openFilter?.(),
+      action: () => app?.openRecommended?.(),
       keys: '/',
     });
   }
@@ -284,6 +284,25 @@ export function getYouTubeCommands(app) {
     action: () => app?.exitFocusMode?.(),
     keys: ':q',
   });
+
+  // --- List navigation (listing pages only) ---
+  if (pageType !== 'watch') {
+    commands.push({ group: 'List' });
+    commands.push({
+      type: 'command',
+      label: 'Go to top',
+      icon: '⬆',
+      action: () => app?.goToTop?.(),
+      keys: 'G G',
+    });
+    commands.push({
+      type: 'command',
+      label: 'Go to bottom',
+      icon: '⬇',
+      action: () => app?.goToBottom?.(),
+      keys: '⇧G',
+    });
+  }
 
   // --- Video controls (watch page only) ---
   if (pageType === 'watch' && ctx) {
@@ -469,16 +488,10 @@ export function getYouTubeCommands(app) {
       });
       commands.push({
         type: 'command',
-        label: `Go to ${ctx.channelName || 'channel'}`,
+        label: `Go to ${ctx.channelName || 'channel'} videos`,
         icon: '👤',
-        action: () => navigateTo(ctx.channelUrl),
-        keys: 'G C',
-      });
-      commands.push({
-        type: 'command',
-        label: `${ctx.channelName || 'Channel'} videos`,
-        icon: '🎥',
         action: () => navigateTo(ctx.channelUrl + '/videos'),
+        keys: 'G C',
       });
     }
   }
@@ -512,7 +525,7 @@ export function getYouTubeKeySequences(app) {
     // - Watch page: filter drawer modal for recommended videos
     '/': () => {
       if (pageType === 'watch') {
-        app?.openFilter?.();  // Open drawer for recommended videos
+        app?.openRecommended?.();  // Open drawer for recommended videos
       } else {
         app?.openLocalFilter?.();  // Inline filter for listing pages
       }
@@ -525,13 +538,16 @@ export function getYouTubeKeySequences(app) {
     'gs': () => navigateTo('/feed/subscriptions'),
     'gy': () => navigateTo('/feed/history'),
     'gl': () => navigateTo('/feed/library'),
+
+    // List navigation (vim-style)
+    'gg': () => app?.goToTop?.(),
   };
 
   // Video-specific sequences (watch page only)
   if (ctx) {
-    // Channel navigation
+    // Channel navigation - go directly to videos page
     if (ctx.channelUrl) {
-      sequences['gc'] = () => navigateTo(ctx.channelUrl);
+      sequences['gc'] = () => navigateTo(ctx.channelUrl + '/videos');
     }
 
     // Playback speed
@@ -572,6 +588,9 @@ export function getYouTubeKeySequences(app) {
 export function getYouTubeSingleKeyActions(app) {
   const ctx = getVideoContext();
   const actions = {};
+
+  // Shift+G = go to bottom of list (available on all pages)
+  actions['G'] = () => app?.goToBottom?.();
 
   if (ctx) {
     // Shift+Y = copy URL at time

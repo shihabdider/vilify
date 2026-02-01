@@ -62,7 +62,7 @@ export function resetState(_state) {
  * getMode({ drawerState: null, siteSearchActive: true, ... })                              => 'SEARCH'
  * getMode({ drawerState: 'chapters', ... })                                                => 'CHAPTERS'
  * getMode({ drawerState: 'description', ... })                                             => 'DESCRIPTION'
- * getMode({ drawerState: 'filter', ... })                                                  => 'FILTER'
+ * getMode({ drawerState: 'recommended', ... })                                             => 'RECOMMENDED'
  */
 export function getMode(state) {
   // Template: Compound - access drawerState, localFilterActive, siteSearchActive

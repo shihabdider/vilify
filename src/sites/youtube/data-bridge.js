@@ -19,16 +19,13 @@ function send(type, data) {
 function waitForInitialData() {
   // Check if already available
   if (typeof ytInitialData !== 'undefined' && ytInitialData) {
-    console.log('[Vilify Bridge] ytInitialData already available');
     send('initialData', ytInitialData);
     return;
   }
   
   // Poll until available (YouTube sets this during page load)
-  const startTime = Date.now();
   const interval = setInterval(() => {
     if (typeof ytInitialData !== 'undefined' && ytInitialData) {
-      console.log('[Vilify Bridge] ytInitialData became available after', Date.now() - startTime, 'ms');
       send('initialData', ytInitialData);
       clearInterval(interval);
     }
@@ -38,7 +35,6 @@ function waitForInitialData() {
   setTimeout(() => {
     clearInterval(interval);
     if (typeof ytInitialData === 'undefined' || !ytInitialData) {
-      console.log('[Vilify Bridge] ytInitialData not found after 10s');
       send('dataTimeout', null);
     }
   }, 10000);
@@ -49,7 +45,6 @@ function waitForInitialData() {
  */
 function waitForPlayerResponse() {
   if (typeof ytInitialPlayerResponse !== 'undefined' && ytInitialPlayerResponse) {
-    console.log('[Vilify Bridge] ytInitialPlayerResponse available');
     send('playerResponse', ytInitialPlayerResponse);
     return;
   }
@@ -57,7 +52,6 @@ function waitForPlayerResponse() {
   // Poll briefly for player response
   const interval = setInterval(() => {
     if (typeof ytInitialPlayerResponse !== 'undefined' && ytInitialPlayerResponse) {
-      console.log('[Vilify Bridge] ytInitialPlayerResponse became available');
       send('playerResponse', ytInitialPlayerResponse);
       clearInterval(interval);
     }
@@ -71,9 +65,7 @@ function waitForPlayerResponse() {
  * Handle YouTube SPA navigation
  * yt-navigate-finish fires when navigation completes and data is ready
  */
-document.addEventListener('yt-navigate-finish', (event) => {
-  console.log('[Vilify Bridge] yt-navigate-finish event');
-  
+document.addEventListener('yt-navigate-finish', () => {
   // Small delay to ensure YouTube has updated ytInitialData
   setTimeout(() => {
     if (typeof ytInitialData !== 'undefined' && ytInitialData) {
@@ -89,8 +81,6 @@ document.addEventListener('yt-navigate-finish', (event) => {
  * Handle page data updates (happens after some async operations)
  */
 document.addEventListener('yt-page-data-updated', () => {
-  console.log('[Vilify Bridge] yt-page-data-updated event');
-  
   if (typeof ytInitialData !== 'undefined' && ytInitialData) {
     send('initialData', ytInitialData);
   }
@@ -100,8 +90,6 @@ document.addEventListener('yt-page-data-updated', () => {
  * Handle player ready event (watch pages)
  */
 document.addEventListener('yt-player-updated', () => {
-  console.log('[Vilify Bridge] yt-player-updated event');
-  
   if (typeof ytInitialPlayerResponse !== 'undefined' && ytInitialPlayerResponse) {
     send('playerResponse', ytInitialPlayerResponse);
   }
@@ -111,8 +99,6 @@ document.addEventListener('yt-player-updated', () => {
  * Alternative navigation event (used on mobile/some pages)
  */
 window.addEventListener('state-navigateend', () => {
-  console.log('[Vilify Bridge] state-navigateend event');
-  
   setTimeout(() => {
     if (typeof ytInitialData !== 'undefined' && ytInitialData) {
       send('initialData', ytInitialData);
@@ -120,8 +106,37 @@ window.addEventListener('state-navigateend', () => {
   }, 50);
 });
 
+/**
+ * Intercept fetch requests to capture continuation data (lazy loaded videos)
+ */
+function interceptFetch() {
+  const originalFetch = window.fetch;
+  
+  window.fetch = async function(...args) {
+    const response = await originalFetch.apply(this, args);
+    
+    // Check if this is a browse API call (continuation/lazy load)
+    const url = args[0]?.url || args[0];
+    if (typeof url === 'string' && url.includes('/youtubei/v1/browse')) {
+      try {
+        // Clone response to read body without consuming it
+        const clone = response.clone();
+        const data = await clone.json();
+        
+        // Check if this has continuation items (lazy loaded content)
+        if (data?.onResponseReceivedActions || data?.continuationContents) {
+          send('continuationData', data);
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+    
+    return response;
+  };
+}
+
 // Initialize - start waiting for data
 waitForInitialData();
 waitForPlayerResponse();
-
-console.log('[Vilify Bridge] Initialized in MAIN world');
+interceptFetch();

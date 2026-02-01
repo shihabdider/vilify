@@ -111,7 +111,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       const isSiteDrawerInput = target.id === 'vilify-status-input' && 
                                 state.drawerState !== null && 
                                 state.drawerState !== 'palette' && 
-                                state.drawerState !== 'filter';
+                                state.drawerState !== 'recommended';
       const isYouTubeSearch = target.id === 'search' || 
                               target.closest?.('ytd-searchbox') || 
                               target.closest?.('#search-form');
@@ -182,10 +182,10 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
     }
 
     // Handle site-specific drawer keys (delegates to drawer handler)
-    // Palette is handled separately, filter drawer is handled by status bar input
+    // Palette is handled separately, recommended drawer is handled by status bar input
     if (state.drawerState !== null && 
         state.drawerState !== 'palette' && 
-        state.drawerState !== 'filter') {
+        state.drawerState !== 'recommended') {
       event.preventDefault();
       if (callbacks.onDrawerKey) {
         const handled = callbacks.onDrawerKey(event.key);
@@ -281,8 +281,8 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         const newState = { ...state, drawerState: 'palette', paletteQuery: mode === 'command' ? ':' : '', paletteSelectedIdx: 0 };
         setState(newState);
       },
-      openFilter: () => {
-        setState({ ...state, drawerState: 'filter' });
+      openRecommended: () => {
+        setState({ ...state, drawerState: 'recommended' });
       },
       openLocalFilter: () => {
         setState({ ...state, localFilterActive: true, localFilterQuery: '' });
@@ -296,6 +296,16 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       },
       closeDrawer: () => {
         setState({ ...state, drawerState: null });
+      },
+      goToTop: () => {
+        if (callbacks.onNavigate) {
+          callbacks.onNavigate('top');
+        }
+      },
+      goToBottom: () => {
+        if (callbacks.onNavigate) {
+          callbacks.onNavigate('bottom');
+        }
       },
       openTranscriptDrawer: () => {
         const siteState = getSiteState?.();

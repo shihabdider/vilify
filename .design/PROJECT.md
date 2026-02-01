@@ -86,6 +86,9 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 013 | page-scrapers | Fetch interception, page-specific extractors, comment loading fix |
 | 014 | reliable-scraping | Improved scraping reliability |
 | 015 | watch-ux | Subscribe button kbd styling, updateSubscribeButton fix |
+| 016 | drawer-cleanup | Unified drawer architecture, deleted modals.js, renamed 'filter' to 'recommended' |
+| 017 | channel-videos-navigation | `gc` goes to channel/videos, lazy loading trigger on listing pages |
+| 018 | gg-G-navigation | `gg` goes to top, `G` goes to bottom of list |
 
 ### In Progress
 
@@ -155,10 +158,10 @@ npm run watch    # Watch mode for development
 Future work and ideas:
 
 1. ~~Subscribe button itself should contain the key hint `[M]`~~ ✓ Done
-2. Go to channel (`gc`) should go to the channel videos link instead of just the channel page (should also handle lazy loading more videos)
+2. ~~Go to channel (`gc`) should go to the channel videos link instead of just the channel page (should also handle lazy loading more videos)~~ ✓ Done (iteration 017)
 3. Add ability to sort on lists (alphabetical title, channel, by upload date, views, duration)
 4. ~~Show views and duration in listings~~ ✓ Done (iteration 012)
 5. ~~Bug: upload date missing in the watch page~~ ✓ Done (iteration 012)
-6. Implement `gg` and `G` to go to top or bottom of the list
+6. ~~Implement `gg` and `G` to go to top or bottom of the list~~ ✓ Done (iteration 018)
 7. ~~Bug: sometimes comments don't all load on initial load~~ ✓ Fixed (iteration 013)
 8. ~~UX improvements for watch page video metadata container - subscribe button kbd styling, layout/spacing, visual hierarchy~~ ✓ Done (iteration 015)

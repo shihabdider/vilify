@@ -9,7 +9,7 @@ import { setupKeyboardHandler } from './keyboard.js';
 import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, removeFocusMode } from './layout.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
-import { injectModalStyles, renderFilterDrawer, showFilterDrawer, hideFilterDrawer, updateFilterQuery, navigateFilterSelection, selectFilterItem } from './modals.js';
+
 import { injectDrawerStyles, renderDrawer, handleDrawerKey, closeDrawer } from './drawer.js';
 
 // =============================================================================
@@ -115,7 +115,6 @@ export function initSite(config) {
   injectLoadingStyles();
   injectFocusModeStyles();
   injectPaletteStyles();
-  injectModalStyles();
   injectDrawerStyles();
 
   // Show loading screen with site theme
@@ -188,7 +187,7 @@ export function initSite(config) {
       config.onContentReady();
     }
 
-    console.log('[Vilify] Initialized');
+
   });
 }
 
@@ -206,12 +205,10 @@ async function waitForContent(config, timeout = 5000) {
       const { getDataProvider } = await import('../sites/youtube/data/index.js');
       const dp = getDataProvider();
       if (dp.waitForData) {
-        console.log('[Vilify] Waiting for bridge data...');
         await dp.waitForData(timeout);
-        console.log('[Vilify] Bridge data ready or timeout');
       }
     } catch (e) {
-      console.log('[Vilify] Could not use waitForData:', e);
+      // Fallback to DOM-based waiting
     }
   }
   
@@ -223,25 +220,13 @@ async function waitForContent(config, timeout = 5000) {
       await new Promise(r => setTimeout(r, 100));
     }
   } else {
-    // Wait for video items WITH duration badges
-    // Duration badges indicate YouTube has fully rendered the video cards
-    console.log('[Vilify] Waiting for DOM with duration badges...');
+    // Wait for video items (duration comes from API data, no need to wait for DOM badges)
     while (Date.now() - start < timeout) {
-      // Check for duration badges - these appear after video cards are fully rendered
-      const durationBadges = document.querySelectorAll(
-        'ytd-thumbnail-overlay-time-status-renderer, ' +
-        'span.ytd-thumbnail-overlay-time-status-renderer, ' +
-        '.badge-shape-wiz__text'
-      );
-      
-      // Also check we have video items
       const videoItems = document.querySelectorAll(
         'ytd-rich-item-renderer, ytd-video-renderer, yt-lockup-view-model'
       );
       
-      // Ready when we have both videos and at least some duration badges
-      if (videoItems.length > 0 && durationBadges.length > 0) {
-        console.log(`[Vilify] DOM ready: ${videoItems.length} videos, ${durationBadges.length} duration badges`);
+      if (videoItems.length > 0) {
         break;
       }
       
@@ -300,12 +285,10 @@ function render() {
   }
 
   // Update status bar (mode badge, input visibility)
-  // Focus input when entering filter, command, or drawer mode
+  // Focus input when entering palette, local filter, or site drawer mode
   const isSiteDrawer = state.drawerState !== null && 
-                       state.drawerState !== 'palette' && 
-                       state.drawerState !== 'filter';
-  const shouldFocusInput = state.drawerState === 'filter' || 
-                           state.drawerState === 'palette' || 
+                       state.drawerState !== 'palette';
+  const shouldFocusInput = state.drawerState === 'palette' || 
                            state.localFilterActive ||
                            isSiteDrawer;
   
@@ -353,8 +336,8 @@ function render() {
             state = openPalette(state, mode);
             render();
           },
-          openFilter: () => {
-            state = { ...state, drawerState: 'filter' };
+          openRecommended: () => {
+            state = { ...state, drawerState: 'recommended' };
             render();
           },
           openSearch: () => {
@@ -391,30 +374,12 @@ function render() {
       renderDrawer(state.drawerState, handler);
       lastRenderedDrawer = state.drawerState;
     }
-  } else if (state.drawerState !== 'filter') {
+  } else {
     // Close any open site drawer when switching to palette or closing
     if (lastRenderedDrawer !== null) {
       closeDrawer();
       lastRenderedDrawer = null;
     }
-  }
-
-  // Handle filter drawer rendering
-  if (state.drawerState === 'filter') {
-    const items = currentConfig.getItems ? currentConfig.getItems() : [];
-    renderFilterDrawer(items, 
-      (query) => { /* filter change handled internally */ },
-      (item) => {
-        // Navigate to selected item
-        if (item?.url) {
-          state = { ...state, drawerState: null };
-          navigateTo(item.url);
-        }
-      }
-    );
-    showFilterDrawer();
-  } else {
-    hideFilterDrawer();
   }
 }
 
@@ -424,23 +389,11 @@ function render() {
 
 function handleFilterChange(value) {
   state.localFilterQuery = value;
-  
-  // If filter drawer is open, update it
-  if (state.drawerState === 'filter') {
-    updateFilterQuery(value);
-  } else {
-    render();
-  }
+  render();
 }
 
 function handleFilterSubmit(value, shiftKey) {
-  // If filter drawer is open, select from drawer
-  if (state.drawerState === 'filter') {
-    selectFilterItem();
-    return;
-  }
-  
-  // Otherwise select from main list
+  // Select from main list (local filter mode)
   const items = currentConfig.getItems ? currentConfig.getItems() : [];
   const filtered = items.filter((i) => i.title?.toLowerCase().includes(value.toLowerCase()));
   const item = filtered[state.selectedIdx];
@@ -455,10 +408,8 @@ function handleFilterSubmit(value, shiftKey) {
 }
 
 function handleFilterNavigate(direction) {
-  // If filter drawer is open, navigate within it
-  if (state.drawerState === 'filter') {
-    navigateFilterSelection(direction);
-  }
+  // Local filter navigation is handled by main list navigation
+  // Site drawers (including recommended) use handleDrawerNavigate
 }
 
 // =============================================================================
@@ -467,7 +418,7 @@ function handleFilterNavigate(direction) {
 
 function handleDrawerChange(value, mode) {
   // Update the active drawer's filter query
-  if (!state.drawerState || state.drawerState === 'palette' || state.drawerState === 'filter') {
+  if (!state.drawerState || state.drawerState === 'palette') {
     return;
   }
   
@@ -481,7 +432,7 @@ function handleDrawerChange(value, mode) {
 
 function handleDrawerSubmit(value, shiftKey, mode) {
   // Trigger selection in the active drawer via keyboard handler
-  if (!state.drawerState || state.drawerState === 'palette' || state.drawerState === 'filter') {
+  if (!state.drawerState || state.drawerState === 'palette') {
     return;
   }
   
@@ -499,7 +450,7 @@ function handleDrawerSubmit(value, shiftKey, mode) {
 
 function handleDrawerNavigate(direction, mode) {
   // Navigate in the active drawer
-  if (!state.drawerState || state.drawerState === 'palette' || state.drawerState === 'filter') {
+  if (!state.drawerState || state.drawerState === 'palette') {
     return;
   }
   
@@ -549,12 +500,12 @@ function handleCommandSubmit(value, shiftKey) {
     // Remove loading overlay if present
     hideLoadingScreen();
     
-    // Remove any modal drawers
-    const modals = document.querySelectorAll(
-      '.vilify-filter-drawer, .vilify-chapter-drawer, .vilify-description-drawer, ' +
+    // Remove any drawers
+    const drawers = document.querySelectorAll(
+      '.vilify-drawer, #vilify-drawer-container, ' +
       '#vilify-loading-overlay, .vilify-overlay'
     );
-    modals.forEach(m => m.remove());
+    drawers.forEach(el => el.remove());
     
     showMessage('Focus mode off (refresh to re-enable)');
     return;
@@ -609,10 +560,11 @@ function handleCommandNavigate(direction) {
 }
 
 function handleInputEscape() {
-  // Close any open modal
+  // Close any open drawer or filter
   if (state.drawerState === 'palette') {
     state = closePalette(state);
-  } else if (state.drawerState === 'filter') {
+  } else if (state.drawerState !== null) {
+    // Close any site drawer (chapters, description, recommended, etc.)
     state = { ...state, drawerState: null };
   }
   state.localFilterActive = false;
@@ -641,11 +593,53 @@ function handleListNavigation(direction) {
 
   state.selectedIdx = result.index;
 
+  // Show position feedback for jump navigation
+  if (direction === 'top' || direction === 'bottom') {
+    const pos = result.index + 1;
+    const total = filtered.length;
+    showMessage(`${pos}/${total}`);
+  }
+
+  // Handle boundary hit
   if (result.boundary) {
-    flashBoundary();
+    if (result.boundary === 'bottom' && !state.localFilterActive) {
+      // At bottom - trigger lazy load to fetch more videos
+      triggerLazyLoad();
+    } else {
+      // Top boundary or filtering active - just flash
+      flashBoundary();
+    }
   }
 
   render();
+}
+
+/**
+ * Trigger YouTube's lazy loading by scrolling continuation element into view.
+ * YouTube uses IntersectionObserver on ytd-continuation-item-renderer elements.
+ * [I/O]
+ */
+function triggerLazyLoad() {
+  // Find YouTube's continuation element (triggers lazy load when visible)
+  const continuationSelectors = [
+    'ytd-continuation-item-renderer',
+    '#continuations ytd-continuation-item-renderer',
+    'ytd-rich-grid-renderer ytd-continuation-item-renderer',
+    'ytd-section-list-renderer ytd-continuation-item-renderer',
+  ];
+  
+  for (const selector of continuationSelectors) {
+    const continuation = document.querySelector(selector);
+    if (continuation) {
+      // Scroll continuation into view to trigger IntersectionObserver
+      continuation.scrollIntoView({ behavior: 'instant', block: 'center' });
+      showMessage('Loading more...');
+      return;
+    }
+  }
+  
+  // Fallback: scroll the page if no continuation element found
+  window.scrollBy({ top: window.innerHeight, behavior: 'instant' });
 }
 
 function handleSelect(shiftKey) {
@@ -680,7 +674,7 @@ function handleSelect(shiftKey) {
  */
 function handleSiteDrawerKey(key) {
   if (!state.drawerState) return false;
-  if (state.drawerState === 'palette' || state.drawerState === 'filter') return false;
+  if (state.drawerState === 'palette') return false;
   
   const handler = currentConfig.getDrawerHandler ? 
                   currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
@@ -723,7 +717,6 @@ function handleEscape() {
 }
 
 function handleNavigation(oldUrl, newUrl) {
-  console.log('[Vilify] Navigation:', oldUrl, '->', newUrl);
 
   // Show loading screen immediately
   showLoadingScreen(currentConfig);

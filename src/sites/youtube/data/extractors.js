@@ -245,6 +245,8 @@ export function extractLockupViewModel(model) {
   const contentId = model.contentId;
   if (!contentId) return null;
   
+
+  
   // Filter out playlists/mixes (contentId starts with RD or PL)
   if (contentId.startsWith('RD') || contentId.startsWith('PL')) return null;
   
@@ -284,35 +286,49 @@ export function extractLockupViewModel(model) {
   const altThumbPath = 'contentImage.thumbnailViewModel.image.sources';
   const altThumbnails = get(model, altThumbPath);
   
-  // Extract duration from overlay
-  // Try multiple paths where duration might be stored in the new lockup format
+  // Extract duration from overlays
+  // YouTube uses various structures across pages, but duration is always in
+  // thumbnailBadgeViewModel.text matching pattern like "1:23" or "1:23:45"
   let duration = null;
-  const overlayPaths = [
-    'contentImage.collectionThumbnailViewModel.primaryThumbnail.thumbnailViewModel.overlays',
-    'contentImage.thumbnailViewModel.overlays',
-    'rendererContext.thumbnail.overlays',
-  ];
-  for (const path of overlayPaths) {
-    const overlays = get(model, path);
-    if (overlays && Array.isArray(overlays)) {
-      for (const overlay of overlays) {
-        // Try various property names YouTube uses
-        const timeText = overlay?.thumbnailOverlayTimeStatusViewModel?.text
-          || overlay?.thumbnailOverlayTimeStatusRenderer?.text
-          || overlay?.text;
-        if (timeText) {
-          duration = getText(timeText);
-          if (duration) break;
-        }
+  const overlays = get(model, 'contentImage.thumbnailViewModel.overlays') || [];
+  
+  // Recursive search for duration in badge view models
+  const DURATION_PATTERN = /^\d+:\d{2}(:\d{2})?$/;
+  
+  function findDurationInObject(obj, depth = 0) {
+    if (!obj || typeof obj !== 'object' || depth > 10) return null;
+    
+    // Check if this is a thumbnailBadgeViewModel with duration text
+    if (obj.thumbnailBadgeViewModel?.text) {
+      const text = obj.thumbnailBadgeViewModel.text;
+      if (DURATION_PATTERN.test(text)) return text;
+    }
+    
+    // Legacy format check
+    if (obj.thumbnailOverlayTimeStatusViewModel?.text || obj.thumbnailOverlayTimeStatusRenderer?.text) {
+      const text = getText(obj.thumbnailOverlayTimeStatusViewModel?.text || obj.thumbnailOverlayTimeStatusRenderer?.text);
+      if (text && DURATION_PATTERN.test(text)) return text;
+    }
+    
+    // Recurse into arrays and objects
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const found = findDurationInObject(item, depth + 1);
+        if (found) return found;
+      }
+    } else {
+      for (const val of Object.values(obj)) {
+        const found = findDurationInObject(val, depth + 1);
+        if (found) return found;
       }
     }
-    if (duration) break;
+    return null;
   }
   
-  // Also try inlinePlayerData path
+  duration = findDurationInObject(overlays);
+  
+  // Fallback: try inlinePlayerData.lengthSeconds
   if (!duration) {
-    const inlineDuration = get(model, 'inlinePlayerData.videoId');
-    // If we have inlinePlayerData, duration might be in lengthSeconds
     const lengthSeconds = get(model, 'inlinePlayerData.lengthSeconds');
     if (lengthSeconds) {
       duration = formatTimestamp(parseInt(lengthSeconds, 10));
@@ -469,6 +485,8 @@ export function extractVideosForPage(data, pageType) {
     case 'history':
     case 'library':
       return extractHistoryVideos(data);
+    case 'watch':
+      return extractWatchRecommendations(data);
     default:
       // Fallback to recursive for unknown pages
       return extractVideosFromData(data);
@@ -660,6 +678,16 @@ function extractFromContents(contents, videos, seen) {
   for (const item of contents) {
     let video = null;
     
+    // Handle wrapper types that contain nested content arrays
+    if (item.itemSectionRenderer?.contents) {
+      extractFromContents(item.itemSectionRenderer.contents, videos, seen);
+      continue;
+    }
+    if (item.richSectionRenderer?.content?.richShelfRenderer?.contents) {
+      extractFromContents(item.richSectionRenderer.content.richShelfRenderer.contents, videos, seen);
+      continue;
+    }
+    
     // Check each renderer type
     if (item.videoRenderer) {
       video = extractVideoRenderer(item.videoRenderer);
@@ -689,6 +717,39 @@ function extractFromContents(contents, videos, seen) {
       // Skip - these are "load more" triggers, not content
     }
   }
+}
+
+// =============================================================================
+// WATCH PAGE RECOMMENDATIONS
+// =============================================================================
+
+/**
+ * Extract recommended videos from watch page sidebar.
+ * Path: contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results
+ * 
+ * @param {Object} data - ytInitialData
+ * @returns {Array<Video>}
+ */
+function extractWatchRecommendations(data) {
+  const videos = [];
+  const seen = new Set();
+  
+  // Primary path for watch page recommendations
+  const secondary = get(data, 'contents.twoColumnWatchNextResults.secondaryResults.secondaryResults');
+  const results = secondary?.results || [];
+  
+  extractFromContents(results, videos, seen);
+  
+  // Also check for autoplay video
+  const autoplay = get(data, 'contents.twoColumnWatchNextResults.autoplay.autoplay.sets');
+  if (autoplay) {
+    for (const set of autoplay) {
+      const autoplayItems = set?.autoplayVideo ? [set.autoplayVideo] : [];
+      extractFromContents(autoplayItems, videos, seen);
+    }
+  }
+  
+  return videos;
 }
 
 // =============================================================================

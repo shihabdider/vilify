@@ -139,13 +139,13 @@ export function showMessage(msg, duration = 3000) {
  */
 export function flashBoundary() {
   // Template: I/O - DOM animation
-  const container = document.querySelector('.vilify-content');
+  const container = document.getElementById('vilify-content');
   if (!container) return;
 
-  // Add flash class briefly
-  container.classList.add('vilify-boundary-flash');
+  // Add flash class briefly (matches CSS: #vilify-content.flash-end)
+  container.classList.add('flash-end');
   setTimeout(() => {
-    container.classList.remove('vilify-boundary-flash');
+    container.classList.remove('flash-end');
   }, 150);
 }
 

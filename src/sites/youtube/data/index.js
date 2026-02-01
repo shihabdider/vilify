@@ -62,6 +62,7 @@ export function createDataProvider() {
   let cachedInitialData = null;
   let cachedPlayerResponse = null;
   let cachedPageType = null;
+  let cachedContinuationVideos = []; // Videos from lazy load continuations
   
   // Callbacks waiting for data
   let dataReadyCallbacks = [];
@@ -77,19 +78,83 @@ export function createDataProvider() {
     if (type === 'initialData' && data) {
       cachedInitialData = data;
       cachedPageType = detectPageTypeFromData(data);
-      console.log('[Vilify] Received ytInitialData from bridge, pageType:', cachedPageType);
       notifyDataReady();
     }
     
     if (type === 'playerResponse' && data) {
       cachedPlayerResponse = data;
-      console.log('[Vilify] Received playerResponse from bridge');
+    }
+    
+    if (type === 'continuationData' && data) {
+      // Extract videos from continuation response and add to cache
+      const newVideos = extractVideosFromContinuation(data);
+      if (newVideos.length > 0) {
+        cachedContinuationVideos = [...cachedContinuationVideos, ...newVideos];
+      }
     }
     
     if (type === 'dataTimeout') {
-      console.log('[Vilify] Bridge timeout - falling back to DOM');
       notifyDataReady(); // Let UI render with DOM fallback
     }
+  }
+  
+  /**
+   * Extract videos from continuation response
+   */
+  function extractVideosFromContinuation(data) {
+    const videos = [];
+    
+    // Handle onResponseReceivedActions format (common for browse continuations)
+    if (data.onResponseReceivedActions) {
+      for (const action of data.onResponseReceivedActions) {
+        const items = action.appendContinuationItemsAction?.continuationItems || 
+                      action.reloadContinuationItemsCommand?.continuationItems || [];
+        for (const item of items) {
+          const extracted = extractVideoFromRenderer(item);
+          if (extracted) videos.push(extracted);
+        }
+      }
+    }
+    
+    // Handle continuationContents format
+    if (data.continuationContents) {
+      const contents = data.continuationContents;
+      const items = contents.richGridContinuation?.contents ||
+                    contents.gridContinuation?.items ||
+                    contents.sectionListContinuation?.contents || [];
+      for (const item of items) {
+        const extracted = extractVideoFromRenderer(item);
+        if (extracted) videos.push(extracted);
+      }
+    }
+    
+    return videos;
+  }
+  
+  /**
+   * Extract a video from various renderer types
+   */
+  function extractVideoFromRenderer(item) {
+    // Rich item renderer (home, channel)
+    const richContent = item.richItemRenderer?.content;
+    const renderer = richContent?.videoRenderer || 
+                     item.gridVideoRenderer || 
+                     item.videoRenderer ||
+                     item.compactVideoRenderer;
+    
+    if (!renderer?.videoId) return null;
+    
+    return {
+      videoId: renderer.videoId,
+      title: renderer.title?.runs?.[0]?.text || renderer.title?.simpleText || '',
+      channel: renderer.ownerText?.runs?.[0]?.text || renderer.shortBylineText?.runs?.[0]?.text || '',
+      channelUrl: renderer.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl ||
+                  renderer.shortBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || null,
+      views: renderer.viewCountText?.simpleText || renderer.viewCountText?.runs?.[0]?.text || null,
+      published: renderer.publishedTimeText?.simpleText || null,
+      duration: renderer.lengthText?.simpleText || null,
+      thumbnail: renderer.thumbnail?.thumbnails?.[0]?.url || null,
+    };
   }
   
   /**
@@ -110,7 +175,6 @@ export function createDataProvider() {
     if (bridgeListenerInstalled) return;
     document.addEventListener(BRIDGE_EVENT, onBridgeData);
     bridgeListenerInstalled = true;
-    console.log('[Vilify] Bridge listener installed');
   }
   
   /**
@@ -133,7 +197,6 @@ export function createDataProvider() {
         const idx = dataReadyCallbacks.indexOf(resolve);
         if (idx !== -1) {
           dataReadyCallbacks.splice(idx, 1);
-          console.log('[Vilify] waitForData timeout');
           resolve();
         }
       }, timeout);
@@ -142,24 +205,37 @@ export function createDataProvider() {
   
   /**
    * Get videos for current page
+   * Combines initial bridge data with continuation data from lazy loading
    * @returns {Array<ContentItem>}
    */
   function getVideos() {
     // Try bridge data first
     if (cachedInitialData) {
       const pageType = cachedPageType || 'other';
-      const videos = extractVideosForPage(cachedInitialData, pageType);
-      if (videos.length > 0) {
-        console.log(`[Vilify] Using bridge data (${pageType}): ${videos.length} videos`);
-        const items = videos.map(v => ({ ...toContentItem(v), _source: 'bridge' }));
-        return augmentDuration(items);
+      const initialVideos = extractVideosForPage(cachedInitialData, pageType);
+      
+      if (initialVideos.length > 0) {
+        // Combine initial videos with continuation videos
+        const allVideos = [...initialVideos, ...cachedContinuationVideos];
+        
+        // Dedupe by videoId
+        const seen = new Set();
+        const uniqueVideos = allVideos.filter(v => {
+          if (seen.has(v.videoId)) return false;
+          seen.add(v.videoId);
+          return true;
+        });
+        
+        const items = uniqueVideos.map(v => ({ ...toContentItem(v), _source: 'bridge' }));
+        // Duration now extracted directly from API data (see extractors.js extractLockupViewModel)
+        // No need for slow DOM augmentation
+        return items;
       }
     }
     
     // Fallback to DOM scraping
-    console.log('[Vilify] Using DOM fallback');
-    const items = scrapeDOMVideos();
-    return items.map(item => ({ ...item, _source: 'dom' }));
+    const domItems = scrapeDOMVideos();
+    return domItems.map(item => ({ ...item, _source: 'dom' }));
   }
   
   /**
@@ -212,39 +288,20 @@ export function createDataProvider() {
   
   /**
    * Get recommended videos (watch page sidebar)
+   * Uses extractVideosForPage with 'watch' page type
    */
   function getRecommendations() {
-    if (cachedPageType === 'watch' && cachedInitialData) {
-      const secondary = cachedInitialData?.contents?.twoColumnWatchNextResults?.secondaryResults?.secondaryResults;
-      const results = secondary?.results || [];
-      
-      const videos = [];
-      const seen = new Set();
-      
-      for (const item of results) {
-        if (item.lockupViewModel) {
-          const { extractLockupViewModel } = require('./extractors.js');
-          const video = extractLockupViewModel(item.lockupViewModel);
-          if (video && !seen.has(video.videoId)) {
-            seen.add(video.videoId);
-            videos.push(video);
-          }
-        }
-        if (item.compactVideoRenderer) {
-          const { extractCompactVideoRenderer } = require('./extractors.js');
-          const video = extractCompactVideoRenderer(item.compactVideoRenderer);
-          if (video && !seen.has(video.videoId)) {
-            seen.add(video.videoId);
-            videos.push(video);
-          }
-        }
-      }
-      
+    // Check if we're on watch page (from cache or URL)
+    const isWatchPage = cachedPageType === 'watch' || window.location.pathname === '/watch';
+    
+    if (isWatchPage && cachedInitialData) {
+      const videos = extractVideosForPage(cachedInitialData, 'watch');
       if (videos.length > 0) {
         return videos.map(toContentItem);
       }
     }
     
+    // Fallback to DOM scraping
     return scrapeDOMRecommendations();
   }
   
@@ -259,9 +316,10 @@ export function createDataProvider() {
    * Clear cached data (called on navigation)
    */
   function clearCache() {
-    // Don't clear - bridge will send new data
-    // Just reset page type so we re-detect
+    // Don't clear initial data - bridge will send new data
+    // Reset page type so we re-detect, and clear continuation cache
     cachedPageType = null;
+    cachedContinuationVideos = [];
   }
   
   /**
