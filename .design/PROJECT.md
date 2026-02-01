@@ -159,4 +159,4 @@ Future work and ideas:
 5. ~~Bug: upload date missing in the watch page~~ ✓ Done (iteration 012)
 6. Implement `gg` and `G` to go to top or bottom of the list
 7. ~~Bug: sometimes comments don't all load on initial load~~ ✓ Fixed (iteration 013)
-8. Improve subscribe button styling - kbd element looks awkward inside button, needs better visual integration
+8. UX improvements for watch page video metadata container - subscribe button kbd styling, layout/spacing, visual hierarchy
