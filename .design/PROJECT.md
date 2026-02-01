@@ -84,9 +84,11 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 011 | youtube-transcripts | View, search, and navigate video transcripts |
 | 012 | metadata-display | Show views/duration in listings, fix watch page metadata |
 
-### Planned
+### In Progress
 
-(None currently)
+| # | Name | Summary | Status |
+|---|------|---------|--------|
+| 013 | page-scrapers | Replace recursive data extraction with page-type-specific extractors | Brainstorm ✓ |
 
 ## Current Issues
 
