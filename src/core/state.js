@@ -12,7 +12,7 @@
  *   => { focusModeActive: false, drawerState: null, paletteQuery: '',
  *        paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
  *        localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
- *        keySeq: '', lastUrl: '' }
+ *        keySeq: '', lastUrl: '', sortField: null, sortDirection: 'desc' }
  */
 export function createAppState() {
   // Template: Compound - construct all fields
@@ -27,7 +27,10 @@ export function createAppState() {
     siteSearchActive: false,
     siteSearchQuery: '',
     keySeq: '',
-    lastUrl: ''
+    lastUrl: '',
+    // Sort state (listing pages only)
+    sortField: null,      // null | 'date' | 'duration' | 'title' | 'channel' | 'views'
+    sortDirection: 'desc' // 'asc' | 'desc'
   };
 }
 

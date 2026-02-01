@@ -96,6 +96,21 @@ const FOCUS_MODE_CSS = `
     color: var(--txt-3);
   }
 
+  .vilify-status-sort {
+    color: var(--txt-3);
+    font-size: 11px;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: var(--bg-2);
+    border: 1px solid var(--bg-3);
+  }
+
+  .vilify-status-count {
+    color: var(--txt-3);
+    font-size: 11px;
+    margin-left: 8px;
+  }
+
   .vilify-status-hints {
     color: var(--txt-3);
     font-size: 11px;
@@ -460,13 +475,19 @@ function createStatusBar(state) {
     }
   });
 
+  // Sort indicator (shown when sort is active)
+  const sortIndicator = el('span', { class: 'vilify-status-sort', id: 'vilify-status-sort', style: 'display: none' }, []);
+
+  // Item count
+  const countIndicator = el('span', { class: 'vilify-status-count', id: 'vilify-status-count' }, []);
+
   // Hints area (shown when drawer is open)
   const hints = el('span', { class: 'vilify-status-hints', id: 'vilify-status-hints' }, []);
 
   // Message area
   const message = el('span', { class: 'vilify-status-message', id: 'vilify-status-message' }, []);
 
-  const leftDiv = el('div', { class: 'vilify-status-left' }, [modeBadge, input]);
+  const leftDiv = el('div', { class: 'vilify-status-left' }, [modeBadge, sortIndicator, countIndicator, input]);
   const rightDiv = el('div', { class: 'vilify-status-right' }, [hints, message]);
 
   return el('div', { class: 'vilify-status-bar' }, [leftDiv, rightDiv]);
@@ -537,6 +558,38 @@ export function updateStatusBar(state, focusInput = false, drawerPlaceholder = n
     } else {
       hints.innerHTML = '';
     }
+  }
+}
+
+/**
+ * Update sort indicator in status bar.
+ * [I/O]
+ *
+ * @param {string|null} sortLabel - Sort label (e.g., "date↓") or null/empty to hide
+ */
+export function updateSortIndicator(sortLabel) {
+  const sortEl = document.getElementById('vilify-status-sort');
+  if (sortEl) {
+    if (sortLabel) {
+      sortEl.textContent = sortLabel;
+      sortEl.style.display = 'inline';
+    } else {
+      sortEl.textContent = '';
+      sortEl.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Update item count in status bar.
+ * [I/O]
+ *
+ * @param {number} count - Number of items
+ */
+export function updateItemCount(count) {
+  const countEl = document.getElementById('vilify-status-count');
+  if (countEl) {
+    countEl.textContent = count > 0 ? `[${count}]` : '';
   }
 }
 

@@ -89,6 +89,7 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 016 | drawer-cleanup | Unified drawer architecture, deleted modals.js, renamed 'filter' to 'recommended' |
 | 017 | channel-videos-navigation | `gc` goes to channel/videos, lazy loading trigger on listing pages |
 | 018 | gg-G-navigation | `gg` goes to top, `G` goes to bottom of list |
+| 020 | list-sorting | Sort listings via `:sort` command with Vim-style prefix matching |
 
 ### In Progress
 
@@ -159,7 +160,7 @@ Future work and ideas:
 
 1. ~~Subscribe button itself should contain the key hint `[M]`~~ ✓ Done
 2. ~~Go to channel (`gc`) should go to the channel videos link instead of just the channel page (should also handle lazy loading more videos)~~ ✓ Done (iteration 017)
-3. Add ability to sort on lists (alphabetical title, channel, by upload date, views, duration)
+3. ~~Add ability to sort on lists (alphabetical title, channel, by upload date, views, duration)~~ ✓ Done (iteration 020)
 4. ~~Show views and duration in listings~~ ✓ Done (iteration 012)
 5. ~~Bug: upload date missing in the watch page~~ ✓ Done (iteration 012)
 6. ~~Implement `gg` and `G` to go to top or bottom of the list~~ ✓ Done (iteration 018)

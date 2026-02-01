@@ -10,7 +10,8 @@ import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js
 import { fetchTranscript } from './transcript.js';
 import { getSiteState, setSiteState } from '../../core/index.js';
 import { renderYouTubeItem, injectYouTubeItemStyles } from './items.js';
-import { renderListing } from '../../core/layout.js';
+import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout.js';
+import { sortItems, getSortLabel } from '../../core/sort.js';
 
 // =============================================================================
 // THEME
@@ -95,6 +96,15 @@ function renderYouTubeListing(state, siteState, container) {
       i.meta?.toLowerCase().includes(q)
     );
   }
+  
+  // Apply sorting if active
+  if (state.sortField) {
+    items = sortItems(items, state.sortField, state.sortDirection);
+  }
+  
+  // Update sort indicator and count in status bar
+  updateSortIndicator(getSortLabel(state.sortField, state.sortDirection));
+  updateItemCount(items.length);
   
   renderListing(items, state.selectedIdx, container, renderYouTubeItem);
 }

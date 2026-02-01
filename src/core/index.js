@@ -6,7 +6,8 @@ import { el, clear, updateListSelection, showMessage, flashBoundary, navigateLis
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
 import { setupNavigationObserver } from './navigation.js';
 import { setupKeyboardHandler } from './keyboard.js';
-import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, removeFocusMode } from './layout.js';
+import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, updateSortIndicator, updateItemCount, removeFocusMode } from './layout.js';
+import { sortItems, parseSortCommand, getSortLabel, getDefaultDirection, toggleDirection, SORT_FIELDS } from './sort.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
 
@@ -313,12 +314,21 @@ function render() {
       const items = currentConfig.getItems ? currentConfig.getItems() : [];
 
       // Apply local filter if active (matches title or channel/meta)
-      const filtered = state.localFilterActive
+      let filtered = state.localFilterActive
         ? items.filter((i) => {
             const q = state.localFilterQuery.toLowerCase();
             return i.title?.toLowerCase().includes(q) || i.meta?.toLowerCase().includes(q);
           })
         : items;
+
+      // Apply sorting if active
+      if (state.sortField) {
+        filtered = sortItems(filtered, state.sortField, state.sortDirection);
+      }
+
+      // Update sort indicator and count in status bar
+      updateSortIndicator(getSortLabel(state.sortField, state.sortDirection));
+      updateItemCount(filtered.length);
 
       renderListing(filtered, state.selectedIdx, container);
     }
@@ -348,6 +358,28 @@ function render() {
             state.focusModeActive = false;
             removeFocusMode();
             document.body.classList.remove('vilify-watch-page');
+          },
+          executeSort: (field) => {
+            state = closePalette(state);
+            if (!field) {
+              // Reset sort
+              state.sortField = null;
+              state.sortDirection = 'desc';
+              state.selectedIdx = 0;
+              showMessage('Sort reset');
+            } else if (state.sortField === field) {
+              // Same field - toggle direction
+              state.sortDirection = toggleDirection(state.sortDirection);
+              state.selectedIdx = 0;
+              showMessage(`Sorted by ${getSortLabel(state.sortField, state.sortDirection)}`);
+            } else {
+              // New field
+              state.sortField = field;
+              state.sortDirection = getDefaultDirection(field);
+              state.selectedIdx = 0;
+              showMessage(`Sorted by ${getSortLabel(state.sortField, state.sortDirection)}`);
+            }
+            render();
           },
         })
       : [];
@@ -509,6 +541,49 @@ function handleCommandSubmit(value, shiftKey) {
     
     showMessage('Focus mode off (refresh to re-enable)');
     return;
+  }
+
+  // Check for :sort command
+  const sortMatch = value.trim().match(/^:?sort\s*(.*)$/i);
+  if (sortMatch !== null) {
+    const sortArg = sortMatch[1].trim();
+    
+    if (!sortArg) {
+      // :sort with no argument - reset to default order
+      state = closePalette(state);
+      state.sortField = null;
+      state.sortDirection = 'desc';
+      state.selectedIdx = 0;
+      showMessage('Sort reset');
+      render();
+      return;
+    }
+    
+    const parsed = parseSortCommand(sortArg);
+    if (parsed) {
+      state = closePalette(state);
+      
+      // If same field, toggle direction. If different field or reverse flag, set appropriately
+      if (state.sortField === parsed.field && !parsed.reverse) {
+        // Same field - toggle direction
+        state.sortDirection = toggleDirection(state.sortDirection);
+      } else {
+        // New field or explicit reverse
+        state.sortField = parsed.field;
+        const defaultDir = getDefaultDirection(parsed.field);
+        state.sortDirection = parsed.reverse ? toggleDirection(defaultDir) : defaultDir;
+      }
+      
+      state.selectedIdx = 0; // Reset selection when sorting
+      const label = getSortLabel(state.sortField, state.sortDirection);
+      showMessage(`Sorted by ${label}`);
+      render();
+      return;
+    } else {
+      // Invalid sort field
+      showMessage(`Unknown sort field: ${sortArg}`);
+      return;
+    }
   }
 
   // Execute selected command
@@ -729,6 +804,8 @@ function handleNavigation(oldUrl, newUrl) {
   state.localFilterActive = false;
   state.drawerState = null;
   state.lastUrl = newUrl;
+  state.sortField = null;
+  state.sortDirection = 'desc';
   lastRenderedDrawer = null;
 
   // Reset site-specific state if needed

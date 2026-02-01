@@ -269,6 +269,50 @@ export function getYouTubeCommands(app) {
       action: () => app?.openRecommended?.(),
       keys: '/',
     });
+    // --- Sort commands for listing pages ---
+    commands.push({ group: 'Sort' });
+    commands.push({
+      type: 'command',
+      label: 'Sort by date',
+      icon: '📅',
+      action: () => app?.executeSort?.('date'),
+      keys: ':sort da',
+    });
+    commands.push({
+      type: 'command',
+      label: 'Sort by duration',
+      icon: '⏱',
+      action: () => app?.executeSort?.('duration'),
+      keys: ':sort du',
+    });
+    commands.push({
+      type: 'command',
+      label: 'Sort by title',
+      icon: '🔤',
+      action: () => app?.executeSort?.('title'),
+      keys: ':sort t',
+    });
+    commands.push({
+      type: 'command',
+      label: 'Sort by channel',
+      icon: '👤',
+      action: () => app?.executeSort?.('channel'),
+      keys: ':sort c',
+    });
+    commands.push({
+      type: 'command',
+      label: 'Sort by views',
+      icon: '👁',
+      action: () => app?.executeSort?.('views'),
+      keys: ':sort v',
+    });
+    commands.push({
+      type: 'command',
+      label: 'Reset sort',
+      icon: '↩',
+      action: () => app?.executeSort?.(null),
+      keys: ':sort',
+    });
   }
   commands.push({
     type: 'command',
