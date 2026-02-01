@@ -218,8 +218,14 @@ export function extractRichItemRenderer(renderer) {
   const content = renderer.content;
   if (!content) return null;
   
+  // Old format: videoRenderer inside content
   if (content.videoRenderer) {
     return extractVideoRenderer(content.videoRenderer);
+  }
+  
+  // New format: lockupViewModel inside content (home page 2024+)
+  if (content.lockupViewModel) {
+    return extractLockupViewModel(content.lockupViewModel);
   }
   
   // Could also wrap shorts, ads, etc. - ignore those
@@ -492,6 +498,11 @@ function extractHomeVideos(data) {
   for (const tab of singleTabs) {
     const contents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
     extractFromContents(contents, videos, seen);
+  }
+  
+  // If still no videos, try recursive fallback on home page
+  if (videos.length === 0) {
+    return extractVideosFromData(data);
   }
   
   return videos;
