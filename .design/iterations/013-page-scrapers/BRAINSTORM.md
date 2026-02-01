@@ -10,7 +10,36 @@ Videos and metadata (especially duration) don't display correctly on initial loa
 
 ## Root Cause Analysis
 
-The current `extractVideosFromData()` in `data/extractors.js` uses a **recursive walk** that searches the entire `ytInitialData` for ANY video renderer type:
+### Issue 1: Stale Data on SPA Navigation (PRIMARY)
+
+On SPA navigation, `window.ytInitialData` contains **OLD data**:
+
+1. User clicks link, URL changes
+2. YouTube fetches fresh data via `/youtubei/v1/browse` or `/youtubei/v1/search`
+3. **We read `window.ytInitialData` which still has OLD page data**
+4. Fall back to DOM scraping which isn't ready yet → partial results
+5. Eventually YouTube updates `ytInitialData` → re-render shows correct data
+
+### Issue 2: Fetch Intercept Not Integrated
+
+A spike was created (`010-scraping-engine/spike/data-intercept.user.js`) that intercepts fetch:
+
+```javascript
+window.fetch = async function(...args) {
+  const response = await originalFetch.apply(this, args);
+  if (url.includes('/youtubei/v1/')) {
+    const data = await response.clone().json();
+    // This has FRESH data!
+  }
+  return response;
+};
+```
+
+**This was never integrated into production code.**
+
+### Issue 3: Recursive Walk (Secondary)
+
+The `extractVideosFromData()` uses a recursive walk that may find partial/scattered data:
 
 ```javascript
 function walk(obj, depth = 0) {
@@ -22,18 +51,9 @@ function walk(obj, depth = 0) {
 }
 ```
 
-**Problems with this approach:**
+### Issue 4: Duration Gap
 
-1. **Timing sensitivity**: YouTube's SPA loads `ytInitialData` progressively. Recursive walking may find partial data early.
-
-2. **Mixed sources**: On home page, recursive walk might find videos scattered in:
-   - Primary content grid (correct)
-   - Continuation tokens (stale)
-   - Ads/promo sections (wrong)
-
-3. **No page awareness**: Doesn't use page type to know WHERE videos should be in the structure.
-
-4. **Duration gap**: `lockupViewModel` in ytInitialData often lacks duration. The DOM augmentation runs but DOM may not have elements yet on initial load.
+`lockupViewModel` in ytInitialData often lacks duration. DOM augmentation races with rendering.
 
 ## Current Architecture
 
@@ -55,55 +75,93 @@ But the data layer ignores page type and walks everything.
 
 ## Solution
 
-Replace recursive extraction with **page-type-specific extractors** that know exactly where videos live in `ytInitialData`.
+### Part A: Integrate Fetch Interception
 
-### YouTube Data Locations by Page Type
+Intercept `/youtubei/v1/` API calls to capture **fresh data** on SPA navigation:
 
-| Page | Path in ytInitialData | Renderer Type |
-|------|----------------------|---------------|
-| home | `contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.richGridRenderer.contents` | `richItemRenderer` → `videoRenderer` |
-| search | `contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents[].itemSectionRenderer.contents` | `videoRenderer` |
-| channel | `contents.twoColumnBrowseResultsRenderer.tabs[N].tabRenderer.content.richGridRenderer.contents` (N = Videos tab) | `richItemRenderer` / `gridVideoRenderer` |
-| subscriptions | `contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents` | `richItemRenderer` / `gridVideoRenderer` |
-| playlist | `contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[].playlistVideoListRenderer.contents` | `playlistVideoRenderer` |
-| history | `contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents` | `videoRenderer` |
-| watch | N/A (no listing) | - |
+```javascript
+// In data/fetch-intercept.js
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+  const response = await originalFetch.apply(this, args);
+  const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+  
+  if (url?.includes('/youtubei/v1/')) {
+    const clone = response.clone();
+    const data = await clone.json();
+    // Store in DataProvider cache
+    dataProvider.updateFromApiResponse(url, data);
+  }
+  return response;
+};
+```
+
+**Key endpoints:**
+| Endpoint | When | Data |
+|----------|------|------|
+| `/youtubei/v1/browse` | Home, channel, subscriptions, history | Videos list |
+| `/youtubei/v1/search` | Search results | Videos list |
+| `/youtubei/v1/next` | Watch page load | Recommendations |
+| `/youtubei/v1/player` | Watch page load | Video details |
+
+### Part B: Page-Type-Specific Extractors
+
+Replace recursive walk with extractors that access known paths:
+
+| Page | Path in data | Renderer Type |
+|------|-------------|---------------|
+| home | `contents.twoColumnBrowseResultsRenderer.tabs[0]...richGridRenderer.contents` | `richItemRenderer` |
+| search | `contents.twoColumnSearchResultsRenderer.primaryContents...itemSectionRenderer.contents` | `videoRenderer` |
+| channel | `tabs[N]...richGridRenderer.contents` (Videos tab) | `richItemRenderer` / `gridVideoRenderer` |
+| playlist | `playlistVideoListRenderer.contents` | `playlistVideoRenderer` |
 
 ### New Architecture
 
 ```
-getVideos() [data/index.js]
-  └─ refresh() - parse ytInitialData, get pageType
-  └─ extractVideosForPage(data, pageType) - PAGE-SPECIFIC extraction
-      ├─ extractHomeVideos(data)
-      ├─ extractSearchVideos(data)
-      ├─ extractChannelVideos(data)
-      └─ ... etc
-  └─ fallback to scrapeDOMVideos() if empty
+                    ┌─────────────────────────────┐
+                    │      Fetch Intercept        │
+                    │  /youtubei/v1/* responses   │
+                    └─────────────┬───────────────┘
+                                  │ fresh data
+                                  ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      DataProvider                            │
+├─────────────────────────────────────────────────────────────┤
+│  cachedData ← API response OR ytInitialData                 │
+│  pageType ← detected from URL or data structure             │
+├─────────────────────────────────────────────────────────────┤
+│  getVideos()                                                │
+│    └─ extractVideosForPage(data, pageType)                  │
+│        ├─ extractHomeVideos(data)                           │
+│        ├─ extractSearchVideos(data)                         │
+│        ├─ extractChannelVideos(data)                        │
+│        └─ ...                                               │
+│    └─ fallback: scrapeDOMVideos()                          │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Key changes:**
-1. Remove `extractVideosFromData()` recursive walker
-2. Add `extractVideosForPage(data, pageType)` dispatcher
-3. Add page-specific extractors that access known paths
-4. Keep DOM fallback but only trigger when data extraction returns empty
+**Data priority:**
+1. Fresh API response (from fetch intercept)
+2. `window.ytInitialData` (for initial page load)
+3. DOM scraping (fallback)
 
 ## Behaviors
 
 | ID | Behavior | Test |
 |----|----------|------|
-| B1 | Home page extracts videos from richGridRenderer path | Load home, verify correct count immediately |
-| B2 | Search page extracts videos from sectionListRenderer path | Search, verify videos have duration |
-| B3 | Channel page extracts videos from Videos tab | Visit channel, verify video list |
-| B4 | Duration is extracted from data OR augmented from DOM correctly | All pages show duration on first render |
-| B5 | DOM fallback only triggers when data extraction fails | Console log shows extraction source |
+| B1 | Fetch intercept captures `/youtubei/v1/browse` responses | Navigate home→search, data updates immediately |
+| B2 | Fetch intercept captures `/youtubei/v1/search` responses | Search query, results appear without delay |
+| B3 | Page-specific extractors access correct data paths | Home extracts from richGridRenderer, search from itemSectionRenderer |
+| B4 | Duration shows on first render | All pages show duration immediately |
+| B5 | DOM fallback only triggers when API/data extraction fails | Console log shows extraction source |
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
+| `src/sites/youtube/data/fetch-intercept.js` | NEW - intercept fetch, store responses |
 | `src/sites/youtube/data/extractors.js` | Add page-specific extractors, deprecate recursive walk |
-| `src/sites/youtube/data/index.js` | Call page-specific extractor based on pageType |
+| `src/sites/youtube/data/index.js` | Use fetch data first, then ytInitialData, then DOM |
 
 ## Comment Loading Bug
 
