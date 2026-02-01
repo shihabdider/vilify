@@ -81,12 +81,24 @@ const WATCH_CSS = `
   
   /* Video info panel */
   .vilify-watch-title { font-size: 14px; color: var(--txt-1); margin: 0 0 8px; line-height: 1.4; }
-  .vilify-watch-channel { color: var(--txt-2); font-size: 13px; }
+  .vilify-watch-channel { 
+    color: var(--txt-2); font-size: 13px;
+    display: flex; align-items: baseline;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .vilify-watch-channel-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
   .vilify-watch-stats { color: var(--txt-3); font-size: 12px; margin-top: 4px; }
   
   /* Subscription status indicator (after channel name) */
   /* "subscribed" = grey, "subscribe" = red */
-  .vilify-sub-status { color: var(--txt-3); }
+  .vilify-sub-status { color: var(--txt-3); flex: 0 0 auto; white-space: nowrap; margin-left: 4px; }
   .vilify-sub-status.not-subscribed { color: var(--accent); }
   
   /* Action row with keyboard hints */
@@ -244,11 +256,12 @@ function renderVideoInfoBox(ctx, siteState = null) {
   // Inventory: ctx.title, ctx.channelName, ctx.isSubscribed, ctx.uploadDate
   
   // Channel with subscription status (always visible)
-  const channelChildren = [ctx.channelName || 'Unknown'];
+  // Wrap channel name in span for truncation, keep subscribe status visible
+  const channelNameEl = el('span', { class: 'vilify-watch-channel-name' }, [ctx.channelName || 'Unknown']);
   const subStatusClass = ctx.isSubscribed ? 'vilify-sub-status' : 'vilify-sub-status not-subscribed';
-  const subStatusText = ctx.isSubscribed ? ' · subscribed' : ' · subscribe';
-  channelChildren.push(el('span', { class: subStatusClass, id: 'vilify-sub-status' }, [subStatusText]));
-  const channelEl = el('div', { class: 'vilify-watch-channel' }, channelChildren);
+  const subStatusText = ctx.isSubscribed ? '· subscribed' : '· subscribe';
+  const subStatusEl = el('span', { class: subStatusClass, id: 'vilify-sub-status' }, [subStatusText]);
+  const channelEl = el('div', { class: 'vilify-watch-channel' }, [channelNameEl, subStatusEl]);
   
   // Stats row: upload date · views · duration (all on one line)
   const statsParts = [];
@@ -824,7 +837,7 @@ export function updateSubscribeButton(isSubscribed) {
   // Update status indicator after channel name
   const statusEl = document.getElementById('vilify-sub-status');
   if (statusEl) {
-    statusEl.textContent = isSubscribed ? ' · subscribed' : ' · subscribe';
+    statusEl.textContent = isSubscribed ? '· subscribed' : '· subscribe';
     if (isSubscribed) {
       statusEl.classList.remove('not-subscribed');
     } else {

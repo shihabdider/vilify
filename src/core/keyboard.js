@@ -343,7 +343,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         // Update subscription status indicator after channel name
         const statusEl = document.getElementById('vilify-sub-status');
         if (statusEl) {
-          statusEl.textContent = isSubscribed ? ' · subscribed' : ' · subscribe';
+          statusEl.textContent = isSubscribed ? '· subscribed' : '· subscribe';
           if (isSubscribed) {
             statusEl.classList.remove('not-subscribed');
           } else {

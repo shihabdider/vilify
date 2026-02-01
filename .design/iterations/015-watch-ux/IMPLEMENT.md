@@ -1,6 +1,6 @@
 # 015 - Watch Page UX Implementation
 
-## Status: ✓ Complete (v0.5.6)
+## Status: ✓ Complete (v0.5.17)
 
 ## Final Design
 
@@ -48,10 +48,16 @@
 
 - `updateSubscribeButton()` now updates both `#vilify-sub-status` and `#vilify-sub-action`
 
+### 5. Channel Name Truncation (v0.5.17)
+
+- Channel name now truncates with ellipsis when too long
+- Subscribe status indicator stays visible on same line
+- Uses flexbox layout: channel name shrinks, status stays fixed
+
 ## Files Modified
 
 - `src/sites/youtube/watch.js` - New layout, CSS, render functions
 - `src/sites/youtube/data/index.js` - Fix isSubscribed from DOM
 - `src/sites/youtube/commands.js` - Fix unsubscribe confirmation
 - `src/core/keyboard.js` - Update subscribe button handler
-- `package.json` / `manifest.json` - Version 0.5.6
+- `package.json` / `manifest.json` - Version 0.5.17
