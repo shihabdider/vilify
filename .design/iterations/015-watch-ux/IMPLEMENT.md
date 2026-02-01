@@ -1,6 +1,6 @@
 # 015 - Watch Page UX Implementation
 
-## Status: ✓ Complete (v0.5.17)
+## Status: ✓ Complete (v0.5.23)
 
 ## Final Design
 
@@ -48,11 +48,12 @@
 
 - `updateSubscribeButton()` now updates both `#vilify-sub-status` and `#vilify-sub-action`
 
-### 5. Channel Name Truncation (v0.5.17)
+### 5. Channel Name Truncation (v0.5.23)
 
 - Channel name now truncates with ellipsis when too long
 - Subscribe status indicator stays visible on same line
-- Uses flexbox layout: channel name shrinks, status stays fixed
+- Uses flexbox layout: channel name shrinks (`flex: 0 1 auto`), status stays fixed (`flex: 0 0 auto`)
+- Fixed spacing around dot separator with `margin-left: 4px`
 
 ## Files Modified
 
