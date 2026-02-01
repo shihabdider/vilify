@@ -209,13 +209,10 @@ export function renderWatchPage(ctx, state, container) {
   const commentsBox = renderCommentsBox(commentsResult, state);
   container.appendChild(commentsBox);
   
-  // Set up retry to re-check comments if:
-  // - Status is 'loading', OR
-  // - Status is 'loaded' but no comments yet (YouTube may not have populated DOM)
-  const needsRetry = commentsResult.status === 'loading' || 
-    (commentsResult.status === 'loaded' && commentsResult.comments.length === 0);
-  
-  if (needsRetry) {
+  // Always set up retry/observer unless comments are disabled.
+  // YouTube lazy-loads comments, so even if we have some initially,
+  // more may arrive. The observer will stop when comments stabilize.
+  if (commentsResult.status !== 'disabled') {
     scheduleCommentRetry(state, container, ctx);
   }
   
@@ -698,7 +695,8 @@ function stopCommentObserver() {
 
 /**
  * Schedule a retry to refresh comments after YouTube loads them
- * Uses both MutationObserver and timer-based retry for reliability
+ * Uses both MutationObserver and timer-based retry for reliability.
+ * Stops when comments stabilize (no new comments for 3 consecutive checks).
  * [I/O]
  * 
  * @param {YouTubeState} state - YouTube state
@@ -710,9 +708,14 @@ function scheduleCommentRetry(state, container, ctx) {
   stopCommentObserver();
   
   let retryCount = 0;
-  const maxRetries = 10;
+  const maxRetries = 15;
   const retryDelay = 800;
-  let lastCommentCount = 0;
+  let stableCount = 0;        // How many consecutive checks with no new comments
+  const stableThreshold = 3;  // Stop after this many stable checks
+  
+  // Initialize with current comment count
+  const initialResult = getComments();
+  let lastCommentCount = initialResult.comments.length;
   
   // Set up MutationObserver on comments container - keeps running to detect more comments
   const commentsContainer = document.querySelector('ytd-comments, #comments');
@@ -722,6 +725,7 @@ function scheduleCommentRetry(state, container, ctx) {
       // Only update if we got MORE comments than before
       if (comments.length > lastCommentCount) {
         lastCommentCount = comments.length;
+        stableCount = 0; // Reset stable counter
         console.log('[Vilify] MutationObserver detected comments:', comments.length);
         updateCommentsUI(comments);
       }
@@ -738,7 +742,6 @@ function scheduleCommentRetry(state, container, ctx) {
     
     // Check if comments loaded
     const commentsResult = getComments();
-    const hasComments = commentsResult.comments.length > 0;
     const isDisabled = commentsResult.status === 'disabled';
     
     if (isDisabled) {
@@ -751,23 +754,29 @@ function scheduleCommentRetry(state, container, ctx) {
           el('div', { class: 'vilify-comments-status' }, ['Comments are disabled'])
         );
       }
-    } else if (hasComments && commentsResult.comments.length > lastCommentCount) {
+      return;
+    }
+    
+    if (commentsResult.comments.length > lastCommentCount) {
       // Got more comments than before
       lastCommentCount = commentsResult.comments.length;
+      stableCount = 0; // Reset stable counter
       console.log('[Vilify] Retry found comments:', lastCommentCount);
       updateCommentsUI(commentsResult.comments);
-      
-      // Keep retrying a few more times to get more comments
-      if (retryCount < maxRetries) {
-        commentRetryTimer = setTimeout(retry, retryDelay);
-      } else {
-        stopCommentObserver();
-      }
+    } else {
+      // No new comments this check
+      stableCount++;
+      console.log('[Vilify] Comments stable check:', stableCount, '/', stableThreshold);
+    }
+    
+    // Stop if comments have stabilized or max retries reached
+    if (stableCount >= stableThreshold) {
+      console.log('[Vilify] Comments stabilized at', lastCommentCount);
+      stopCommentObserver();
     } else if (retryCount < maxRetries) {
-      // No new comments, keep trying
       commentRetryTimer = setTimeout(retry, retryDelay);
     } else {
-      // Max retries reached, stop trying
+      console.log('[Vilify] Max comment retries reached');
       stopCommentObserver();
     }
   }

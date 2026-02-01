@@ -83,12 +83,11 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 010 | scraping-engine | Robust scraping with declarative selectors, MutationObserver |
 | 011 | youtube-transcripts | View, search, and navigate video transcripts |
 | 012 | metadata-display | Show views/duration in listings, fix watch page metadata |
+| 013 | page-scrapers | Fetch interception, page-specific extractors, comment loading fix |
 
 ### In Progress
 
-| # | Name | Summary | Status |
-|---|------|---------|--------|
-| 013 | page-scrapers | Replace recursive data extraction with page-type-specific extractors | Brainstorm ✓ |
+(None currently)
 
 ## Current Issues
 

@@ -437,11 +437,257 @@ export function extractVideoContext(initialData, playerResponse) {
 }
 
 // =============================================================================
-// RECURSIVE VIDEO EXTRACTION
+// PAGE-SPECIFIC EXTRACTORS
 // =============================================================================
 
 /**
- * Recursively extract all videos from ytInitialData
+ * Extract videos for a specific page type from data.
+ * Uses targeted paths instead of recursive walk for better reliability.
+ * 
+ * @param {Object} data - ytInitialData or API response
+ * @param {string} pageType - Current page type
+ * @returns {Array<Video>}
+ */
+export function extractVideosForPage(data, pageType) {
+  switch (pageType) {
+    case 'home':
+      return extractHomeVideos(data);
+    case 'search':
+      return extractSearchVideos(data);
+    case 'channel':
+      return extractChannelVideos(data);
+    case 'subscriptions':
+      return extractSubscriptionsVideos(data);
+    case 'playlist':
+      return extractPlaylistVideos(data);
+    case 'history':
+    case 'library':
+      return extractHistoryVideos(data);
+    default:
+      // Fallback to recursive for unknown pages
+      return extractVideosFromData(data);
+  }
+}
+
+/**
+ * Extract videos from home page data.
+ * Path: contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.richGridRenderer.contents
+ * 
+ * @param {Object} data
+ * @returns {Array<Video>}
+ */
+function extractHomeVideos(data) {
+  const videos = [];
+  const seen = new Set();
+  
+  // Primary path for home page
+  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
+  for (const tab of tabs) {
+    const contents = get(tab, 'tabRenderer.content.richGridRenderer.contents') || [];
+    extractFromContents(contents, videos, seen);
+  }
+  
+  // Also check singleColumnBrowseResultsRenderer (mobile/alternate layout)
+  const singleTabs = get(data, 'contents.singleColumnBrowseResultsRenderer.tabs') || [];
+  for (const tab of singleTabs) {
+    const contents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
+    extractFromContents(contents, videos, seen);
+  }
+  
+  return videos;
+}
+
+/**
+ * Extract videos from search results.
+ * Path: contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents
+ * 
+ * @param {Object} data
+ * @returns {Array<Video>}
+ */
+function extractSearchVideos(data) {
+  const videos = [];
+  const seen = new Set();
+  
+  // Primary path for search
+  const sections = get(data, 'contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents') || [];
+  
+  for (const section of sections) {
+    // itemSectionRenderer contains the actual results
+    const items = get(section, 'itemSectionRenderer.contents') || [];
+    extractFromContents(items, videos, seen);
+  }
+  
+  return videos;
+}
+
+/**
+ * Extract videos from channel page.
+ * Find "Videos" or "Home" tab, then extract from richGridRenderer.
+ * 
+ * @param {Object} data
+ * @returns {Array<Video>}
+ */
+function extractChannelVideos(data) {
+  const videos = [];
+  const seen = new Set();
+  
+  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
+  
+  for (const tab of tabs) {
+    const tabTitle = get(tab, 'tabRenderer.title');
+    const isSelected = get(tab, 'tabRenderer.selected');
+    
+    // Extract from selected tab or Videos/Home tabs
+    if (isSelected || tabTitle === 'Videos' || tabTitle === 'Home') {
+      // Rich grid (modern layout)
+      const richContents = get(tab, 'tabRenderer.content.richGridRenderer.contents') || [];
+      extractFromContents(richContents, videos, seen);
+      
+      // Section list (alternate layout)
+      const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
+      for (const section of sectionContents) {
+        const items = get(section, 'itemSectionRenderer.contents') || [];
+        extractFromContents(items, videos, seen);
+        
+        // Shelf renderer (featured videos)
+        const shelfItems = get(section, 'shelfRenderer.content.horizontalListRenderer.items') || [];
+        extractFromContents(shelfItems, videos, seen);
+      }
+    }
+  }
+  
+  return videos;
+}
+
+/**
+ * Extract videos from subscriptions page.
+ * 
+ * @param {Object} data
+ * @returns {Array<Video>}
+ */
+function extractSubscriptionsVideos(data) {
+  const videos = [];
+  const seen = new Set();
+  
+  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
+  
+  for (const tab of tabs) {
+    // Rich grid layout
+    const richContents = get(tab, 'tabRenderer.content.richGridRenderer.contents') || [];
+    extractFromContents(richContents, videos, seen);
+    
+    // Section list layout
+    const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
+    for (const section of sectionContents) {
+      const items = get(section, 'itemSectionRenderer.contents') || [];
+      extractFromContents(items, videos, seen);
+    }
+  }
+  
+  return videos;
+}
+
+/**
+ * Extract videos from playlist page.
+ * 
+ * @param {Object} data
+ * @returns {Array<Video>}
+ */
+function extractPlaylistVideos(data) {
+  const videos = [];
+  const seen = new Set();
+  
+  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
+  
+  for (const tab of tabs) {
+    const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
+    
+    for (const section of sectionContents) {
+      // Playlist video list
+      const playlistItems = get(section, 'playlistVideoListRenderer.contents') ||
+                           get(section, 'itemSectionRenderer.contents') || [];
+      extractFromContents(playlistItems, videos, seen);
+    }
+  }
+  
+  return videos;
+}
+
+/**
+ * Extract videos from history/library pages.
+ * 
+ * @param {Object} data
+ * @returns {Array<Video>}
+ */
+function extractHistoryVideos(data) {
+  const videos = [];
+  const seen = new Set();
+  
+  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
+  
+  for (const tab of tabs) {
+    const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
+    
+    for (const section of sectionContents) {
+      const items = get(section, 'itemSectionRenderer.contents') || [];
+      extractFromContents(items, videos, seen);
+    }
+  }
+  
+  return videos;
+}
+
+/**
+ * Extract videos from a contents array (shared helper).
+ * Handles all renderer types.
+ * 
+ * @param {Array} contents - Array of content items
+ * @param {Array<Video>} videos - Output array
+ * @param {Set<string>} seen - Deduplication set
+ */
+function extractFromContents(contents, videos, seen) {
+  for (const item of contents) {
+    let video = null;
+    
+    // Check each renderer type
+    if (item.videoRenderer) {
+      video = extractVideoRenderer(item.videoRenderer);
+    } else if (item.compactVideoRenderer) {
+      video = extractCompactVideoRenderer(item.compactVideoRenderer);
+    } else if (item.gridVideoRenderer) {
+      video = extractGridVideoRenderer(item.gridVideoRenderer);
+    } else if (item.playlistVideoRenderer) {
+      video = extractPlaylistVideoRenderer(item.playlistVideoRenderer);
+    } else if (item.richItemRenderer) {
+      video = extractRichItemRenderer(item.richItemRenderer);
+    } else if (item.lockupViewModel) {
+      video = extractLockupViewModel(item.lockupViewModel);
+    }
+    // Also handle nested lockupViewModel in shortsLockupViewModel etc
+    else if (item.shortsLockupViewModel) {
+      // Skip shorts
+    }
+    
+    if (video && !seen.has(video.videoId)) {
+      seen.add(video.videoId);
+      videos.push(video);
+    }
+    
+    // Recurse into continuation items (but not too deep)
+    if (item.continuationItemRenderer) {
+      // Skip - these are "load more" triggers, not content
+    }
+  }
+}
+
+// =============================================================================
+// RECURSIVE VIDEO EXTRACTION (FALLBACK)
+// =============================================================================
+
+/**
+ * Recursively extract all videos from ytInitialData.
+ * Used as fallback when page-specific extractor doesn't match.
+ * 
  * @param {Object} data - ytInitialData or any nested object
  * @returns {Array<Video>}
  */

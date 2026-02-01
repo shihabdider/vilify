@@ -1,10 +1,11 @@
 // YouTube Data Provider
 // Public API for the hybrid data layer
 
-import { parseInitialData, parsePlayerResponse } from './initial-data.js';
-import { extractVideosFromData, extractVideoContext } from './extractors.js';
+import { parseInitialData, parsePlayerResponse, detectPageTypeFromData } from './initial-data.js';
+import { extractVideosFromData, extractVideosForPage, extractVideoContext } from './extractors.js';
 import { scrapeDOMVideos, scrapeDOMVideoContext, scrapeDOMRecommendations } from './dom-fallback.js';
 import { createNavigationWatcher } from './navigation.js';
+import { installFetchIntercept } from './fetch-intercept.js';
 
 // =============================================================================
 // NORMALIZATION
@@ -58,13 +59,33 @@ function toContentItem(video) {
  */
 export function createDataProvider() {
   // Cached data (refreshed on navigation)
-  let cachedInitialData = null;
+  let cachedApiData = null;       // Fresh data from fetch intercept (highest priority)
+  let cachedApiPageType = null;   // Page type from API response
+  let cachedInitialData = null;   // From ytInitialData (fallback)
   let cachedPlayerResponse = null;
   let cachedPageType = null;
   let navigationWatcher = null;
+  let fetchIntercept = null;
   
   /**
-   * Refresh cached data from page
+   * Handle intercepted API response
+   */
+  function onApiResponse(endpoint, data) {
+    // Only cache browse and search responses (listing pages)
+    if (endpoint === 'browse' || endpoint === 'search') {
+      cachedApiData = data;
+      cachedApiPageType = detectPageTypeFromData(data);
+      console.log(`[Vilify] Cached API data from /${endpoint}, pageType:`, cachedApiPageType);
+    }
+    // Player responses update player data
+    if (endpoint === 'player') {
+      cachedPlayerResponse = data;
+      console.log('[Vilify] Cached player response from API');
+    }
+  }
+  
+  /**
+   * Refresh cached data from page (ytInitialData)
    */
   function refresh() {
     const result = parseInitialData();
@@ -85,40 +106,67 @@ export function createDataProvider() {
   }
   
   /**
+   * Clear API cache (called on navigation)
+   */
+  function clearApiCache() {
+    cachedApiData = null;
+    cachedApiPageType = null;
+  }
+  
+  /**
    * Get videos for current page
    * @returns {Array<ContentItem>}
    */
   function getVideos() {
-    // Always refresh to get latest data (handles SPA navigation timing)
-    refresh();
-    
-    // Try extraction from initial data first
-    if (cachedInitialData) {
-      const videos = extractVideosFromData(cachedInitialData);
+    // Priority 1: Fresh API data (from fetch intercept)
+    if (cachedApiData) {
+      const pageType = cachedApiPageType || 'other';
+      const videos = extractVideosForPage(cachedApiData, pageType);
       if (videos.length > 0) {
-        // Transform raw Video objects to ContentItem format
-        const items = videos.map(toContentItem);
-        
-        // Augment with DOM-scraped duration if missing
-        // (ytInitialData often doesn't have duration in lockup format)
-        const domVideos = scrapeDOMVideos();
-        const domMap = new Map(domVideos.map(v => [v.id, v]));
-        
-        for (const item of items) {
-          if (!item.data.duration) {
-            const domItem = domMap.get(item.id);
-            if (domItem?.data?.duration) {
-              item.data.duration = domItem.data.duration;
-            }
-          }
-        }
-        
-        return items;
+        console.log(`[Vilify] Using API data (${pageType}): ${videos.length} videos`);
+        const items = videos.map(v => ({ ...toContentItem(v), _source: 'api' }));
+        return augmentDuration(items);
       }
     }
     
-    // Fallback to DOM scraping (already returns ContentItem format)
-    return scrapeDOMVideos();
+    // Priority 2: ytInitialData
+    refresh();
+    if (cachedInitialData) {
+      const pageType = cachedPageType || 'other';
+      const videos = extractVideosForPage(cachedInitialData, pageType);
+      if (videos.length > 0) {
+        console.log(`[Vilify] Using ytInitialData (${pageType}): ${videos.length} videos`);
+        const items = videos.map(v => ({ ...toContentItem(v), _source: 'initialData' }));
+        return augmentDuration(items);
+      }
+    }
+    
+    // Priority 3: DOM fallback
+    console.log('[Vilify] Using DOM fallback');
+    const items = scrapeDOMVideos();
+    return items.map(item => ({ ...item, _source: 'dom' }));
+  }
+  
+  /**
+   * Augment items with DOM-scraped duration if missing
+   * @param {Array<ContentItem>} items
+   * @returns {Array<ContentItem>}
+   */
+  function augmentDuration(items) {
+    // Get duration from DOM for items missing it
+    const domVideos = scrapeDOMVideos();
+    const domMap = new Map(domVideos.map(v => [v.id, v]));
+    
+    for (const item of items) {
+      if (!item.data.duration) {
+        const domItem = domMap.get(item.id);
+        if (domItem?.data?.duration) {
+          item.data.duration = domItem.data.duration;
+        }
+      }
+    }
+    
+    return items;
   }
   
   /**
@@ -212,8 +260,16 @@ export function createDataProvider() {
    * Start watching for navigation (auto-refresh on URL change)
    */
   function startWatching() {
+    // Install fetch intercept (captures fresh API data)
+    if (!fetchIntercept) {
+      fetchIntercept = installFetchIntercept(onApiResponse);
+    }
+    
+    // Watch for URL changes
     if (!navigationWatcher) {
       navigationWatcher = createNavigationWatcher(() => {
+        // Clear API cache on navigation - will be repopulated by fetch intercept
+        clearApiCache();
         refresh();
       });
     }
@@ -226,6 +282,10 @@ export function createDataProvider() {
     if (navigationWatcher) {
       navigationWatcher.stop();
       navigationWatcher = null;
+    }
+    if (fetchIntercept) {
+      fetchIntercept.uninstall();
+      fetchIntercept = null;
     }
   }
   
@@ -261,6 +321,7 @@ export function getDataProvider() {
 }
 
 // Re-export types and utilities for convenience
-export { parseInitialData, parsePlayerResponse } from './initial-data.js';
-export { extractVideosFromData, extractVideoContext, extractChaptersFromData } from './extractors.js';
+export { parseInitialData, parsePlayerResponse, detectPageTypeFromData } from './initial-data.js';
+export { extractVideosFromData, extractVideosForPage, extractVideoContext, extractChaptersFromData } from './extractors.js';
 export { createNavigationWatcher } from './navigation.js';
+export { installFetchIntercept } from './fetch-intercept.js';
