@@ -10,6 +10,7 @@ Generated from BLUEPRINT.md on 2026-02-01.
 | 2 | B3 (page extractors) | 6K | ✓ Complete |
 | 3 | B4, B5 (duration, fallback) | 2K | ✓ Complete |
 | 4 | B6 (comments) | 2K | ✓ Complete |
+| 5 | Main world bridge (fix) | 2K | ✓ Complete |
 
 ## Behavior Status
 
@@ -21,6 +22,7 @@ Generated from BLUEPRINT.md on 2026-02-01.
 | B4 | Duration on first render | ✓ Done | |
 | B5 | DOM fallback when needed | ✓ Done | |
 | B6 | Comments observer stabilizes | ✓ Done | |
+| B7 | Main world bridge for isolated world fix | ✓ Done | | |
 
 ## Wave Log
 
@@ -62,12 +64,27 @@ Generated from BLUEPRINT.md on 2026-02-01.
   - Better logging for debugging
 - Build passes: 164.3kb
 
+### Wave 5 - 2026-02-01 (Bug Fix)
+- **Issue**: Fetch intercept wasn't working because content scripts run in an isolated world
+  - `window.fetch` patching only affected content script, not YouTube's fetch calls
+  - `window.ytInitialData` wasn't visible from content script context
+- **Solution**: Created `main-world-bridge.js` to inject a script into the page's main world
+  - Captures `ytInitialData` when YouTube sets it (via Object.defineProperty)
+  - Intercepts fetch calls in the page context
+  - Communicates back to content script via CustomEvent
+- **Changes**:
+  - Created `src/sites/youtube/data/main-world-bridge.js`
+  - Updated `src/sites/youtube/data/index.js` to use main world bridge
+  - Updated `src/content.js` to install bridge at `document_start`
+- Build passes: 168.0kb
+- Version bumped to 0.4.2
+
 ## Self-Reflection
 
 - [x] No `throw new Error("not implemented")` remaining
 - [x] All behaviors implemented
 - [x] Build passes
-- [x] Version bumped to 0.4.0
+- [x] Version bumped to 0.4.2
 
 ## Implementation Complete
 

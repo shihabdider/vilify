@@ -194,31 +194,60 @@ export function initSite(config) {
 
 /**
  * Wait for page content to be ready.
+ * Uses data provider's waitForData when available (waits for bridge data).
+ * Also waits for DOM to have duration badges on listing pages.
  */
-function waitForContent(config, timeout = 5000) {
-  return new Promise((resolve) => {
-    const start = Date.now();
-
-    const check = () => {
-      const pageType = config.getPageType ? config.getPageType() : 'other';
-
-      let ready = false;
-      if (pageType === 'watch') {
-        ready = !!document.querySelector('video.html5-main-video');
-      } else {
-        const items = config.getItems ? config.getItems() : [];
-        ready = items.length > 0;
+async function waitForContent(config, timeout = 5000) {
+  const start = Date.now();
+  
+  // Try to use data provider's waitForData (waits for bridge data)
+  if (config.name === 'youtube') {
+    try {
+      const { getDataProvider } = await import('../sites/youtube/data/index.js');
+      const dp = getDataProvider();
+      if (dp.waitForData) {
+        console.log('[Vilify] Waiting for bridge data...');
+        await dp.waitForData(timeout);
+        console.log('[Vilify] Bridge data ready or timeout');
       }
-
-      if (ready || Date.now() - start > timeout) {
-        resolve();
-      } else {
-        setTimeout(check, 200);
+    } catch (e) {
+      console.log('[Vilify] Could not use waitForData:', e);
+    }
+  }
+  
+  // Wait for DOM elements based on page type
+  const pageType = config.getPageType ? config.getPageType() : 'other';
+  if (pageType === 'watch') {
+    // Wait for video element
+    while (!document.querySelector('video.html5-main-video') && Date.now() - start < timeout) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+  } else {
+    // Wait for video items WITH duration badges
+    // Duration badges indicate YouTube has fully rendered the video cards
+    console.log('[Vilify] Waiting for DOM with duration badges...');
+    while (Date.now() - start < timeout) {
+      // Check for duration badges - these appear after video cards are fully rendered
+      const durationBadges = document.querySelectorAll(
+        'ytd-thumbnail-overlay-time-status-renderer, ' +
+        'span.ytd-thumbnail-overlay-time-status-renderer, ' +
+        '.badge-shape-wiz__text'
+      );
+      
+      // Also check we have video items
+      const videoItems = document.querySelectorAll(
+        'ytd-rich-item-renderer, ytd-video-renderer, yt-lockup-view-model'
+      );
+      
+      // Ready when we have both videos and at least some duration badges
+      if (videoItems.length > 0 && durationBadges.length > 0) {
+        console.log(`[Vilify] DOM ready: ${videoItems.length} videos, ${durationBadges.length} duration badges`);
+        break;
       }
-    };
-
-    check();
-  });
+      
+      await new Promise(r => setTimeout(r, 50));
+    }
+  }
 }
 
 // =============================================================================
