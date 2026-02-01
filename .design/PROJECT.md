@@ -84,6 +84,8 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 011 | youtube-transcripts | View, search, and navigate video transcripts |
 | 012 | metadata-display | Show views/duration in listings, fix watch page metadata |
 | 013 | page-scrapers | Fetch interception, page-specific extractors, comment loading fix |
+| 014 | reliable-scraping | Improved scraping reliability |
+| 015 | watch-ux | Subscribe button kbd styling, updateSubscribeButton fix |
 
 ### In Progress
 
@@ -159,4 +161,4 @@ Future work and ideas:
 5. ~~Bug: upload date missing in the watch page~~ ✓ Done (iteration 012)
 6. Implement `gg` and `G` to go to top or bottom of the list
 7. ~~Bug: sometimes comments don't all load on initial load~~ ✓ Fixed (iteration 013)
-8. UX improvements for watch page video metadata container - subscribe button kbd styling, layout/spacing, visual hierarchy
+8. ~~UX improvements for watch page video metadata container - subscribe button kbd styling, layout/spacing, visual hierarchy~~ ✓ Done (iteration 015)

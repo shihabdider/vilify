@@ -196,6 +196,12 @@ export function createDataProvider() {
           ctx.paused = videoEl.paused ?? true;
           ctx.playbackRate = videoEl.playbackRate || 1;
         }
+        
+        // Always get isSubscribed from DOM (not available in ytInitialData)
+        const subBtn = document.querySelector('ytd-subscribe-button-renderer button');
+        const subLabel = subBtn?.getAttribute('aria-label') || '';
+        ctx.isSubscribed = subLabel.toLowerCase().includes('unsubscribe');
+        
         return ctx;
       }
     }

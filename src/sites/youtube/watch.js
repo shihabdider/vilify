@@ -82,26 +82,33 @@ const WATCH_CSS = `
   /* Video info panel */
   .vilify-watch-title { font-size: 14px; color: var(--txt-1); margin: 0 0 8px; line-height: 1.4; }
   .vilify-watch-channel { color: var(--txt-2); font-size: 13px; }
-  .vilify-watch-stats { color: var(--txt-3); font-size: 12px; margin-top: 4px; margin-bottom: 10px; }
-  .vilify-watch-hints { color: var(--txt-3); font-size: 11px; margin-top: 10px; }
-  .vilify-watch-hints kbd { border: 1px solid var(--bg-3); padding: 1px 5px; font-size: 10px; margin: 0 2px; }
+  .vilify-watch-stats { color: var(--txt-3); font-size: 12px; margin-top: 4px; }
   
-  /* Channel row with subscribe button */
-  .vilify-watch-channel-row {
+  /* Subscription status indicator (after channel name) */
+  /* "subscribed" = grey, "subscribe" = red */
+  .vilify-sub-status { color: var(--txt-3); }
+  .vilify-sub-status.not-subscribed { color: var(--accent); }
+  
+  /* Action row with keyboard hints */
+  .vilify-watch-actions {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 12px;
+    font-size: 11px;
   }
   
-  /* Subscribe button */
-  .vilify-subscribe-btn {
-    background: transparent; border: 1px solid var(--accent);
-    color: var(--accent); padding: 4px 12px;
-    font-family: var(--font-mono); font-size: 12px; cursor: pointer;
-    flex-shrink: 0;
+  /* Individual action hint */
+  .vilify-action-hint {
+    color: var(--txt-3);
   }
-  .vilify-subscribe-btn:hover { background: var(--accent); color: var(--bg-1); }
-  .vilify-subscribe-btn.subscribed { border-color: var(--txt-3); color: var(--txt-3); }
+  .vilify-action-hint kbd {
+    border: 1px solid var(--bg-3);
+    padding: 1px 5px;
+    font-size: 10px;
+    margin-right: 4px;
+    color: var(--txt-3);
+  }
   
   /* Comments list - NO scrolling, pagination handles overflow */
   .vilify-comments-list { 
@@ -236,23 +243,12 @@ function renderVideoInfoBox(ctx, siteState = null) {
   // Template: Compound - access all fields from ctx
   // Inventory: ctx.title, ctx.channelName, ctx.isSubscribed, ctx.uploadDate
   
-  // Subscribe button
-  const subscribeBtn = el(
-    'button',
-    { 
-      class: ctx.isSubscribed ? 'vilify-subscribe-btn subscribed' : 'vilify-subscribe-btn'
-    },
-    [
-      el('kbd', {}, ['M']),
-      ctx.isSubscribed ? ' Subscribed' : ' Subscribe'
-    ]
-  );
-  
-  // Channel row with channel name and subscribe button
-  const channelRow = el('div', { class: 'vilify-watch-channel-row' }, [
-    el('div', { class: 'vilify-watch-channel' }, [ctx.channelName || 'Unknown']),
-    subscribeBtn
-  ]);
+  // Channel with subscription status (always visible)
+  const channelChildren = [ctx.channelName || 'Unknown'];
+  const subStatusClass = ctx.isSubscribed ? 'vilify-sub-status' : 'vilify-sub-status not-subscribed';
+  const subStatusText = ctx.isSubscribed ? ' · subscribed' : ' · subscribe';
+  channelChildren.push(el('span', { class: subStatusClass, id: 'vilify-sub-status' }, [subStatusText]));
+  const channelEl = el('div', { class: 'vilify-watch-channel' }, channelChildren);
   
   // Stats row: upload date · views · duration (all on one line)
   const statsParts = [];
@@ -264,31 +260,55 @@ function renderVideoInfoBox(ctx, siteState = null) {
     ? el('div', { class: 'vilify-watch-stats' }, [statsText])
     : null;
   
-  // Keyboard hints - only show zo (description) and f (chapters if available)
-  const hintChildren = [
-    el('kbd', {}, ['zo']), ' desc'
-  ];
-  // Only show chapters hint if video has chapters
+  // Action row with all keyboard hints
+  const actionChildren = [];
+  
+  // Subscribe/unsub action (always muted, just shows action)
+  const subText = ctx.isSubscribed ? 'unsub' : 'sub';
+  actionChildren.push(
+    el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
+      el('kbd', {}, ['M']),
+      subText
+    ])
+  );
+  
+  // Description action (always shown)
+  actionChildren.push(
+    el('span', { class: 'vilify-action-hint' }, [
+      el('kbd', {}, ['zo']),
+      'desc'
+    ])
+  );
+  
+  // Chapters action (conditional)
   if (ctx.chapters && ctx.chapters.length > 0) {
-    hintChildren.push('  ');
-    hintChildren.push(el('kbd', {}, ['f']));
-    hintChildren.push(' ch');
+    actionChildren.push(
+      el('span', { class: 'vilify-action-hint' }, [
+        el('kbd', {}, ['f']),
+        'ch'
+      ])
+    );
   }
-  // Only show transcript hint if transcript is loaded
+  
+  // Transcript action (conditional)
   if (siteState?.transcript?.status === 'loaded') {
-    hintChildren.push('  ');
-    hintChildren.push(el('kbd', {}, ['t']));
-    hintChildren.push(' transcript');
+    actionChildren.push(
+      el('span', { class: 'vilify-action-hint' }, [
+        el('kbd', {}, ['t']),
+        'transcript'
+      ])
+    );
   }
-  const hints = el('div', { class: 'vilify-watch-hints' }, hintChildren);
+  
+  const actionsRow = el('div', { class: 'vilify-watch-actions' }, actionChildren);
   
   // Build info box with TUI pattern
   const children = [
     el('h1', { class: 'vilify-watch-title' }, [ctx.title || 'Untitled']),
-    channelRow,
+    channelEl,
   ];
   if (statsEl) children.push(statsEl);
-  children.push(hints);
+  children.push(actionsRow);
   
   const infoBox = el('div', { class: 'vilify-tui-box', 'data-label': 'video' }, children);
   
@@ -790,25 +810,35 @@ function scheduleCommentRetry(state, container, ctx) {
 // =============================================================================
 
 /**
- * Update the subscribe button UI in video info box
+ * Update the subscribe UI in video info box
+ * Updates both the status indicator and action hint
  * [I/O]
  * 
  * @param {boolean} isSubscribed - New subscription state
  * 
  * @example
- * updateSubscribeButton(true)   // Shows "Subscribed" with subscribed styling
- * updateSubscribeButton(false)  // Shows "Subscribe" with unsubscribed styling
+ * updateSubscribeButton(true)   // Shows "subscribed" (grey), action "unsub"
+ * updateSubscribeButton(false)  // Shows "subscribe" (red), action "sub"
  */
 export function updateSubscribeButton(isSubscribed) {
-  const btn = document.querySelector('.vilify-subscribe-btn');
-  if (!btn) return;
+  // Update status indicator after channel name
+  const statusEl = document.getElementById('vilify-sub-status');
+  if (statusEl) {
+    statusEl.textContent = isSubscribed ? ' · subscribed' : ' · subscribe';
+    if (isSubscribed) {
+      statusEl.classList.remove('not-subscribed');
+    } else {
+      statusEl.classList.add('not-subscribed');
+    }
+  }
   
-  if (isSubscribed) {
-    btn.classList.add('subscribed');
-    btn.textContent = 'Subscribed';
-  } else {
-    btn.classList.remove('subscribed');
-    btn.textContent = 'Subscribe';
+  // Update action hint text
+  const actionEl = document.getElementById('vilify-sub-action');
+  if (actionEl) {
+    // Update text (preserve kbd)
+    actionEl.innerHTML = '';
+    actionEl.appendChild(el('kbd', {}, ['M']));
+    actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
   }
 }
 

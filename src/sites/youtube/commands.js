@@ -126,32 +126,68 @@ function toggleSubscribe(ctx, onUpdate) {
   const channelName = ctx.channelName || 'channel';
 
   if (ctx.isSubscribed) {
-    // Unsubscribe flow - click notification button, then find unsubscribe
-    const notificationBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
-    if (notificationBtn) {
-      notificationBtn.click();
+    // Unsubscribe flow - click subscribe button to open menu/dialog
+    const subBtn = document.querySelector('ytd-subscribe-button-renderer button, #subscribe-button button');
+    if (subBtn) {
+      subBtn.click();
+      
+      // Wait for menu or dialog to appear
       setTimeout(() => {
-        const formattedStrings = document.querySelectorAll('tp-yt-paper-listbox yt-formatted-string');
-        let found = false;
-        for (const el of formattedStrings) {
+        // Try to find "Unsubscribe" in dropdown menu
+        const menuItems = document.querySelectorAll('tp-yt-paper-listbox yt-formatted-string, ytd-menu-service-item-renderer yt-formatted-string');
+        let clickedMenuItem = false;
+        
+        for (const el of menuItems) {
           if (el.textContent?.trim() === 'Unsubscribe') {
             const clickable = el.closest('tp-yt-paper-item') || el.closest('ytd-menu-service-item-renderer');
             if (clickable) {
               clickable.click();
-              found = true;
+              clickedMenuItem = true;
               break;
             }
           }
         }
+        
+        // Wait for confirmation dialog
         setTimeout(() => {
-          const confirmBtn = document.querySelector('#confirm-button button, yt-confirm-dialog-renderer #confirm-button button, button[aria-label="Unsubscribe"]');
+          // Try multiple selectors for the confirm button
+          const confirmSelectors = [
+            // New YouTube dialog
+            'yt-confirm-dialog-renderer button.yt-spec-button-shape-next--call-to-action',
+            'yt-confirm-dialog-renderer #confirm-button button',
+            'tp-yt-paper-dialog button.yt-spec-button-shape-next--call-to-action',
+            // Button with Unsubscribe text
+            'tp-yt-paper-dialog button[aria-label="Unsubscribe"]',
+            'yt-confirm-dialog-renderer button[aria-label="Unsubscribe"]',
+            // Generic confirm button
+            '#confirm-button button',
+          ];
+          
+          let confirmBtn = null;
+          for (const sel of confirmSelectors) {
+            confirmBtn = document.querySelector(sel);
+            if (confirmBtn) break;
+          }
+          
+          // Also try finding by button text
+          if (!confirmBtn) {
+            const allButtons = document.querySelectorAll('tp-yt-paper-dialog button, yt-confirm-dialog-renderer button');
+            for (const btn of allButtons) {
+              if (btn.textContent?.trim() === 'Unsubscribe') {
+                confirmBtn = btn;
+                break;
+              }
+            }
+          }
+          
           if (confirmBtn) {
             confirmBtn.click();
             showMessage(`Unsubscribed from ${channelName}`);
-            // Update immediately (optimistic)
             onUpdate?.(false);
+          } else {
+            showMessage('Could not confirm unsubscribe');
           }
-        }, 400);
+        }, 500);
       }, 400);
     }
   } else {
@@ -160,7 +196,6 @@ function toggleSubscribe(ctx, onUpdate) {
     if (ytSubBtn) {
       ytSubBtn.click();
       showMessage(`Subscribed to ${channelName}`);
-      // Update immediately (optimistic)
       onUpdate?.(true);
     }
   }

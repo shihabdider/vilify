@@ -330,16 +330,25 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         document.body.classList.remove('vilify-watch-page');
       },
       updateSubscribeButton: (isSubscribed) => {
-        // Update the subscribe button in the watch page UI
-        const btn = document.querySelector('.vilify-subscribe-btn');
-        if (btn) {
+        // Update subscription status indicator after channel name
+        const statusEl = document.getElementById('vilify-sub-status');
+        if (statusEl) {
+          statusEl.textContent = isSubscribed ? ' · subscribed' : ' · subscribe';
           if (isSubscribed) {
-            btn.classList.add('subscribed');
-            btn.textContent = 'Subscribed';
+            statusEl.classList.remove('not-subscribed');
           } else {
-            btn.classList.remove('subscribed');
-            btn.textContent = 'Subscribe';
+            statusEl.classList.add('not-subscribed');
           }
+        }
+        
+        // Update action hint text
+        const actionEl = document.getElementById('vilify-sub-action');
+        if (actionEl) {
+          const kbd = document.createElement('kbd');
+          kbd.textContent = 'M';
+          actionEl.innerHTML = '';
+          actionEl.appendChild(kbd);
+          actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
         }
       },
     };
