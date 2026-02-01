@@ -55,6 +55,15 @@ Updated `src/core/index.js` `waitForContent()`:
 - Falls back to DOM check after timeout
 - Better logging for debugging
 
+### Wave 3b - Wait for Duration Badges (v0.5.1)
+
+Updated `waitForContent()` to also wait for DOM duration badges:
+- Duration is not in ytInitialData, must be scraped from DOM
+- YouTube renders duration badges after video cards appear
+- Now waits for `ytd-thumbnail-overlay-time-status-renderer` elements
+- Ensures duration appears on initial render, not after re-render
+- Logs: `[Vilify] DOM ready: N videos, M duration badges`
+
 ## Wave 4 - Cleanup (TODO)
 
 Files to delete (no longer used):
@@ -67,7 +76,7 @@ Files to simplify:
 ## Build Output
 
 ```
-dist/content.js      163.5kb
+dist/content.js      164.0kb
 dist/data-bridge.js    3.0kb
 ```
 
@@ -98,8 +107,9 @@ Content Script (isolated) ◄── receives complete data ─────┘
 - [x] Bridge runs in MAIN world via manifest config
 - [x] YouTube events ensure SPA navigation works
 - [x] waitForData() provides clean async API
+- [x] Wait for duration badges ensures complete data on first render
 - [x] Build passes
-- [x] Version bumped to 0.5.0
+- [x] Version bumped to 0.5.1
 
 ## Testing Notes
 
