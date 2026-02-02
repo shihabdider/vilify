@@ -14,7 +14,7 @@ A SiteConfig is a structure:
 - getCommands: Function - (ctx) => Array\<Command\>
 - getKeySequences: Function - (ctx) => Object
 - getSingleKeyActions: Function - (ctx) => Object - single-key actions including Shift modifiers
-- getDrawerHandler: Function - (drawerState) => DrawerHandler | null
+- getDrawerHandler: Function - (drawerState, siteState) => DrawerHandler | null
 - getDescription: Function | null - () => String - get description text (YouTube)
 - getChapters: Function | null - () => Array\<Chapter\> - get chapters (YouTube)
 - seekToChapter: Function | null - (chapter) => void - seek to chapter (YouTube)
@@ -38,7 +38,7 @@ Examples:
   getCommands: (ctx) => [...],
   getKeySequences: (ctx) => ({ 'gh': goHome, ... }),
   getSingleKeyActions: (ctx) => ({ 'Y': copyUrl, ... }),
-  getDrawerHandler: (drawerState) => drawerState === 'chapters' ? chapterDrawer : null,
+  getDrawerHandler: (drawerState, siteState) => drawerState === 'chapters' ? chapterDrawer : null,
   getDescription: () => getDescription(),
   getChapters: () => getChapters(),
   seekToChapter: (ch) => seekTo(ch.time),
@@ -170,7 +170,7 @@ A ContentItem is a structure:
 - title: String - primary text
 - url: String - where to navigate on select
 - thumbnail: String | null - image URL
-- meta: String | null - secondary info
+- meta: String | null - secondary info (channel · date)
 - subtitle: String | null - third line
 - data: Object | null - site-specific extra data
 
@@ -180,7 +180,7 @@ Examples:
 { type: 'content', id: 'abc123', title: 'Cool Video',
   url: '/watch?v=abc123', thumbnail: 'https://i.ytimg.com/...',
   meta: 'Channel Name · 2 days ago', subtitle: null,
-  data: { videoId: 'abc123', channelUrl: '/@channel' } }
+  data: { videoId: 'abc123', channelUrl: '/@channel', duration: '12:34', viewCount: '1.2M views' } }
 
 // Gmail email
 { type: 'content', id: 'msg123', title: 'Meeting tomorrow',
@@ -232,24 +232,29 @@ Examples:
 
 ---
 
-### DrawerState
+### DrawerType
 
-A DrawerState is one of:
-- null - no drawer open
-- 'palette' - command palette open
-- 'filter' - filter drawer open
-- 'chapters' - chapter picker open (YouTube)
-- 'description' - description drawer open (YouTube)
+A DrawerType is one of:
+- null - no drawer open (Core)
+- 'palette' - command palette open (Core)
+- SiteDrawerType - site-specific drawers (site-defined)
 
-Note: This is a unified enum. Core owns null, 'palette', and 'filter'. Sites extend with their own values.
+**Classification**: Itemization (extensible union)
 
-Examples:
+**Interpretation**: Which drawer is currently open. Core owns `null` and `'palette'`. Sites extend with their own drawer types (see YouTubeDrawerType, GmailDrawerType in site-specific sections).
+
+Core Examples:
 ```js
 null           // Normal state, no drawer
 'palette'      // Command palette is open
-'filter'       // Filter drawer is open
-'chapters'     // Chapter picker is open (YouTube)
-'description'  // Description drawer is open (YouTube)
+```
+
+YouTube Examples (see YouTubeDrawerType):
+```js
+'recommended'  // Filter drawer for recommended videos (watch page)
+'chapters'     // Chapter picker is open
+'description'  // Description drawer is open
+'transcript'   // Transcript drawer is open
 ```
 
 ---
@@ -315,6 +320,16 @@ Examples:
   filterPlaceholder: 'Filter chapters...',
   matchesFilter: null  // Use default title matching
 }
+
+// Transcript drawer config
+{
+  id: 'transcript',
+  getItems: () => transcript.lines,
+  renderItem: (line, selected) => el('div', {}, [line.timeText, line.text]),
+  onSelect: (line) => seekTo(line.time),
+  filterPlaceholder: 'Filter transcript...',
+  matchesFilter: (line, q) => line.text.toLowerCase().includes(q.toLowerCase())
+}
 ```
 
 ---
@@ -322,60 +337,230 @@ Examples:
 ### AppState
 
 An AppState is a structure:
-- focusModeActive: Boolean - is focus mode overlay showing?
-- drawerState: DrawerState - which drawer is open (core + site drawers)
-- paletteQuery: String - current text in palette input
-- paletteSelectedIdx: Number - selected item index in palette
-- selectedIdx: Number - selected item index in listing
-- localFilterActive: Boolean - is local filter input shown?
-- localFilterQuery: String - current local filter text
-- siteSearchActive: Boolean - is site search input focused?
-- siteSearchQuery: String - current site search text
-- keySeq: String - current key sequence being built
-- lastUrl: String - for detecting SPA navigation
+- core: AppCore - extension-level state (persists)
+- ui: UIState - UI state (partially resets on nav)
+- site: SiteState | null - site-wide state (YouTubeState, GmailState, etc.)
+- page: PageState | null - page-specific state (YouTubePageState, GmailPageState, etc.)
+
+**Classification**: Compound
+
+**Interpretation**: The complete state of the Vilify extension at any moment. All state lives here - no module-level variables. SiteState and PageState are site-defined; core treats them as opaque.
+
+**Hierarchy**:
+```
+AppState
+├── core: AppCore           # Extension-level (persists)
+│   ├── focusModeActive
+│   └── lastUrl
+├── ui: UIState             # UI state (partially resets on nav)
+│   ├── drawer
+│   ├── paletteQuery
+│   ├── paletteSelectedIdx
+│   ├── selectedIdx
+│   ├── filterActive
+│   ├── filterQuery
+│   ├── searchActive
+│   ├── searchQuery
+│   ├── keySeq
+│   └── sort { field, direction }
+├── site: SiteState | null  # Site-wide (persists across pages)
+│   └── (site-specific fields)
+└── page: PageState | null  # Page-specific (resets on nav)
+    └── (site-specific, discriminated by type)
+```
 
 Examples:
 ```js
-// Initial state
-{ focusModeActive: true, drawerState: null, paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
-  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
-  keySeq: '', lastUrl: 'https://youtube.com/' }
+// Initial state on YouTube home
+{
+  core: { focusModeActive: true, lastUrl: 'https://youtube.com/' },
+  ui: {
+    drawer: null,
+    paletteQuery: '',
+    paletteSelectedIdx: 0,
+    selectedIdx: 0,
+    filterActive: false,
+    filterQuery: '',
+    searchActive: false,
+    searchQuery: '',
+    keySeq: '',
+    sort: { field: null, direction: 'desc' }
+  },
+  site: { settingsApplied: false, commentPage: 0, commentPageStarts: [0], transcript: null },
+  page: { type: 'list', videos: [...] }
+}
 
-// Palette open in command mode
-{ focusModeActive: true, drawerState: 'palette', paletteQuery: ':speed',
-  paletteSelectedIdx: 2, selectedIdx: 0, localFilterActive: false,
-  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
-  keySeq: '', lastUrl: '...' }
-
-// Local filtering of videos
-{ focusModeActive: true, drawerState: null, paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 3, localFilterActive: true,
-  localFilterQuery: 'music', siteSearchActive: false, siteSearchQuery: '',
-  keySeq: '', lastUrl: '...' }
+// Watch page with transcript drawer open
+{
+  core: { focusModeActive: true, lastUrl: 'https://youtube.com/watch?v=abc' },
+  ui: {
+    drawer: 'transcript',
+    paletteQuery: '',
+    paletteSelectedIdx: 0,
+    selectedIdx: 2,
+    filterActive: false,
+    filterQuery: '',
+    searchActive: false,
+    searchQuery: '',
+    keySeq: '',
+    sort: { field: null, direction: 'desc' }
+  },
+  site: { settingsApplied: true, commentPage: 0, commentPageStarts: [0], transcript: { status: 'loaded', lines: [...], language: 'en' } },
+  page: { type: 'watch', videoContext: {...}, recommended: [...], chapters: [...] }
+}
 
 // Mid key-sequence (user pressed 'g')
-{ focusModeActive: true, drawerState: null, paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
-  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
-  keySeq: 'g', lastUrl: '...' }
-
-// Chapter drawer open (YouTube)
-{ focusModeActive: true, drawerState: 'chapters', paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
-  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
-  keySeq: '', lastUrl: '...' }
-
-// Description drawer open (YouTube)
-{ focusModeActive: true, drawerState: 'description', paletteQuery: '',
-  paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
-  localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
-  keySeq: '', lastUrl: '...' }
+{
+  core: { focusModeActive: true, lastUrl: '...' },
+  ui: { ..., keySeq: 'g', ... },
+  site: { ... },
+  page: { ... }
+}
 ```
 
 ---
 
+### AppCore
+
+An AppCore is a structure:
+- focusModeActive: Boolean - is focus mode overlay showing?
+- lastUrl: String - for detecting SPA navigation
+
+**Classification**: Compound
+
+**Interpretation**: Extension-level state that persists for the lifetime of the extension on a page.
+
+Examples:
+```js
+{ focusModeActive: true, lastUrl: 'https://youtube.com/' }
+{ focusModeActive: false, lastUrl: 'https://youtube.com/watch?v=abc' }
+```
+
+---
+
+### UIState
+
+A UIState is a structure:
+- drawer: DrawerType - which drawer is open (null = none)
+- paletteQuery: String - command palette input text
+- paletteSelectedIdx: Number - selected item in palette
+- selectedIdx: Number - selected item in main listing
+- filterActive: Boolean - is filter mode on?
+- filterQuery: String - filter input text
+- searchActive: Boolean - is site search focused?
+- searchQuery: String - site search text
+- keySeq: String - partial key sequence (e.g., 'g')
+- sort: SortState - current sort settings
+
+**Classification**: Compound
+
+**Interpretation**: All UI-related state. Some fields reset on navigation (selectedIdx, filterQuery), others persist (sort).
+
+Examples:
+```js
+// Normal browsing
+{
+  drawer: null, paletteQuery: '', paletteSelectedIdx: 0,
+  selectedIdx: 3, filterActive: false, filterQuery: '',
+  searchActive: false, searchQuery: '', keySeq: '',
+  sort: { field: null, direction: 'desc' }
+}
+
+// Filtering active with sort
+{
+  drawer: null, paletteQuery: '', paletteSelectedIdx: 0,
+  selectedIdx: 0, filterActive: true, filterQuery: 'music',
+  searchActive: false, searchQuery: '', keySeq: '',
+  sort: { field: 'date', direction: 'desc' }
+}
+
+// Command palette open
+{
+  drawer: 'palette', paletteQuery: ':sort', paletteSelectedIdx: 2,
+  selectedIdx: 0, filterActive: false, filterQuery: '',
+  searchActive: false, searchQuery: '', keySeq: '',
+  sort: { field: null, direction: 'desc' }
+}
+```
+
+---
+
+### SortState
+
+A SortState is a structure:
+- field: SortField | null - which field to sort by (null = default order)
+- direction: 'asc' | 'desc' - sort direction
+
+**Classification**: Compound
+
+**Interpretation**: Current sort configuration for listings. SortField is site-defined.
+
+Examples:
+```js
+{ field: null, direction: 'desc' }      // Default order
+{ field: 'date', direction: 'desc' }    // Newest first (YouTube)
+{ field: 'title', direction: 'asc' }    // A-Z
+{ field: 'received', direction: 'desc' } // Most recent (Gmail)
+```
+
+---
+
+### SortField
+
+A SortField is site-defined (String).
+
+Core treats SortField as opaque - each site defines its own valid values.
+See YouTubeSortField, GmailSortField in site-specific sections.
+
+---
+
 ## YouTube-Specific Types
+
+### YouTubeDrawerType
+
+A YouTubeDrawerType is one of:
+- 'recommended' - recommended filter drawer (watch page)
+- 'chapters' - chapter picker
+- 'description' - description drawer
+- 'transcript' - transcript drawer
+
+**Classification**: Enumeration (extends core DrawerType)
+
+**Interpretation**: YouTube-specific drawers. Combined with core DrawerType (null, 'palette').
+
+Examples:
+```js
+'recommended'  // Filter drawer for recommended videos
+'chapters'     // Chapter picker
+'description'  // Video description
+'transcript'   // Video transcript
+```
+
+---
+
+### YouTubeSortField
+
+A YouTubeSortField is one of:
+- 'date' - sort by upload date
+- 'duration' - sort by video duration
+- 'title' - sort alphabetically by title
+- 'channel' - sort alphabetically by channel name
+- 'views' - sort by view count
+
+**Classification**: Enumeration (implements core SortField)
+
+**Interpretation**: Fields available for sorting YouTube listings.
+
+Examples:
+```js
+'date'      // Sort by upload date (recent first by default)
+'duration'  // Sort by duration (longest first by default)
+'title'     // Sort alphabetically A-Z
+'channel'   // Sort by channel name A-Z
+'views'     // Sort by view count (highest first by default)
+```
+
+---
 
 ### YouTubePageType
 
@@ -397,6 +582,87 @@ Examples:
 'search'        // /results?search_query=cats
 'channel'       // /@mkbhd
 'subscriptions' // /feed/subscriptions
+```
+
+---
+
+### YouTubePageState
+
+A YouTubePageState is one of:
+- WatchPageState - watch page state
+- ListPageState - list page state (home, search, subscriptions, etc.)
+
+**Classification**: Itemization (discriminated union, implements core PageState)
+
+**Interpretation**: Page-specific state for YouTube. Resets when navigating between pages.
+
+Examples:
+```js
+// Watch page
+{ type: 'watch', videoContext: {...}, recommended: [...], chapters: [...] }
+
+// List page
+{ type: 'list', videos: [...] }
+```
+
+---
+
+### WatchPageState
+
+A WatchPageState is a structure:
+- type: 'watch' - discriminator
+- videoContext: VideoContext | null - current video metadata
+- recommended: Array\<ContentItem\> - recommended videos
+- chapters: Array\<Chapter\> - video chapters
+
+**Classification**: Compound
+
+**Interpretation**: State specific to the YouTube watch page.
+
+Examples:
+```js
+// Fully loaded watch page
+{
+  type: 'watch',
+  videoContext: { videoId: 'abc', title: 'Cool Video', channelName: 'Creator', ... },
+  recommended: [{ type: 'content', id: 'xyz', title: 'Related Video', ... }, ...],
+  chapters: [{ title: 'Intro', time: 0, timeText: '0:00' }, ...]
+}
+
+// Before data loads
+{
+  type: 'watch',
+  videoContext: null,
+  recommended: [],
+  chapters: []
+}
+```
+
+---
+
+### ListPageState
+
+A ListPageState is a structure:
+- type: 'list' - discriminator
+- videos: Array\<ContentItem\> - videos/items on the page
+
+**Classification**: Compound
+
+**Interpretation**: State specific to YouTube list pages (home, search, subscriptions, channel, etc.).
+
+Examples:
+```js
+// Loaded list page
+{
+  type: 'list',
+  videos: [
+    { type: 'content', id: 'abc', title: 'Video 1', url: '/watch?v=abc', ... },
+    { type: 'content', id: 'def', title: 'Video 2', url: '/watch?v=def', ... }
+  ]
+}
+
+// Empty/loading
+{ type: 'list', videos: [] }
 ```
 
 ---
@@ -524,6 +790,60 @@ Examples:
 
 ---
 
+### TranscriptLine
+
+A TranscriptLine is a structure:
+- time: Number - start time in seconds
+- timeText: String - formatted time (e.g., '1:23')
+- duration: Number - duration in seconds
+- text: String - transcript text
+
+Examples:
+```js
+{ time: 0, timeText: '0:00', duration: 3.5, text: 'Hello and welcome to the video.' }
+{ time: 3.5, timeText: '0:03', duration: 4.2, text: 'Today we are going to talk about...' }
+{ time: 83, timeText: '1:23', duration: 2.8, text: 'This is the key point.' }
+```
+
+---
+
+### TranscriptStatus
+
+A TranscriptStatus is one of:
+- 'loading' - transcript is being fetched
+- 'loaded' - transcript successfully loaded
+- 'unavailable' - no transcript available for this video
+
+Examples:
+```js
+'loading'      // Fetching transcript from YouTube
+'loaded'       // Transcript ready
+'unavailable'  // Video has no captions/transcript
+```
+
+---
+
+### TranscriptResult
+
+A TranscriptResult is a structure:
+- status: TranscriptStatus - loading state
+- lines: Array\<TranscriptLine\> - transcript lines (empty if not loaded)
+- language: String | null - language code (e.g., 'en')
+
+Examples:
+```js
+// Transcript loaded
+{ status: 'loaded', lines: [{ time: 0, timeText: '0:00', duration: 3, text: 'Hello' }, ...], language: 'en' }
+
+// Still loading
+{ status: 'loading', lines: [], language: null }
+
+// No transcript available
+{ status: 'unavailable', lines: [], language: null }
+```
+
+---
+
 ### YouTubeState
 
 A YouTubeState is a structure:
@@ -534,6 +854,7 @@ A YouTubeState is a structure:
 - settingsApplied: Boolean - have we set default playback rate?
 - watchPageRetryCount: Number - internal retry tracking
 - commentLoadAttempts: Number - internal retry tracking
+- transcript: TranscriptResult | null - cached transcript data for current video
 
 Note: Drawer state (which drawer is open) is in AppState.drawerState.
 Note: Drawer handlers manage their own internal state (query, selection index) via closures.
@@ -543,12 +864,20 @@ Examples:
 // Initial state on watch page
 { chapterQuery: '', chapterSelectedIdx: 0,
   commentPage: 0, commentPageStarts: [0],
-  settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0 }
+  settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0,
+  transcript: null }
+
+// After transcript loaded
+{ chapterQuery: '', chapterSelectedIdx: 0,
+  commentPage: 0, commentPageStarts: [0],
+  settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0,
+  transcript: { status: 'loaded', lines: [...], language: 'en' } }
 
 // After navigating to second comment page
 { chapterQuery: '', chapterSelectedIdx: 0,
   commentPage: 1, commentPageStarts: [0, 5],
-  settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0 }
+  settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0,
+  transcript: { status: 'loaded', lines: [...], language: 'en' } }
 ```
 
 ---
@@ -565,16 +894,20 @@ Examples:
 | ContentItem | Compound | Core | Access all fields |
 | GroupHeader | Compound | Core | Access all fields |
 | Item | Union | Core | Case per variant (Command / ContentItem / GroupHeader) |
-| DrawerState | Union | Core | Case per variant (null / 'palette' / 'filter' / site-specific values) |
+| DrawerState | Union | Core | Case per variant (null / 'palette' / site-specific values) |
 | DrawerHandler | Compound | Core | Access all fields |
 | ListDrawerConfig | Compound | Core | Access all fields |
 | AppState | Compound | Core | Access all fields |
+| SortField | Enum | Core | Case per variant |
 | YouTubePageType | Enum | YouTube | Case per variant |
 | VideoContext | Compound | YouTube | Access all fields |
 | Chapter | Compound | YouTube | Access all fields |
 | Comment | Compound | YouTube | Access all fields |
 | CommentStatus | Enum | YouTube | Case per variant |
 | CommentsResult | Compound | YouTube | Access all fields |
+| TranscriptLine | Compound | YouTube | Access all fields |
+| TranscriptStatus | Enum | YouTube | Case per variant |
+| TranscriptResult | Compound | YouTube | Access all fields |
 | YouTubeState | Compound | YouTube | Access all fields |
 
 ---
@@ -583,3 +916,4 @@ Examples:
 
 - **Comment replies**: Nested comments with parent/child relationships
 - **Caching**: itemCache, itemCacheTime for performance optimization
+- **Transcript language selection**: Currently defaults to English

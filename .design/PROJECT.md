@@ -17,12 +17,13 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | Term | Definition |
 |------|------------|
 | Focus Mode | The overlay that replaces native site UI with our keyboard-driven interface |
-| Drawer | Bottom sheet modal (command palette, chapters, filter, description) |
+| Drawer | Bottom sheet modal (command palette, chapters, transcript, description) |
 | Listing | Scrollable list of content items (videos, emails, etc.) with selection |
 | Behavior | Testable user-facing requirement (B1, B2, etc.) |
 | Scraper | Code that extracts structured data from site's DOM |
 | Content Item | Generic item in a listing (video, email, search result) |
 | Command | Action available in command palette |
+| DataProvider | Abstraction for fetching structured data (API intercept + DOM fallback) |
 
 ## Architecture
 
@@ -30,8 +31,8 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 
 | Module | Responsibility | Can Import |
 |--------|----------------|------------|
-| `src/core/` | Site-agnostic primitives (keyboard engine, drawer, state, layout) | - |
-| `src/sites/youtube/` | YouTube scraping, commands, keymaps, watch page layout | core |
+| `src/core/` | Site-agnostic primitives (keyboard engine, drawer, state, layout, sort) | - |
+| `src/sites/youtube/` | YouTube scraping, commands, keymaps, watch page layout, drawers | core |
 | `src/sites/[future]/` | Future site implementations | core |
 
 ### Dependency Rules
@@ -48,20 +49,36 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | `src/core/keyboard.js` | Keyboard engine (capture phase, key sequences) |
 | `src/core/layout.js` | Focus mode overlay, status bar, listing component |
 | `src/core/state.js` | AppState management |
-| `src/core/modals.js` | Drawer primitives (palette, description, chapters, filter) |
+| `src/core/drawer.js` | Drawer primitives (list drawer, content drawer factories) |
+| `src/core/palette.js` | Command palette filtering and rendering |
+| `src/core/sort.js` | List sorting with Vim-style prefix matching |
 | `src/core/view.js` | DOM utilities, scroll, selection |
+| `src/core/loading.js` | Loading screen component |
+| `src/core/navigation.js` | SPA navigation observer |
+| `src/core/actions.js` | Copy/navigate utility functions |
 | `src/sites/youtube/index.js` | YouTube SiteConfig |
 | `src/sites/youtube/scraper.js` | YouTube DOM scraping (videos, chapters, comments) |
 | `src/sites/youtube/commands.js` | YouTube commands and keymaps |
 | `src/sites/youtube/player.js` | Video player controls |
 | `src/sites/youtube/watch.js` | Watch page layout |
-| `sites/youtube.user.js` | Reference userscript (working implementation) |
+| `src/sites/youtube/transcript.js` | Transcript fetching via DOM scraping |
+| `src/sites/youtube/items.js` | Custom item rendering (two-column with views/duration) |
+| `src/sites/youtube/drawers/index.js` | YouTube drawer exports and handler factory |
+| `src/sites/youtube/drawers/chapters.js` | Chapter picker drawer |
+| `src/sites/youtube/drawers/description.js` | Description drawer |
+| `src/sites/youtube/drawers/transcript.js` | Transcript drawer |
+| `src/sites/youtube/data/index.js` | DataProvider abstraction |
+| `src/sites/youtube/data/fetch-intercept.js` | Fetch interception for API data |
+| `src/sites/youtube/data/extractors.js` | Data extraction from API responses |
+| `src/sites/youtube/data/dom-fallback.js` | DOM scraping fallback |
 
 ### Supporting Design Docs
 
 | Path | Purpose |
 |------|---------|
 | `.design/DATA.md` | Master type definitions with module assignments |
+| `.design/ARCHITECTURE.md` | ASCII diagrams showing type relationships and module organization |
+| `.design/HTDP-ANALYSIS.md` | HtDP World model analysis and proposed refactoring |
 | `.design/STYLES.md` | TUI visual design language (Solarized Dark, patterns) |
 | `.design/SCRAPING.md` | YouTube DOM selectors (verified Jan 28, 2026) |
 
@@ -93,33 +110,20 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 
 ### In Progress
 
-(None currently)
+| # | Name | Summary |
+|---|------|---------|
+| 021 | htdp-refactor | Unify AppState + pure transitions (HtDP World model alignment) |
 
 ## Current Issues
 
-### Module Boundary Violations
-
-Code in `src/core/` that should be in `src/sites/youtube/`:
-- `modals.js`: Contains `renderChapterModal()`, `renderDescriptionModal()` - YouTube-specific
-- `state.js`: Contains `createYouTubeState()` - YouTube-specific
-- `keyboard.js`: Hardcoded CHAPTERS, DESCRIPTION mode handling
-
-### Missing from DATA.md
-
-- Drawer type (generic drawer primitive)
-- Keymap types (ModeKeymap, KeymapConfig)
-- ScraperConfig types
-
-### Keybinding Issues
-
-- Arrow keys don't work in filter input on listing pages
-- Enter doesn't select from filtered list
-- Mode-specific key handling is scattered throughout keyboard.js
-
 ### Scraping Issues
 
-- Channel page often fails to detect videos
-- Timing-dependent (works after re-render)
+- Channel page sometimes fails to detect videos initially
+- Timing-dependent (works after re-render via content polling)
+
+### Minor UX Issues
+
+- Transcript availability detection could be improved (some videos with captions show "No transcript available")
 
 ## Conventions
 
@@ -137,7 +141,7 @@ Code in `src/core/` that should be in `src/sites/youtube/`:
    - `iterations/NNN/BRAINSTORM.md` - current scope and behaviors
    - `iterations/NNN/IMPLEMENT.md` - execution status
    - `DATA.md` - type definitions (extract relevant only)
-4. **Key reference**: `sites/youtube.user.js` is the working userscript - use it as reference
+4. **Key reference**: Check `src/sites/youtube/index.js` for SiteConfig structure
 5. **Follow conventions**: Behavior-driven, wave-based, self-reflect before transitions
 6. **Build/test**: `npm run build` then reload extension in Chrome
 
@@ -166,3 +170,6 @@ Future work and ideas:
 6. ~~Implement `gg` and `G` to go to top or bottom of the list~~ ✓ Done (iteration 018)
 7. ~~Bug: sometimes comments don't all load on initial load~~ ✓ Fixed (iteration 013)
 8. ~~UX improvements for watch page video metadata container - subscribe button kbd styling, layout/spacing, visual hierarchy~~ ✓ Done (iteration 015)
+9. Improve transcript detection (some videos have captions but transcript panel won't open)
+10. Add keyboard hints for playback speed controls in command palette
+11. Consider persisting sort preference per page type
