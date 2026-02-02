@@ -60,6 +60,18 @@ Function wish list for iteration 021 (htdp-refactor).
 - **Signature**: `getVisibleItems : AppState → Item[]`
 - **Purpose**: Get items after filter/sort applied
 
+### onShowMessage
+- **Signature**: `onShowMessage : AppState × string → AppState`
+- **Purpose**: Show a flash message (sets ui.message with current timestamp)
+
+### onBoundaryHit
+- **Signature**: `onBoundaryHit : AppState × ('top' | 'bottom') → AppState`
+- **Purpose**: Flash edge when hitting list boundary (sets ui.boundaryFlash)
+
+### onClearFlash
+- **Signature**: `onClearFlash : AppState → AppState`
+- **Purpose**: Clear expired flash states (message and boundaryFlash based on timestamp)
+
 ## Complete
 
 (none yet)

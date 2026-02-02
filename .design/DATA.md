@@ -2,6 +2,387 @@
 
 ## Core Types
 
+Types are ordered top-down: parent types before their children.
+
+### AppState
+
+An AppState is a structure:
+- core: AppCore - extension-level state (persists)
+- ui: UIState - UI state (partially resets on nav)
+- site: SiteState | null - site-wide state (YouTubeState, GmailState, etc.)
+- page: PageState | null - page-specific state (YouTubePageState, GmailPageState, etc.)
+
+**Classification**: Compound
+
+**Interpretation**: The complete state of the Vilify extension at any moment. All state lives here - no module-level variables. SiteState and PageState are site-defined; core treats them as opaque.
+
+**Hierarchy**:
+```
+AppState
+├── core: AppCore           # Extension-level (persists)
+│   ├── focusModeActive
+│   └── lastUrl
+├── ui: UIState             # UI state (partially resets on nav)
+│   ├── drawer
+│   ├── paletteQuery
+│   ├── paletteSelectedIdx
+│   ├── selectedIdx
+│   ├── filterActive
+│   ├── filterQuery
+│   ├── searchActive
+│   ├── searchQuery
+│   ├── keySeq
+│   ├── sort { field, direction }
+│   ├── message
+│   └── boundaryFlash
+├── site: SiteState | null  # Site-wide (persists across pages)
+│   └── (site-specific fields)
+└── page: PageState | null  # Page-specific (resets on nav)
+    └── (site-specific, discriminated by type)
+```
+
+Examples:
+```js
+// Initial state on YouTube home
+{
+  core: { focusModeActive: true, lastUrl: 'https://youtube.com/' },
+  ui: {
+    drawer: null,
+    paletteQuery: '',
+    paletteSelectedIdx: 0,
+    selectedIdx: 0,
+    filterActive: false,
+    filterQuery: '',
+    searchActive: false,
+    searchQuery: '',
+    keySeq: '',
+    sort: { field: null, direction: 'desc' },
+    message: null,
+    boundaryFlash: null
+  },
+  site: { settingsApplied: false, commentPage: 0, commentPageStarts: [0], transcript: null },
+  page: { type: 'list', videos: [...] }
+}
+
+// Watch page with transcript drawer open
+{
+  core: { focusModeActive: true, lastUrl: 'https://youtube.com/watch?v=abc' },
+  ui: {
+    drawer: 'transcript',
+    paletteQuery: '',
+    paletteSelectedIdx: 0,
+    selectedIdx: 2,
+    filterActive: false,
+    filterQuery: '',
+    searchActive: false,
+    searchQuery: '',
+    keySeq: '',
+    sort: { field: null, direction: 'desc' },
+    message: null,
+    boundaryFlash: null
+  },
+  site: { settingsApplied: true, commentPage: 0, commentPageStarts: [0], transcript: { status: 'loaded', lines: [...], language: 'en' } },
+  page: { type: 'watch', videoContext: {...}, recommended: [...], chapters: [...] }
+}
+
+// With flash message after copy
+{
+  core: { focusModeActive: true, lastUrl: '...' },
+  ui: { ..., message: { text: 'Copied!', timestamp: 1706812345000 }, ... },
+  site: { ... },
+  page: { ... }
+}
+```
+
+---
+
+### AppCore
+
+An AppCore is a structure:
+- focusModeActive: Boolean - is focus mode overlay showing?
+- lastUrl: String - for detecting SPA navigation
+
+**Classification**: Compound
+
+**Interpretation**: Extension-level state that persists for the lifetime of the extension on a page.
+
+Examples:
+```js
+{ focusModeActive: true, lastUrl: 'https://youtube.com/' }
+{ focusModeActive: false, lastUrl: 'https://youtube.com/watch?v=abc' }
+```
+
+---
+
+### UIState
+
+A UIState is a structure:
+- drawer: DrawerType - which drawer is open (null = none)
+- paletteQuery: String - command palette input text
+- paletteSelectedIdx: Number - selected item in palette
+- selectedIdx: Number - selected item in main listing
+- filterActive: Boolean - is filter mode on?
+- filterQuery: String - filter input text
+- searchActive: Boolean - is site search focused?
+- searchQuery: String - site search text
+- keySeq: String - partial key sequence (e.g., 'g')
+- sort: SortState - current sort settings
+- message: Message | null - flash message to display
+- boundaryFlash: BoundaryFlash | null - edge flash when hitting list boundary
+
+**Classification**: Compound
+
+**Interpretation**: All UI-related state. Some fields reset on navigation (selectedIdx, filterQuery), others persist (sort). Flash fields auto-clear after timeout.
+
+Examples:
+```js
+// Normal browsing
+{
+  drawer: null, paletteQuery: '', paletteSelectedIdx: 0,
+  selectedIdx: 3, filterActive: false, filterQuery: '',
+  searchActive: false, searchQuery: '', keySeq: '',
+  sort: { field: null, direction: 'desc' },
+  message: null, boundaryFlash: null
+}
+
+// With flash message
+{
+  drawer: null, paletteQuery: '', paletteSelectedIdx: 0,
+  selectedIdx: 0, filterActive: false, filterQuery: '',
+  searchActive: false, searchQuery: '', keySeq: '',
+  sort: { field: null, direction: 'desc' },
+  message: { text: 'Copied!', timestamp: 1706812345000 },
+  boundaryFlash: null
+}
+
+// Hit top of list
+{
+  drawer: null, paletteQuery: '', paletteSelectedIdx: 0,
+  selectedIdx: 0, filterActive: false, filterQuery: '',
+  searchActive: false, searchQuery: '', keySeq: '',
+  sort: { field: null, direction: 'desc' },
+  message: null,
+  boundaryFlash: { edge: 'top', timestamp: 1706812345000 }
+}
+
+// Command palette open
+{
+  drawer: 'palette', paletteQuery: ':sort', paletteSelectedIdx: 2,
+  selectedIdx: 0, filterActive: false, filterQuery: '',
+  searchActive: false, searchQuery: '', keySeq: '',
+  sort: { field: null, direction: 'desc' },
+  message: null, boundaryFlash: null
+}
+```
+
+---
+
+### Message
+
+A Message is a structure:
+- text: String - message text to display
+- timestamp: Number - when the message was created (ms since epoch)
+
+**Classification**: Compound
+
+**Interpretation**: A temporary flash message shown to the user. Renderer uses timestamp to auto-dismiss after timeout.
+
+Examples:
+```js
+{ text: 'Copied!', timestamp: 1706812345000 }
+{ text: 'No transcript available', timestamp: 1706812346000 }
+{ text: 'URL copied to clipboard', timestamp: 1706812347000 }
+```
+
+---
+
+### BoundaryFlash
+
+A BoundaryFlash is a structure:
+- edge: 'top' | 'bottom' - which edge was hit
+- timestamp: Number - when the flash was triggered (ms since epoch)
+
+**Classification**: Compound
+
+**Interpretation**: Visual feedback when user tries to navigate past list boundaries. Renderer uses timestamp to auto-dismiss and edge to position the flash effect.
+
+Examples:
+```js
+{ edge: 'top', timestamp: 1706812345000 }    // Hit top of list
+{ edge: 'bottom', timestamp: 1706812346000 } // Hit bottom of list
+```
+
+---
+
+### SortState
+
+A SortState is a structure:
+- field: SortField | null - which field to sort by (null = default order)
+- direction: 'asc' | 'desc' - sort direction
+
+**Classification**: Compound
+
+**Interpretation**: Current sort configuration for listings. SortField is site-defined.
+
+Examples:
+```js
+{ field: null, direction: 'desc' }      // Default order
+{ field: 'date', direction: 'desc' }    // Newest first (YouTube)
+{ field: 'title', direction: 'asc' }    // A-Z
+{ field: 'received', direction: 'desc' } // Most recent (Gmail)
+```
+
+---
+
+### SortField
+
+A SortField is site-defined (String).
+
+Core treats SortField as opaque - each site defines its own valid values.
+See YouTubeSortField, GmailSortField in site-specific sections.
+
+---
+
+### DrawerType
+
+A DrawerType is one of:
+- null - no drawer open (Core)
+- 'palette' - command palette open (Core)
+- SiteDrawerType - site-specific drawers (site-defined)
+
+**Classification**: Itemization (extensible union)
+
+**Interpretation**: Which drawer is currently open. Core owns `null` and `'palette'`. Sites extend with their own drawer types (see YouTubeDrawerType, GmailDrawerType in site-specific sections).
+
+Core Examples:
+```js
+null           // Normal state, no drawer
+'palette'      // Command palette is open
+```
+
+YouTube Examples (see YouTubeDrawerType):
+```js
+'recommended'  // Filter drawer for recommended videos (watch page)
+'chapters'     // Chapter picker is open
+'description'  // Description drawer is open
+'transcript'   // Transcript drawer is open
+```
+
+---
+
+### Item
+
+An Item is one of:
+- Command
+- ContentItem
+- GroupHeader
+
+**Classification**: Itemization (union)
+
+**Interpretation**: A displayable item in a list (command palette or content listing).
+
+Examples:
+```js
+// Group header followed by commands
+{ group: 'Navigation' }
+{ label: 'Home', icon: '🏠', action: ..., keys: 'G H', ... }
+{ label: 'Subscriptions', icon: '📺', action: ..., keys: 'G S', ... }
+
+// Content items in a listing
+{ type: 'content', id: 'abc', title: 'Video Title', ... }
+{ type: 'content', id: 'def', title: 'Another Video', ... }
+```
+
+---
+
+### ContentItem
+
+A ContentItem is a structure:
+- type: 'content' - literal string (discriminator)
+- id: String - unique identifier
+- title: String - primary text
+- url: String - where to navigate on select
+- thumbnail: String | null - image URL
+- meta: String | null - secondary info (channel · date)
+- subtitle: String | null - third line
+- data: Object | null - site-specific extra data
+
+**Classification**: Compound
+
+**Interpretation**: A content item in a listing (video, email, issue, etc.).
+
+Examples:
+```js
+// YouTube video
+{ type: 'content', id: 'abc123', title: 'Cool Video',
+  url: '/watch?v=abc123', thumbnail: 'https://i.ytimg.com/...',
+  meta: 'Channel Name · 2 days ago', subtitle: null,
+  data: { videoId: 'abc123', channelUrl: '/@channel', duration: '12:34', viewCount: '1.2M views' } }
+
+// Gmail email
+{ type: 'content', id: 'msg123', title: 'Meeting tomorrow',
+  url: '/mail/u/0/#inbox/msg123', thumbnail: null,
+  meta: 'John Smith · 10:30 AM', subtitle: 'Hey, just wanted to confirm...',
+  data: { labels: ['inbox'], unread: true } }
+
+// GitHub issue
+{ type: 'content', id: '42', title: 'Fix login bug',
+  url: '/org/repo/issues/42', thumbnail: null,
+  meta: '#42 · opened by alice', subtitle: null,
+  data: { labels: ['bug'], state: 'open' } }
+```
+
+---
+
+### GroupHeader
+
+A GroupHeader is a structure:
+- group: String - group name
+
+**Classification**: Compound
+
+**Interpretation**: A visual separator/header in a list of items.
+
+Examples:
+```js
+{ group: 'Navigation' }
+{ group: 'Playback' }
+{ group: 'Copy' }
+```
+
+---
+
+### Command
+
+A Command is a structure:
+- label: String - display name
+- icon: String - emoji or symbol
+- action: Function - () => void
+- keys: String | null - shortcut hint (shown in UI)
+- meta: String | null - extra info
+- group: String | null - for grouping in palette
+
+**Classification**: Compound
+
+**Interpretation**: An action available in the command palette.
+
+Examples:
+```js
+// Navigation command
+{ label: 'Home', icon: '🏠', action: () => navigateTo('/'),
+  keys: 'G H', meta: null, group: 'Navigation' }
+
+// Context-aware command
+{ label: 'Copy URL at time', icon: '⏱', action: copyUrlAtTime,
+  keys: '⇧Y', meta: '2:34', group: 'Copy' }
+
+// Command without shortcut
+{ label: 'Speed 1.5x', icon: '🏃', action: () => setSpeed(1.5),
+  keys: null, meta: null, group: 'Speed' }
+```
+
+---
+
 ### SiteConfig
 
 A SiteConfig is a structure:
@@ -24,6 +405,10 @@ A SiteConfig is a structure:
 - watch: Object | null - watch page specific functions (YouTube)
   - nextCommentPage: Function - (siteState) => siteState
   - prevCommentPage: Function - (siteState) => siteState
+
+**Classification**: Compound
+
+**Interpretation**: Configuration for a supported site. Note: Will be refactored in iteration 024 to separate site-level and page-level concerns.
 
 Examples:
 ```js
@@ -81,6 +466,10 @@ A SiteTheme is a structure:
 - accent: Color - site's brand color
 - accentHover: Color - hover state for accent
 
+**Classification**: Compound
+
+**Interpretation**: Color scheme for a site's overlay UI.
+
 Examples:
 ```js
 // YouTube - Solarized Dark with YouTube red
@@ -101,27 +490,15 @@ Examples:
 
 ---
 
-### LayoutDef
-
-A LayoutDef is one of:
-- 'listing' - built-in scrollable item list
-- 'detail' - built-in main + optional sidebar
-- RenderFunction - custom: (state, siteState, container) => void
-
-Examples:
-```js
-'listing'                                       // Use built-in listing layout
-'detail'                                        // Use built-in detail layout
-(state, siteState, container) => renderWatch()  // Custom render function
-```
-
----
-
 ### Layouts
 
 A Layouts is a mapping:
 - keys: PageType (site-specific strings)
 - values: LayoutDef
+
+**Classification**: Mapping
+
+**Interpretation**: Maps page types to their layout definitions.
 
 Examples:
 ```js
@@ -135,126 +512,22 @@ Examples:
 
 ---
 
-### Command
+### LayoutDef
 
-A Command is a structure:
-- label: String - display name
-- icon: String - emoji or symbol
-- action: Function - () => void
-- keys: String | null - shortcut hint (shown in UI)
-- meta: String | null - extra info
-- group: String | null - for grouping in palette
+A LayoutDef is one of:
+- 'listing' - built-in scrollable item list
+- 'detail' - built-in main + optional sidebar
+- RenderFunction - custom: (state, siteState, container) => void
 
-Examples:
-```js
-// Navigation command
-{ label: 'Home', icon: '🏠', action: () => navigateTo('/'),
-  keys: 'G H', meta: null, group: 'Navigation' }
+**Classification**: Itemization (union)
 
-// Context-aware command
-{ label: 'Copy URL at time', icon: '⏱', action: copyUrlAtTime,
-  keys: '⇧Y', meta: '2:34', group: 'Copy' }
-
-// Command without shortcut
-{ label: 'Speed 1.5x', icon: '🏃', action: () => setSpeed(1.5),
-  keys: null, meta: null, group: 'Speed' }
-```
-
----
-
-### ContentItem
-
-A ContentItem is a structure:
-- type: 'content' - literal string
-- id: String - unique identifier
-- title: String - primary text
-- url: String - where to navigate on select
-- thumbnail: String | null - image URL
-- meta: String | null - secondary info (channel · date)
-- subtitle: String | null - third line
-- data: Object | null - site-specific extra data
+**Interpretation**: How to render a page type.
 
 Examples:
 ```js
-// YouTube video
-{ type: 'content', id: 'abc123', title: 'Cool Video',
-  url: '/watch?v=abc123', thumbnail: 'https://i.ytimg.com/...',
-  meta: 'Channel Name · 2 days ago', subtitle: null,
-  data: { videoId: 'abc123', channelUrl: '/@channel', duration: '12:34', viewCount: '1.2M views' } }
-
-// Gmail email
-{ type: 'content', id: 'msg123', title: 'Meeting tomorrow',
-  url: '/mail/u/0/#inbox/msg123', thumbnail: null,
-  meta: 'John Smith · 10:30 AM', subtitle: 'Hey, just wanted to confirm...',
-  data: { labels: ['inbox'], unread: true } }
-
-// GitHub issue
-{ type: 'content', id: '42', title: 'Fix login bug',
-  url: '/org/repo/issues/42', thumbnail: null,
-  meta: '#42 · opened by alice', subtitle: null,
-  data: { labels: ['bug'], state: 'open' } }
-```
-
----
-
-### GroupHeader
-
-A GroupHeader is a structure:
-- group: String - group name
-
-Examples:
-```js
-{ group: 'Navigation' }
-{ group: 'Playback' }
-{ group: 'Copy' }
-```
-
----
-
-### Item
-
-An Item is one of:
-- Command
-- ContentItem
-- GroupHeader
-
-Examples:
-```js
-// Group header followed by commands
-{ group: 'Navigation' }
-{ label: 'Home', icon: '🏠', action: ..., keys: 'G H', ... }
-{ label: 'Subscriptions', icon: '📺', action: ..., keys: 'G S', ... }
-
-// Content items in a listing
-{ type: 'content', id: 'abc', title: 'Video Title', ... }
-{ type: 'content', id: 'def', title: 'Another Video', ... }
-```
-
----
-
-### DrawerType
-
-A DrawerType is one of:
-- null - no drawer open (Core)
-- 'palette' - command palette open (Core)
-- SiteDrawerType - site-specific drawers (site-defined)
-
-**Classification**: Itemization (extensible union)
-
-**Interpretation**: Which drawer is currently open. Core owns `null` and `'palette'`. Sites extend with their own drawer types (see YouTubeDrawerType, GmailDrawerType in site-specific sections).
-
-Core Examples:
-```js
-null           // Normal state, no drawer
-'palette'      // Command palette is open
-```
-
-YouTube Examples (see YouTubeDrawerType):
-```js
-'recommended'  // Filter drawer for recommended videos (watch page)
-'chapters'     // Chapter picker is open
-'description'  // Description drawer is open
-'transcript'   // Transcript drawer is open
+'listing'                                       // Use built-in listing layout
+'detail'                                        // Use built-in detail layout
+(state, siteState, container) => renderWatch()  // Custom render function
 ```
 
 ---
@@ -267,6 +540,10 @@ A DrawerHandler is a structure returned by drawer factory functions:
 - cleanup: Function - () => void - cleanup drawer state and DOM
 - updateQuery: Function | null - (query: string) => void - update filter query (list drawers only)
 - getFilterPlaceholder: Function | null - () => string - get placeholder text for status bar input
+
+**Classification**: Compound
+
+**Interpretation**: Handler for an open drawer, providing render/key handling/cleanup.
 
 Examples:
 ```js
@@ -309,6 +586,10 @@ A ListDrawerConfig is a structure passed to createListDrawer:
 - filterPlaceholder: String - placeholder text for filter input
 - matchesFilter: Function | null - (item, query) => boolean - custom filter matcher
 
+**Classification**: Compound
+
+**Interpretation**: Configuration for creating a list-style drawer.
+
 Examples:
 ```js
 // Chapter drawer config
@@ -331,186 +612,6 @@ Examples:
   matchesFilter: (line, q) => line.text.toLowerCase().includes(q.toLowerCase())
 }
 ```
-
----
-
-### AppState
-
-An AppState is a structure:
-- core: AppCore - extension-level state (persists)
-- ui: UIState - UI state (partially resets on nav)
-- site: SiteState | null - site-wide state (YouTubeState, GmailState, etc.)
-- page: PageState | null - page-specific state (YouTubePageState, GmailPageState, etc.)
-
-**Classification**: Compound
-
-**Interpretation**: The complete state of the Vilify extension at any moment. All state lives here - no module-level variables. SiteState and PageState are site-defined; core treats them as opaque.
-
-**Hierarchy**:
-```
-AppState
-├── core: AppCore           # Extension-level (persists)
-│   ├── focusModeActive
-│   └── lastUrl
-├── ui: UIState             # UI state (partially resets on nav)
-│   ├── drawer
-│   ├── paletteQuery
-│   ├── paletteSelectedIdx
-│   ├── selectedIdx
-│   ├── filterActive
-│   ├── filterQuery
-│   ├── searchActive
-│   ├── searchQuery
-│   ├── keySeq
-│   └── sort { field, direction }
-├── site: SiteState | null  # Site-wide (persists across pages)
-│   └── (site-specific fields)
-└── page: PageState | null  # Page-specific (resets on nav)
-    └── (site-specific, discriminated by type)
-```
-
-Examples:
-```js
-// Initial state on YouTube home
-{
-  core: { focusModeActive: true, lastUrl: 'https://youtube.com/' },
-  ui: {
-    drawer: null,
-    paletteQuery: '',
-    paletteSelectedIdx: 0,
-    selectedIdx: 0,
-    filterActive: false,
-    filterQuery: '',
-    searchActive: false,
-    searchQuery: '',
-    keySeq: '',
-    sort: { field: null, direction: 'desc' }
-  },
-  site: { settingsApplied: false, commentPage: 0, commentPageStarts: [0], transcript: null },
-  page: { type: 'list', videos: [...] }
-}
-
-// Watch page with transcript drawer open
-{
-  core: { focusModeActive: true, lastUrl: 'https://youtube.com/watch?v=abc' },
-  ui: {
-    drawer: 'transcript',
-    paletteQuery: '',
-    paletteSelectedIdx: 0,
-    selectedIdx: 2,
-    filterActive: false,
-    filterQuery: '',
-    searchActive: false,
-    searchQuery: '',
-    keySeq: '',
-    sort: { field: null, direction: 'desc' }
-  },
-  site: { settingsApplied: true, commentPage: 0, commentPageStarts: [0], transcript: { status: 'loaded', lines: [...], language: 'en' } },
-  page: { type: 'watch', videoContext: {...}, recommended: [...], chapters: [...] }
-}
-
-// Mid key-sequence (user pressed 'g')
-{
-  core: { focusModeActive: true, lastUrl: '...' },
-  ui: { ..., keySeq: 'g', ... },
-  site: { ... },
-  page: { ... }
-}
-```
-
----
-
-### AppCore
-
-An AppCore is a structure:
-- focusModeActive: Boolean - is focus mode overlay showing?
-- lastUrl: String - for detecting SPA navigation
-
-**Classification**: Compound
-
-**Interpretation**: Extension-level state that persists for the lifetime of the extension on a page.
-
-Examples:
-```js
-{ focusModeActive: true, lastUrl: 'https://youtube.com/' }
-{ focusModeActive: false, lastUrl: 'https://youtube.com/watch?v=abc' }
-```
-
----
-
-### UIState
-
-A UIState is a structure:
-- drawer: DrawerType - which drawer is open (null = none)
-- paletteQuery: String - command palette input text
-- paletteSelectedIdx: Number - selected item in palette
-- selectedIdx: Number - selected item in main listing
-- filterActive: Boolean - is filter mode on?
-- filterQuery: String - filter input text
-- searchActive: Boolean - is site search focused?
-- searchQuery: String - site search text
-- keySeq: String - partial key sequence (e.g., 'g')
-- sort: SortState - current sort settings
-
-**Classification**: Compound
-
-**Interpretation**: All UI-related state. Some fields reset on navigation (selectedIdx, filterQuery), others persist (sort).
-
-Examples:
-```js
-// Normal browsing
-{
-  drawer: null, paletteQuery: '', paletteSelectedIdx: 0,
-  selectedIdx: 3, filterActive: false, filterQuery: '',
-  searchActive: false, searchQuery: '', keySeq: '',
-  sort: { field: null, direction: 'desc' }
-}
-
-// Filtering active with sort
-{
-  drawer: null, paletteQuery: '', paletteSelectedIdx: 0,
-  selectedIdx: 0, filterActive: true, filterQuery: 'music',
-  searchActive: false, searchQuery: '', keySeq: '',
-  sort: { field: 'date', direction: 'desc' }
-}
-
-// Command palette open
-{
-  drawer: 'palette', paletteQuery: ':sort', paletteSelectedIdx: 2,
-  selectedIdx: 0, filterActive: false, filterQuery: '',
-  searchActive: false, searchQuery: '', keySeq: '',
-  sort: { field: null, direction: 'desc' }
-}
-```
-
----
-
-### SortState
-
-A SortState is a structure:
-- field: SortField | null - which field to sort by (null = default order)
-- direction: 'asc' | 'desc' - sort direction
-
-**Classification**: Compound
-
-**Interpretation**: Current sort configuration for listings. SortField is site-defined.
-
-Examples:
-```js
-{ field: null, direction: 'desc' }      // Default order
-{ field: 'date', direction: 'desc' }    // Newest first (YouTube)
-{ field: 'title', direction: 'asc' }    // A-Z
-{ field: 'received', direction: 'desc' } // Most recent (Gmail)
-```
-
----
-
-### SortField
-
-A SortField is site-defined (String).
-
-Core treats SortField as opaque - each site defines its own valid values.
-See YouTubeSortField, GmailSortField in site-specific sections.
 
 ---
 

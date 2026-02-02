@@ -27,7 +27,9 @@
 |------|------------|----------------|--------|
 | AppState | Unified state for entire app | Compound (core, ui, site, page) | ✓ complete |
 | AppCore | Extension-level state | Compound (focusModeActive, lastUrl) | ✓ complete |
-| UIState | UI state | Compound (drawer, selectedIdx, filter, search, keySeq, sort) | ✓ complete |
+| UIState | UI state | Compound (drawer, selectedIdx, filter, search, keySeq, sort, message, boundaryFlash) | ✓ complete |
+| Message | Flash message | Compound (text, timestamp) | ✓ complete |
+| BoundaryFlash | List boundary flash | Compound (edge, timestamp) | ✓ complete |
 | SortState | Sort configuration | Compound (field, direction) | ✓ complete |
 | SiteState | Site-wide state (generic base) | Compound (varies by site) | ✓ (site-defined) |
 | PageState | Page-specific state | Union (site-defined) | ✓ (site-defined) |
@@ -57,7 +59,9 @@ AppState (Core)
 │   ├── searchActive: Boolean
 │   ├── searchQuery: String
 │   ├── keySeq: String
-│   └── sort: SortState { field, direction }
+│   ├── sort: SortState { field, direction }
+│   ├── message: Message | null { text, timestamp }
+│   └── boundaryFlash: BoundaryFlash | null { edge, timestamp }
 ├── site: SiteState | null           # Site-wide (site-defined, persists)
 └── page: PageState | null           # Page-specific (site-defined, resets on nav)
 
