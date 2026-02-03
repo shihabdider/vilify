@@ -299,8 +299,6 @@ export const youtubeConfig = {
     const pageType = getYouTubePageType();
     const dp = getDataProvider();
     
-    console.log('[Vilify] createPageState called, pageType:', pageType);
-    
     if (pageType === 'watch') {
       // Watch page: includes video context, recommended, and chapters
       const videoContext = dp.getVideoContext?.() ?? null;
@@ -310,12 +308,6 @@ export const youtubeConfig = {
       // Cache recommended items for the drawer handler
       setRecommendedItems(recommended);
       
-      console.log('[Vilify] Watch page state:', { 
-        hasVideoContext: !!videoContext, 
-        recommendedCount: recommended.length,
-        chaptersCount: chapters.length,
-        firstRecommended: recommended[0]
-      });
       return createWatchPageState(videoContext, recommended, chapters);
     }
     
@@ -324,7 +316,6 @@ export const youtubeConfig = {
     
     // All other pages are list pages
     const videos = dp.getVideos?.() ?? [];
-    console.log('[Vilify] List page state:', { videoCount: videos.length });
     return createListPageState(videos);
   },
 
