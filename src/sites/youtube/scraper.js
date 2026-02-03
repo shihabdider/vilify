@@ -760,7 +760,7 @@ export function getComments() {
 
 /**
  * Scrape recommended videos from watch page sidebar
- * Uses ytd-compact-video-renderer in #secondary/#related
+ * Supports both old (ytd-compact-video-renderer) and new (yt-lockup-view-model) layouts
  * @returns {Array<ContentItem>} List of recommended video content items
  * 
  * Examples:
@@ -768,7 +768,7 @@ export function getComments() {
  *   getRecommendedVideos() => []  // Not on watch page or no recommendations
  */
 export function getRecommendedVideos() {
-  // Inventory: DOM elements from ytd-compact-video-renderer
+  // Inventory: DOM elements from various renderers in sidebar
   // Template: iterate and accumulate
 
   if (getYouTubePageType() !== 'watch') return [];
@@ -776,7 +776,60 @@ export function getRecommendedVideos() {
   const videos = [];
   const seen = new Set();
 
-  // Look for recommended videos in sidebar
+  // Strategy 1: New layout - yt-lockup-view-model (inside ytd-rich-item-renderer or standalone)
+  // YouTube has been transitioning sidebars to this format
+  document.querySelectorAll('#secondary yt-lockup-view-model, #related yt-lockup-view-model, ytd-watch-next-secondary-results-renderer yt-lockup-view-model').forEach(lockup => {
+    const titleLink = lockup.querySelector('a.yt-lockup-metadata-view-model-wiz__title, a.yt-lockup-metadata-view-model__title');
+    const href = titleLink?.href;
+    const videoId = extractVideoId(href);
+    if (!videoId || seen.has(videoId)) return;
+    
+    // Filter out Shorts
+    if (href?.includes('/shorts/')) return;
+    
+    seen.add(videoId);
+    
+    const title = titleLink?.textContent?.trim();
+    if (!title) return;
+    
+    // Get channel and metadata from new format
+    const channelLink = lockup.querySelector('.yt-content-metadata-view-model-wiz__metadata-row a, .yt-content-metadata-view-model__metadata-row a');
+    const metaTexts = lockup.querySelectorAll('.yt-content-metadata-view-model-wiz__metadata-text, .yt-content-metadata-view-model__metadata-text');
+    
+    let channel = channelLink?.textContent?.trim();
+    // Fallback: if no link, channel might be in first metadata text
+    if (!channel && metaTexts.length > 0) {
+      channel = metaTexts[0]?.textContent?.trim();
+    }
+    
+    const views = metaTexts[1]?.textContent?.trim();
+    const uploadDate = metaTexts[2]?.textContent?.trim();
+    const duration = scrapeDuration(lockup);
+    
+    // Build meta string
+    const metaParts = [];
+    if (channel) metaParts.push(channel);
+    if (uploadDate) metaParts.push(uploadDate);
+    const meta = metaParts.join(' · ') || null;
+    
+    videos.push({
+      type: 'content',
+      id: videoId,
+      title: title || 'Untitled',
+      url: `/watch?v=${videoId}`,
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+      meta,
+      subtitle: null,
+      data: {
+        videoId,
+        channelUrl: channelLink?.getAttribute('href') || null,
+        viewCount: views || null,
+        duration: duration || null,
+      },
+    });
+  });
+
+  // Strategy 2: Old layout - ytd-compact-video-renderer (still used in some cases)
   document.querySelectorAll('#secondary ytd-compact-video-renderer, #related ytd-compact-video-renderer').forEach(item => {
     const titleEl = item.querySelector('#video-title, .title');
     const title = titleEl?.textContent?.trim();
@@ -786,10 +839,11 @@ export function getRecommendedVideos() {
     const videoId = extractVideoId(href);
     
     if (!videoId || seen.has(videoId)) return;
-    seen.add(videoId);
     
     // Filter out Shorts
     if (href?.includes('/shorts/')) return;
+    
+    seen.add(videoId);
     
     // Get channel name
     const channelEl = item.querySelector('#channel-name, .ytd-channel-name, yt-formatted-string.ytd-channel-name');
@@ -798,6 +852,7 @@ export function getRecommendedVideos() {
     // Get view count and upload date
     const metaEl = item.querySelector('#metadata-line, .metadata');
     const metaText = metaEl?.textContent?.trim() || '';
+    const duration = scrapeDuration(item);
     
     // Build meta string
     const metaParts = [];
@@ -816,6 +871,51 @@ export function getRecommendedVideos() {
       data: {
         videoId,
         channelUrl: null,
+        viewCount: null,
+        duration: duration || null,
+      },
+    });
+  });
+
+  // Strategy 3: Rich item renderer wrapper (sometimes used in sidebar)
+  document.querySelectorAll('#secondary ytd-rich-item-renderer, #related ytd-rich-item-renderer').forEach(item => {
+    // May contain yt-lockup-view-model (handled above) or ytd-video-renderer
+    const videoRenderer = item.querySelector('ytd-video-renderer');
+    if (!videoRenderer) return; // lockup already handled above
+    
+    const titleEl = videoRenderer.querySelector('#video-title, a#video-title');
+    const href = titleEl?.href;
+    const videoId = extractVideoId(href);
+    
+    if (!videoId || seen.has(videoId)) return;
+    
+    // Filter out Shorts
+    if (href?.includes('/shorts/')) return;
+    
+    seen.add(videoId);
+    
+    const title = titleEl?.textContent?.trim();
+    const channelEl = videoRenderer.querySelector('ytd-channel-name a, #channel-name a');
+    const channel = channelEl?.textContent?.trim();
+    const duration = scrapeDuration(videoRenderer);
+    
+    const metaParts = [];
+    if (channel) metaParts.push(channel);
+    const meta = metaParts.join(' · ') || null;
+    
+    videos.push({
+      type: 'content',
+      id: videoId,
+      title: title || 'Untitled',
+      url: `/watch?v=${videoId}`,
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+      meta,
+      subtitle: null,
+      data: {
+        videoId,
+        channelUrl: channelEl?.getAttribute('href') || null,
+        viewCount: null,
+        duration: duration || null,
       },
     });
   });

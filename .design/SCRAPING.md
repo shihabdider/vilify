@@ -1,6 +1,6 @@
 # YouTube DOM Scraping Reference
 
-**Last verified:** January 28, 2026
+**Last verified:** February 1, 2026
 
 This documents the actual DOM structure and selectors for scraping YouTube. YouTube's DOM changes frequently, so this should be re-verified periodically.
 
@@ -235,6 +235,68 @@ function parseTimestamp(str) {
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   return 0;
 }
+```
+
+---
+
+## Watch Page Recommendations (Sidebar)
+
+YouTube uses different renderers for the sidebar recommendations:
+
+### Renderer Mapping (Updated Feb 2026)
+
+| Layout | Renderer | Notes |
+|--------|----------|-------|
+| New (2024+) | `yt-lockup-view-model` | Now default on most watch pages |
+| Old | `ytd-compact-video-renderer` | Still used in some cases |
+| Mixed | `ytd-rich-item-renderer` | May contain either format |
+
+### New Layout (yt-lockup-view-model)
+
+```
+#secondary / #related / ytd-watch-next-secondary-results-renderer
+  └── yt-lockup-view-model
+        ├── a.yt-lockup-metadata-view-model-wiz__title   → title link
+        │     OR a.yt-lockup-metadata-view-model__title
+        └── .yt-content-metadata-view-model-wiz__metadata-row
+              └── a                                       → channel link
+              └── .yt-content-metadata-view-model-wiz__metadata-text (×3)
+                    ├── [1] channel name
+                    ├── [2] view count
+                    └── [3] upload date
+```
+
+**Selectors:**
+```javascript
+const SELECTORS_RECOMMENDATIONS_NEW = {
+  container: '#secondary yt-lockup-view-model, #related yt-lockup-view-model, ytd-watch-next-secondary-results-renderer yt-lockup-view-model',
+  titleLink: 'a.yt-lockup-metadata-view-model-wiz__title, a.yt-lockup-metadata-view-model__title',
+  channelLink: '.yt-content-metadata-view-model-wiz__metadata-row a, .yt-content-metadata-view-model__metadata-row a',
+  metadataText: '.yt-content-metadata-view-model-wiz__metadata-text, .yt-content-metadata-view-model__metadata-text'
+};
+```
+
+### Old Layout (ytd-compact-video-renderer)
+
+```
+#secondary / #related
+  └── ytd-compact-video-renderer
+        ├── a#thumbnail                    → thumbnail link
+        ├── #video-title                   → title
+        ├── #channel-name                  → channel
+        └── #metadata-line
+              └── span (×2)                → views, upload date
+```
+
+**Selectors:**
+```javascript
+const SELECTORS_RECOMMENDATIONS_OLD = {
+  container: '#secondary ytd-compact-video-renderer, #related ytd-compact-video-renderer',
+  titleLink: '#video-title, .title',
+  thumbnail: 'a#thumbnail, a.yt-simple-endpoint',
+  channel: '#channel-name, .ytd-channel-name',
+  metadata: '#metadata-line, .metadata'
+};
 ```
 
 ---

@@ -294,15 +294,22 @@ export function createDataProvider() {
     // Check if we're on watch page (from cache or URL)
     const isWatchPage = cachedPageType === 'watch' || window.location.pathname === '/watch';
     
+    console.log('[Vilify] getRecommendations:', { isWatchPage, hasCachedData: !!cachedInitialData, cachedPageType });
+    
     if (isWatchPage && cachedInitialData) {
       const videos = extractVideosForPage(cachedInitialData, 'watch');
+      console.log('[Vilify] API extraction returned:', videos.length, 'videos');
       if (videos.length > 0) {
-        return videos.map(toContentItem);
+        const items = videos.map(toContentItem);
+        console.log('[Vilify] Returning API items:', items.length, items[0]);
+        return items;
       }
     }
     
     // Fallback to DOM scraping
-    return scrapeDOMRecommendations();
+    const domItems = scrapeDOMRecommendations();
+    console.log('[Vilify] DOM fallback returned:', domItems.length, 'items', domItems[0]);
+    return domItems;
   }
   
   /**

@@ -43,20 +43,14 @@ export function scrapeDOMVideoContext() {
 
 /**
  * Scrape recommendations from DOM as fallback
- * @returns {Array<Video>}
+ * @returns {Array<ContentItem>}
  */
 export function scrapeDOMRecommendations() {
   const items = scrapeRecommended();
   
+  // scraper.js already returns ContentItem format, just add _source tag
   return items.map(item => ({
-    videoId: item.id,
-    title: item.title,
-    channel: item.meta?.split(' · ')[0] || null,
-    channelUrl: null,
-    views: null,
-    published: null,
-    duration: null,
-    thumbnail: item.thumbnail,
+    ...item,
     _source: 'dom',
   }));
 }

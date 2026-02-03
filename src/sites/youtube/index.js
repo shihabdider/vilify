@@ -6,7 +6,7 @@ import { getDataProvider } from './data/index.js';
 import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
-import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js';
+import { getYouTubeDrawerHandler, resetYouTubeDrawers, setRecommendedItems } from './drawers/index.js';
 import { fetchTranscript } from './transcript.js';
 import { 
   createListPageState, 
@@ -299,16 +299,32 @@ export const youtubeConfig = {
     const pageType = getYouTubePageType();
     const dp = getDataProvider();
     
+    console.log('[Vilify] createPageState called, pageType:', pageType);
+    
     if (pageType === 'watch') {
       // Watch page: includes video context, recommended, and chapters
       const videoContext = dp.getVideoContext?.() ?? null;
-      const recommended = dp.getVideos?.() ?? [];
+      const recommended = dp.getRecommendations?.() ?? [];
       const chapters = getChapters();
+      
+      // Cache recommended items for the drawer handler
+      setRecommendedItems(recommended);
+      
+      console.log('[Vilify] Watch page state:', { 
+        hasVideoContext: !!videoContext, 
+        recommendedCount: recommended.length,
+        chaptersCount: chapters.length,
+        firstRecommended: recommended[0]
+      });
       return createWatchPageState(videoContext, recommended, chapters);
     }
     
+    // Clear recommended items cache on non-watch pages
+    setRecommendedItems([]);
+    
     // All other pages are list pages
     const videos = dp.getVideos?.() ?? [];
+    console.log('[Vilify] List page state:', { videoCount: videos.length });
     return createListPageState(videos);
   },
 

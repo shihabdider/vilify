@@ -3,9 +3,15 @@
 import { getChapterDrawer, resetChapterDrawer } from './chapters.js';
 import { getDescriptionDrawer, resetDescriptionDrawer } from './description.js';
 import { getTranscriptDrawer, resetTranscriptDrawer } from './transcript.js';
+import { getRecommendedDrawer, resetRecommendedDrawer, setRecommendedItems } from './recommended.js';
 
 // Re-export for external use
-export { getChapterDrawer, resetChapterDrawer, getDescriptionDrawer, resetDescriptionDrawer, getTranscriptDrawer, resetTranscriptDrawer };
+export { 
+  getChapterDrawer, resetChapterDrawer, 
+  getDescriptionDrawer, resetDescriptionDrawer, 
+  getTranscriptDrawer, resetTranscriptDrawer,
+  getRecommendedDrawer, resetRecommendedDrawer, setRecommendedItems
+};
 
 /**
  * Get drawer handler for the given drawer state.
@@ -35,6 +41,11 @@ export function getYouTubeDrawerHandler(drawerState, siteState) {
     return null;
   }
   
+  if (drawerState === 'recommended') {
+    // Recommended drawer uses cached items set via setRecommendedItems
+    return getRecommendedDrawer();
+  }
+  
   return null;
 }
 
@@ -45,4 +56,5 @@ export function resetYouTubeDrawers() {
   resetChapterDrawer();
   resetDescriptionDrawer();
   resetTranscriptDrawer();
+  resetRecommendedDrawer();
 }
