@@ -7,6 +7,7 @@ import {
   toStatusBarView,
   toContentView,
   toDrawerView,
+  getPageItems,
   statusBarViewEqual,
   contentViewChanged,
   drawerViewChanged
@@ -137,8 +138,71 @@ describe('toStatusBarView', () => {
 // toContentView TESTS
 // =============================================================================
 
+// =============================================================================
+// getPageItems TESTS
+// =============================================================================
+
+describe('getPageItems', () => {
+  it('returns videos from list page', () => {
+    const state = createTestState({
+      page: { type: 'list', videos: [{ id: '1' }, { id: '2' }] }
+    });
+    
+    const items = getPageItems(state);
+    
+    expect(items).toHaveLength(2);
+    expect(items[0].id).toBe('1');
+  });
+  
+  it('returns recommended from watch page', () => {
+    const state = createTestState({
+      page: { type: 'watch', videoContext: null, recommended: [{ id: 'r1' }], chapters: [] }
+    });
+    
+    const items = getPageItems(state);
+    
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe('r1');
+  });
+  
+  it('returns empty array when page is null', () => {
+    const state = createTestState({ page: null });
+    
+    const items = getPageItems(state);
+    
+    expect(items).toEqual([]);
+  });
+  
+  it('returns empty array for unknown page type', () => {
+    const state = createTestState({ page: { type: 'unknown' } });
+    
+    const items = getPageItems(state);
+    
+    expect(items).toEqual([]);
+  });
+});
+
+// =============================================================================
+// toContentView TESTS
+// =============================================================================
+
 describe('toContentView', () => {
-  it('returns listing type for listing layout', () => {
+  it('reads items from state.page (HtDP model)', () => {
+    const state = createTestState({ 
+      ui: { selectedIdx: 2 },
+      page: { type: 'list', videos: [{ title: 'A' }, { title: 'B' }, { title: 'C' }] }
+    });
+    const config = createTestConfig({ pageType: 'home', layouts: { home: 'listing' } });
+    
+    const view = toContentView(state, config);
+    
+    expect(view.type).toBe('listing');
+    expect(view.items).toHaveLength(3);
+    expect(view.selectedIdx).toBe(2);
+    expect(view.render).toBe(null);
+  });
+  
+  it('returns listing type for listing layout (legacy items parameter)', () => {
     const state = createTestState({ ui: { selectedIdx: 2 } });
     const config = createTestConfig({ pageType: 'home', layouts: { home: 'listing' } });
     const items = [{ title: 'A' }, { title: 'B' }, { title: 'C' }];
@@ -268,13 +332,13 @@ describe('toDrawerView', () => {
 describe('toView', () => {
   it('computes complete view tree', () => {
     const state = createTestState({
-      ui: { selectedIdx: 1, sort: { field: 'date', direction: 'desc' } }
+      ui: { selectedIdx: 1, sort: { field: 'date', direction: 'desc' } },
+      page: { type: 'list', videos: [{ title: 'A' }, { title: 'B' }] }
     });
     const config = createTestConfig();
-    const items = [{ title: 'A' }, { title: 'B' }];
     const commands = [{ label: 'Test' }];
     
-    const view = toView(state, config, { items, commands });
+    const view = toView(state, config, { commands });
     
     expect(view.statusBar).toBeDefined();
     expect(view.statusBar.mode).toBe('NORMAL');
@@ -289,25 +353,31 @@ describe('toView', () => {
   });
 
   it('includes drawer in view tree', () => {
-    const state = createTestState({ ui: { drawer: 'palette' } });
+    const state = createTestState({ 
+      ui: { drawer: 'palette' },
+      page: { type: 'list', videos: [] }
+    });
     const config = createTestConfig();
     const commands = [{ label: 'Command 1' }];
     
-    const view = toView(state, config, { items: [], commands });
+    const view = toView(state, config, { commands });
     
     expect(view.drawer).not.toBe(null);
     expect(view.drawer.type).toBe('palette');
   });
 
   it('uses drawer placeholder from handler', () => {
-    const state = createTestState({ ui: { drawer: 'transcript' } });
+    const state = createTestState({ 
+      ui: { drawer: 'transcript' },
+      page: { type: 'list', videos: [] }
+    });
     const config = createTestConfig({
       getDrawerHandler: () => ({
         getFilterPlaceholder: () => 'Search transcript...'
       })
     });
     
-    const view = toView(state, config, { items: [], siteState: {} });
+    const view = toView(state, config, { siteState: {} });
     
     expect(view.statusBar.inputPlaceholder).toBe('Search transcript...');
   });

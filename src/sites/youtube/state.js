@@ -2,6 +2,70 @@
 // Following HTDP design from .design/DATA.md
 
 // =============================================================================
+// PAGE STATE CREATION
+// =============================================================================
+
+/**
+ * Create ListPageState for listing pages.
+ * [PURE]
+ *
+ * @param {Array<ContentItem>} videos - Videos on the page
+ * @returns {ListPageState} Page state for listing page
+ *
+ * @example
+ * createListPageState([])
+ *   => { type: 'list', videos: [] }
+ *
+ * @example
+ * createListPageState([{ id: '1', title: 'Video 1' }, { id: '2', title: 'Video 2' }])
+ *   => { type: 'list', videos: [{ id: '1', title: 'Video 1' }, { id: '2', title: 'Video 2' }] }
+ */
+export function createListPageState(videos = []) {
+  // Template: videos is List → use directly
+  return {
+    type: 'list',
+    videos
+  };
+}
+
+/**
+ * Create WatchPageState for watch page.
+ * [PURE]
+ *
+ * @param {VideoContext|null} videoContext - Current video metadata
+ * @param {Array<ContentItem>} recommended - Recommended videos
+ * @param {Array<Chapter>} chapters - Video chapters
+ * @returns {WatchPageState} Page state for watch page
+ *
+ * @example
+ * // Before data loads
+ * createWatchPageState(null, [], [])
+ *   => { type: 'watch', videoContext: null, recommended: [], chapters: [] }
+ *
+ * @example
+ * // Fully loaded
+ * createWatchPageState(
+ *   { videoId: 'abc', title: 'Cool Video', channelName: 'Creator' },
+ *   [{ id: 'xyz', title: 'Related' }],
+ *   [{ title: 'Intro', time: 0, timeText: '0:00' }]
+ * ) => {
+ *   type: 'watch',
+ *   videoContext: { videoId: 'abc', title: 'Cool Video', channelName: 'Creator' },
+ *   recommended: [{ id: 'xyz', title: 'Related' }],
+ *   chapters: [{ title: 'Intro', time: 0, timeText: '0:00' }]
+ * }
+ */
+export function createWatchPageState(videoContext = null, recommended = [], chapters = []) {
+  // Template: all inputs are simple (Compound/List) → construct directly
+  return {
+    type: 'watch',
+    videoContext,
+    recommended,
+    chapters
+  };
+}
+
+// =============================================================================
 // TRANSCRIPT STATE TRANSITIONS
 // =============================================================================
 

@@ -391,7 +391,7 @@ A SiteConfig is a structure:
 - theme: SiteTheme - color scheme for this site
 - logo: HTMLElement | null - optional branding element for loading screen
 - getPageType: Function - () => PageType
-- getItems: Function - () => Array\<Item\>
+- getItems: Function - () => Array\<Item\> - called by event handlers to populate state.page
 - getCommands: Function - (ctx) => Array\<Command\>
 - getKeySequences: Function - (ctx) => Object
 - getSingleKeyActions: Function - (ctx) => Object - single-key actions including Shift modifiers
@@ -399,16 +399,12 @@ A SiteConfig is a structure:
 - getDescription: Function | null - () => String - get description text (YouTube)
 - getChapters: Function | null - () => Array\<Chapter\> - get chapters (YouTube)
 - seekToChapter: Function | null - (chapter) => void - seek to chapter (YouTube)
-- layouts: Layouts - mapping of page types to layout definitions
+- pages: Pages - mapping of page types to PageConfig objects
 - createSiteState: Function | null - () => SiteState - factory for site-specific state
-- onContentReady: Function | null - () => void, called after render completes
-- watch: Object | null - watch page specific functions (YouTube)
-  - nextCommentPage: Function - (siteState) => siteState
-  - prevCommentPage: Function - (siteState) => siteState
 
 **Classification**: Compound
 
-**Interpretation**: Configuration for a supported site. Note: Will be refactored in iteration 024 to separate site-level and page-level concerns.
+**Interpretation**: Configuration for a supported site. Page-specific behavior (rendering, lifecycle, actions) is defined in `pages`.
 
 Examples:
 ```js
@@ -427,10 +423,18 @@ Examples:
   getDescription: () => getDescription(),
   getChapters: () => getChapters(),
   seekToChapter: (ch) => seekTo(ch.time),
-  layouts: { home: 'listing', watch: renderWatchPage },
-  createSiteState: () => ({ settingsApplied: false, ... }),
-  onContentReady: () => applyDefaultVideoSettings(),
-  watch: { nextCommentPage, prevCommentPage }
+  pages: {
+    home: { render: renderYouTubeListing },
+    search: { render: renderYouTubeListing },
+    watch: {
+      render: renderWatchPage,
+      onEnter: async (ctx) => { applyDefaultVideoSettings(); await fetchTranscript(); },
+      onLeave: () => { resetDrawers(); },
+      nextCommentPage,
+      prevCommentPage
+    }
+  },
+  createSiteState: () => ({ settingsApplied: false, ... })
 }
 
 // Minimal site config
@@ -445,9 +449,8 @@ Examples:
   getKeySequences: (ctx) => ({}),
   getSingleKeyActions: (ctx) => ({}),
   getDrawerHandler: () => null,
-  layouts: { results: 'listing' },
-  createSiteState: null,
-  onContentReady: null
+  pages: { results: { render: renderListing } },
+  createSiteState: null
 }
 ```
 
@@ -490,44 +493,78 @@ Examples:
 
 ---
 
-### Layouts
+### Pages
 
-A Layouts is a mapping:
+A Pages is a mapping:
 - keys: PageType (site-specific strings)
-- values: LayoutDef
+- values: PageConfig
 
 **Classification**: Mapping
 
-**Interpretation**: Maps page types to their layout definitions.
+**Interpretation**: Maps page types to their configuration objects.
 
 Examples:
 ```js
 // YouTube
-{ home: 'listing', search: 'listing', subscriptions: 'listing',
-  watch: (state, siteState, container) => renderWatchPage(state, siteState, container) }
+{
+  home: { render: renderYouTubeListing },
+  search: { render: renderYouTubeListing },
+  subscriptions: { render: renderYouTubeListing },
+  watch: {
+    render: renderWatchPage,
+    onEnter: async (ctx) => { /* setup */ },
+    onLeave: () => { /* cleanup */ },
+    nextCommentPage,
+    prevCommentPage
+  }
+}
 
 // Gmail
-{ inbox: 'listing', thread: 'detail', compose: renderCompose }
+{
+  inbox: { render: renderInboxListing },
+  thread: { render: renderThread, onEnter: markAsRead },
+  compose: { render: renderCompose }
+}
 ```
 
 ---
 
-### LayoutDef
+### PageConfig
 
-A LayoutDef is one of:
-- 'listing' - built-in scrollable item list
-- 'detail' - built-in main + optional sidebar
-- RenderFunction - custom: (state, siteState, container) => void
+A PageConfig is a structure:
+- render: Function - (state, siteState, container) => void - render the page
+- onEnter: Function | null - (ctx) => void | Promise\<void\> - called when entering page
+- onLeave: Function | null - () => void - called when leaving page
+- [key: string]: any - page-specific extensions (e.g., nextCommentPage)
 
-**Classification**: Itemization (union)
+**Classification**: Compound (extensible)
 
-**Interpretation**: How to render a page type.
+**Interpretation**: Configuration for a specific page type. The `render` function is required. Lifecycle hooks (`onEnter`/`onLeave`) are optional. Pages can add custom properties for page-specific behavior.
+
+The `onEnter` context object contains:
+- getSiteState: () => SiteState
+- setSiteState: (SiteState) => void
+- render: () => void
 
 Examples:
 ```js
-'listing'                                       // Use built-in listing layout
-'detail'                                        // Use built-in detail layout
-(state, siteState, container) => renderWatch()  // Custom render function
+// Simple listing page
+{ render: renderYouTubeListing }
+
+// Watch page with lifecycle and custom actions
+{
+  render: (state, siteState, container) => renderWatchPage(state, siteState, container),
+  onEnter: async (ctx) => {
+    applyDefaultVideoSettings();
+    await fetchTranscript(ctx);
+  },
+  onLeave: () => {
+    resetDrawers();
+    clearRetryTimers();
+  },
+  nextCommentPage: (siteState) => ({ ...siteState, commentPage: siteState.commentPage + 1 }),
+  prevCommentPage: (siteState) => ({ ...siteState, commentPage: Math.max(0, siteState.commentPage - 1) })
+}
 ```
 
 ---
@@ -925,6 +962,8 @@ Examples:
 
 ### YouTubePageState
 
+> **✓ Implemented in iteration 028**: Items are now stored in state.page and the view reads from state.
+
 A YouTubePageState is one of:
 - WatchPageState - watch page state
 - ListPageState - list page state (home, search, subscriptions, etc.)
@@ -945,6 +984,8 @@ Examples:
 ---
 
 ### WatchPageState
+
+> **✓ Implemented in iteration 028**: See createWatchPageState in src/sites/youtube/state.js
 
 A WatchPageState is a structure:
 - type: 'watch' - discriminator
@@ -978,6 +1019,8 @@ Examples:
 ---
 
 ### ListPageState
+
+> **✓ Implemented in iteration 028**: See createListPageState in src/sites/youtube/state.js
 
 A ListPageState is a structure:
 - type: 'list' - discriminator
@@ -1280,8 +1323,8 @@ Examples:
 |------|---------------|-------|---------------|
 | SiteConfig | Compound | Core | Access all fields |
 | SiteTheme | Compound | Core | Access all fields |
-| LayoutDef | Union | Core | Case per variant ('listing' / 'detail' / Function) |
-| Layouts | Mapping | Core | Iterate keys |
+| PageConfig | Compound | Core | Access all fields (render required, lifecycle optional) |
+| Pages | Mapping | Core | Iterate keys |
 | Command | Compound | Core | Access all fields |
 | ContentItem | Compound | Core | Access all fields |
 | GroupHeader | Compound | Core | Access all fields |

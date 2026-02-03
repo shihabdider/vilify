@@ -8,7 +8,14 @@ import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js';
 import { fetchTranscript } from './transcript.js';
-import { onTranscriptRequest, onTranscriptLoad, onChaptersRequest, onChaptersLoad } from './state.js';
+import { 
+  createListPageState, 
+  createWatchPageState,
+  onTranscriptRequest, 
+  onTranscriptLoad, 
+  onChaptersRequest, 
+  onChaptersLoad 
+} from './state.js';
 import { renderYouTubeItem, injectYouTubeItemStyles } from './items.js';
 import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout.js';
 import { sortItems, getSortLabel } from '../../core/sort.js';
@@ -271,6 +278,7 @@ export const youtubeConfig = {
 
   /**
    * Get items for current page.
+   * @deprecated Use createPageState() instead - items should come from state.page
    * Returns videos for all pages (including recommended videos on watch page).
    * @returns {Array<ContentItem>}
    */
@@ -278,6 +286,30 @@ export const youtubeConfig = {
     // Use DataProvider which extracts from ytInitialData (with DOM fallback)
     const dp = getDataProvider();
     return dp.getVideos();
+  },
+
+  /**
+   * Create page state for current page type.
+   * Fetches data from DataProvider and returns appropriate PageState.
+   * [I/O - reads from DataProvider]
+   * 
+   * @returns {YouTubePageState} Page state for current page
+   */
+  createPageState: () => {
+    const pageType = getYouTubePageType();
+    const dp = getDataProvider();
+    
+    if (pageType === 'watch') {
+      // Watch page: includes video context, recommended, and chapters
+      const videoContext = dp.getVideoContext?.() ?? null;
+      const recommended = dp.getVideos?.() ?? [];
+      const chapters = getChapters();
+      return createWatchPageState(videoContext, recommended, chapters);
+    }
+    
+    // All other pages are list pages
+    const videos = dp.getVideos?.() ?? [];
+    return createListPageState(videos);
   },
 
   /**

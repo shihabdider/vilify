@@ -21,6 +21,8 @@ import {
   onPaletteQueryChange,
   onPaletteNavigate,
   onUrlChange,
+  onPageUpdate,
+  onListItemsUpdate,
   getVisibleItems,
   onSelect
 } from './state.js';
@@ -628,5 +630,108 @@ describe('onSelect', () => {
     
     expect(result.action).toBe(null);
     expect(result.url).toBe(null);
+  });
+});
+
+// =============================================================================
+// PAGE STATE
+// =============================================================================
+
+describe('onPageUpdate', () => {
+  it('sets list page state', () => {
+    const state = createAppState();
+    const pageState = { type: 'list', videos: [{ id: '1', title: 'Video' }] };
+    
+    const result = onPageUpdate(state, pageState);
+    
+    expect(result.page).toEqual(pageState);
+    expect(result.page.type).toBe('list');
+    expect(result.page.videos).toHaveLength(1);
+  });
+  
+  it('sets watch page state', () => {
+    const state = createAppState();
+    const pageState = { 
+      type: 'watch', 
+      videoContext: { videoId: 'abc', title: 'Test' },
+      recommended: [],
+      chapters: []
+    };
+    
+    const result = onPageUpdate(state, pageState);
+    
+    expect(result.page.type).toBe('watch');
+    expect(result.page.videoContext.videoId).toBe('abc');
+  });
+  
+  it('replaces existing page state', () => {
+    const state = createAppState();
+    state.page = { type: 'list', videos: [{ id: '1' }] };
+    
+    const newPageState = { type: 'list', videos: [{ id: '2' }, { id: '3' }] };
+    const result = onPageUpdate(state, newPageState);
+    
+    expect(result.page.videos).toHaveLength(2);
+    expect(result.page.videos[0].id).toBe('2');
+  });
+  
+  it('preserves other state fields', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 5;
+    state.core.focusModeActive = true;
+    
+    const result = onPageUpdate(state, { type: 'list', videos: [] });
+    
+    expect(result.ui.selectedIdx).toBe(5);
+    expect(result.core.focusModeActive).toBe(true);
+  });
+});
+
+describe('onListItemsUpdate', () => {
+  it('updates videos in list page', () => {
+    const state = createAppState();
+    state.page = { type: 'list', videos: [] };
+    
+    const videos = [{ id: '1', title: 'New Video' }];
+    const result = onListItemsUpdate(state, videos);
+    
+    expect(result.page.videos).toHaveLength(1);
+    expect(result.page.videos[0].title).toBe('New Video');
+  });
+  
+  it('no-op for watch page', () => {
+    const state = createAppState();
+    state.page = { 
+      type: 'watch', 
+      videoContext: null,
+      recommended: [],
+      chapters: []
+    };
+    
+    const result = onListItemsUpdate(state, [{ id: '1' }]);
+    
+    // Should return same state (watch page not updated)
+    expect(result).toBe(state);
+    expect(result.page.type).toBe('watch');
+  });
+  
+  it('no-op when page is null', () => {
+    const state = createAppState();
+    expect(state.page).toBeNull();
+    
+    const result = onListItemsUpdate(state, [{ id: '1' }]);
+    
+    expect(result).toBe(state);
+    expect(result.page).toBeNull();
+  });
+  
+  it('preserves other page fields', () => {
+    const state = createAppState();
+    state.page = { type: 'list', videos: [], customField: 'test' };
+    
+    const result = onListItemsUpdate(state, [{ id: '1' }]);
+    
+    expect(result.page.customField).toBe('test');
+    expect(result.page.videos).toHaveLength(1);
   });
 });

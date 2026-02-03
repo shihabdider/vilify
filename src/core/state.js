@@ -613,9 +613,74 @@ export function onUrlChange(state, newUrl, config = null) {
 }
 
 /**
+ * Set page state on navigation.
+ * Replaces state.page with new PageState.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {PageState} pageState - New page state (e.g., ListPageState, WatchPageState)
+ * @returns {AppState} State with new page
+ *
+ * @example
+ * onPageUpdate(state, { type: 'list', videos: [...] })
+ *   => { ...state, page: { type: 'list', videos: [...] } }
+ *
+ * @example
+ * onPageUpdate(state, { type: 'watch', videoContext: null, recommended: [], chapters: [] })
+ *   => { ...state, page: { type: 'watch', ... } }
+ */
+export function onPageUpdate(state, pageState) {
+  // Template: pageState is Compound → use directly
+  return {
+    ...state,
+    page: pageState
+  };
+}
+
+/**
+ * Update videos in ListPageState (for content polling).
+ * Only updates if current page is a list page.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {Array<ContentItem>} videos - New videos from content polling
+ * @returns {AppState} State with updated videos (if list page)
+ *
+ * @example
+ * // List page - updates videos
+ * onListItemsUpdate({ page: { type: 'list', videos: [] } }, [video1, video2])
+ *   => { page: { type: 'list', videos: [video1, video2] } }
+ *
+ * @example
+ * // Watch page - no change (wrong page type)
+ * onListItemsUpdate({ page: { type: 'watch', ... } }, [video1])
+ *   => { page: { type: 'watch', ... } } // unchanged
+ *
+ * @example
+ * // No page state - no change
+ * onListItemsUpdate({ page: null }, [video1])
+ *   => { page: null }
+ */
+export function onListItemsUpdate(state, videos) {
+  // Template: state.page is Itemization → check type discriminator
+  
+  // Only update if we have a list page
+  if (!state.page || state.page.type !== 'list') {
+    return state;
+  }
+  
+  return {
+    ...state,
+    page: {
+      ...state.page,
+      videos
+    }
+  };
+}
+
+/**
  * Update items (from content polling).
- * This is a placeholder - items are typically not stored in AppState directly.
- * Instead, they're fetched via SiteConfig.getItems().
+ * @deprecated Use onListItemsUpdate instead - this exists for backward compatibility
  * [PURE]
  *
  * @param {AppState} state - Current state
@@ -623,15 +688,8 @@ export function onUrlChange(state, newUrl, config = null) {
  * @returns {AppState} State (potentially with page.items updated)
  */
 export function onItemsUpdate(state, items) {
-  // Items are typically fetched fresh via getItems(), not stored in state
-  // This function exists for cases where we need to cache items
-  if (state.page && typeof state.page === 'object') {
-    return {
-      ...state,
-      page: { ...state.page, items }
-    };
-  }
-  return state;
+  // Delegate to onListItemsUpdate for list pages
+  return onListItemsUpdate(state, items);
 }
 
 /**

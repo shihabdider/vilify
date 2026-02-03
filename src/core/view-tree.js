@@ -94,25 +94,63 @@ export function toStatusBarView(state, drawerPlaceholder = null) {
 // =============================================================================
 
 /**
+ * Get items from page state.
+ * [PURE]
+ *
+ * @param {AppState} state - Current application state
+ * @returns {Item[]} Items from page state, or empty array if not available
+ *
+ * @example
+ * // List page
+ * getPageItems({ page: { type: 'list', videos: [...] } })
+ *   => [...]
+ *
+ * @example
+ * // Watch page (uses recommended)
+ * getPageItems({ page: { type: 'watch', recommended: [...] } })
+ *   => [...]
+ *
+ * @example
+ * // No page state
+ * getPageItems({ page: null })
+ *   => []
+ */
+export function getPageItems(state) {
+  if (!state.page) return [];
+  
+  // Template: state.page is Itemization → check type discriminator
+  if (state.page.type === 'list') {
+    return state.page.videos || [];
+  }
+  
+  if (state.page.type === 'watch') {
+    return state.page.recommended || [];
+  }
+  
+  return [];
+}
+
+/**
  * Compute content view from state.
+ * Reads items from state.page (HtDP World model).
  * [PURE]
  *
  * @param {AppState} state - Current application state
  * @param {SiteConfig} config - Site configuration
- * @param {Item[]} items - All items (before filtering)
+ * @param {Item[]} [items] - DEPRECATED: Items parameter (for backward compat during migration)
  * @returns {ContentView} Content view data
  *
  * @example
- * // Listing page
- * toContentView(state, config, videos)
+ * // Listing page - reads from state.page.videos
+ * toContentView({ page: { type: 'list', videos: [...] } }, config)
  *   => { type: 'listing', items: [...filtered/sorted], selectedIdx: 0, render: null }
  *
  * @example
  * // Custom layout (watch page)
- * toContentView(state, { pages: { watch: { render: fn } } }, [])
+ * toContentView({ page: { type: 'watch', ... } }, { pages: { watch: { render: fn } } })
  *   => { type: 'custom', items: [], selectedIdx: 0, render: fn }
  */
-export function toContentView(state, config, items) {
+export function toContentView(state, config, items = null) {
   const pageType = config?.getPageType?.() ?? 'other';
   const selectedIdx = state.ui?.selectedIdx ?? state.selectedIdx ?? 0;
   
@@ -131,8 +169,11 @@ export function toContentView(state, config, items) {
   }
   
   if (layout === 'listing' || !layout) {
+    // Get items from state.page (HtDP) or fallback to parameter (legacy)
+    const allItems = items !== null ? items : getPageItems(state);
+    
     // Standard listing - apply filter and sort
-    const visibleItems = getVisibleItems(state, items);
+    const visibleItems = getVisibleItems(state, allItems);
     
     if (visibleItems.length === 0) {
       return {
@@ -227,15 +268,15 @@ export function toDrawerView(state, config, context = {}) {
  *
  * @param {AppState} state - Current application state
  * @param {SiteConfig} config - Site configuration
- * @param {Object} context - Additional context { items, commands, siteState }
+ * @param {Object} context - Additional context { commands, siteState }
  * @returns {ViewTree} Complete view tree
  *
  * @example
- * const view = toView(state, config, { items, commands, siteState });
+ * const view = toView(state, config, { commands, siteState });
  * // view = { statusBar: {...}, content: {...}, drawer: {...} }
  */
 export function toView(state, config, context = {}) {
-  const { items = [], commands = [], siteState = null } = context;
+  const { commands = [], siteState = null } = context;
   
   // Get drawer placeholder for status bar
   let drawerPlaceholder = null;
@@ -249,7 +290,7 @@ export function toView(state, config, context = {}) {
   
   // Compute all view components
   const statusBar = toStatusBarView(state, drawerPlaceholder);
-  const content = toContentView(state, config, items);
+  const content = toContentView(state, config);  // Items read from state.page
   const drawerView = toDrawerView(state, config, { commands, siteState });
   
   // Set item count in status bar from content

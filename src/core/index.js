@@ -19,6 +19,8 @@ import {
   onPaletteQueryChange,
   onPaletteNavigate,
   onUrlChange,
+  onPageUpdate,
+  onListItemsUpdate,
   onSelect
 } from './state.js';
 import { el, clear, updateListSelection, showMessage, flashBoundary, navigateList, isInputElement } from './view.js';
@@ -31,7 +33,7 @@ import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPale
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
 
 import { injectDrawerStyles, renderDrawer, handleDrawerKey, closeDrawer } from './drawer.js';
-import { toView, toStatusBarView, toContentView, toDrawerView } from './view-tree.js';
+import { toView, toStatusBarView, toContentView, toDrawerView, getPageItems } from './view-tree.js';
 import { applyView, applyStatusBar, applyContent, applyDrawer, resetViewState } from './apply-view.js';
 
 // =============================================================================
@@ -123,6 +125,13 @@ export function createApp(config) {
       // Re-render if video count changed and not currently loading
       if (currentCount !== lastVideoCount && !isLoading && currentCount > 0) {
         lastVideoCount = currentCount;
+        
+        // Update state.page with fresh items (HtDP: events update state)
+        if (config.createPageState) {
+          const pageState = config.createPageState();
+          state = onListItemsUpdate(state, pageState.videos || []);
+        }
+        
         render();
       }
       
@@ -197,12 +206,9 @@ export function createApp(config) {
       container = document.getElementById('vilify-content');
     }
 
-    // Get items for view computation
-    const items = config.getItems ? config.getItems() : [];
-    
-    // Compute pure view tree (partial - just status bar and content for now)
+    // Compute pure view tree (reads items from state.page - HtDP model)
     const statusBarView = toStatusBarView(state, getDrawerPlaceholder());
-    const contentView = toContentView(state, config, items);
+    const contentView = toContentView(state, config);  // Items read from state.page
 
     // Apply status bar view
     const isSiteDrawer = state.ui.drawer !== null && 
@@ -309,7 +315,7 @@ export function createApp(config) {
   }
 
   function handleFilterSubmit(value, shiftKey) {
-    const items = config.getItems ? config.getItems() : [];
+    const items = getPageItems(state);
     const filtered = getVisibleItems(state, items);
     const result = onSelect(state, filtered, shiftKey);
 
@@ -511,7 +517,7 @@ export function createApp(config) {
   // ==========================================================================
 
   function handleListNavigation(direction) {
-    const items = config.getItems ? config.getItems() : [];
+    const items = getPageItems(state);
     const filtered = getVisibleItems(state, items);
 
     const result = onNavigate(state, direction, filtered.length);
@@ -562,7 +568,7 @@ export function createApp(config) {
     if (state.ui.drawer === 'palette') {
       handleCommandSubmit(state.ui.paletteQuery, shiftKey);
     } else {
-      const items = config.getItems ? config.getItems() : [];
+      const items = getPageItems(state);
       const filtered = getVisibleItems(state, items);
       const result = onSelect(state, filtered, shiftKey);
 
@@ -648,6 +654,12 @@ export function createApp(config) {
     document.body.classList.remove('vilify-watch-page');
 
     waitForContent(config).then(async () => {
+      // Populate state.page with initial data (HtDP: state drives view)
+      if (config.createPageState) {
+        const pageState = config.createPageState();
+        state = onPageUpdate(state, pageState);
+      }
+      
       render();
       hideLoadingScreen();
       
@@ -764,6 +776,12 @@ export function createApp(config) {
       state.core.lastUrl = location.href;
 
       siteState = state.site;
+      
+      // Populate state.page with initial data (HtDP: state drives view)
+      if (config.createPageState) {
+        const pageState = config.createPageState();
+        state = onPageUpdate(state, pageState);
+      }
 
       // Apply site theme
       if (config.theme) {

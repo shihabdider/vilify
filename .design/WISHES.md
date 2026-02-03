@@ -1,10 +1,56 @@
 # Wishes
 
-Function wish list for iteration 027 (chapters-state).
+Function wish list for iteration 028 (pagestate-architecture).
 
 ## Pending
 
-(none - all wishes complete for iteration 027)
+(none - all wishes complete for iteration 028)
+
+## Complete (Iteration 028)
+
+### createListPageState
+- **Signature**: `createListPageState : Array<ContentItem> → ListPageState`
+- **Purpose**: Create ListPageState for listing pages with videos array
+- **File**: src/sites/youtube/state.js
+- **Tests**: src/sites/youtube/state.test.js (3 tests)
+
+### createWatchPageState
+- **Signature**: `createWatchPageState : VideoContext | null × Array<ContentItem> × Array<Chapter> → WatchPageState`
+- **Purpose**: Create WatchPageState for watch page with video context, recommended, and chapters
+- **File**: src/sites/youtube/state.js
+- **Tests**: src/sites/youtube/state.test.js (3 tests)
+
+### onPageUpdate
+- **Signature**: `onPageUpdate : AppState × PageState → AppState`
+- **Purpose**: Replace state.page with new PageState (used on navigation)
+- **File**: src/core/state.js
+- **Tests**: src/core/state.test.js (4 tests)
+
+### onListItemsUpdate
+- **Signature**: `onListItemsUpdate : AppState × Array<ContentItem> → AppState`
+- **Purpose**: Update videos in ListPageState (for content polling), validates page type
+- **File**: src/core/state.js
+- **Tests**: src/core/state.test.js (4 tests)
+
+### getPageItems
+- **Signature**: `getPageItems : AppState → Array<Item>`
+- **Purpose**: Extract items from page state based on page type (list or watch)
+- **File**: src/core/view-tree.js
+- **Tests**: src/core/view-tree.test.js (4 tests)
+
+### toContentView (update)
+- **Signature**: `toContentView : AppState × SiteConfig → ContentView`
+- **Purpose**: Compute content view reading items from state.page (no items parameter)
+- **File**: src/core/view-tree.js
+- **Tests**: src/core/view-tree.test.js (updated existing + 1 new)
+
+### createPageState (site config)
+- **Signature**: `createPageState : () → YouTubePageState`
+- **Purpose**: Factory function to create page state for current page type
+- **File**: src/sites/youtube/index.js
+- **Tests**: (I/O function, integration tested)
+
+## Complete (Iteration 027)
 
 ## Complete (Iteration 027)
 

@@ -1,6 +1,8 @@
 // Tests for YouTube state transitions
 import { describe, it, expect } from 'vitest';
 import {
+  createListPageState,
+  createWatchPageState,
   onTranscriptRequest,
   onTranscriptLoad,
   onTranscriptClear,
@@ -8,6 +10,79 @@ import {
   onChaptersLoad,
   onChaptersClear
 } from './state.js';
+
+// =============================================================================
+// PAGE STATE CREATION
+// =============================================================================
+
+describe('createListPageState', () => {
+  it('creates empty list page state', () => {
+    const result = createListPageState([]);
+    
+    expect(result).toEqual({
+      type: 'list',
+      videos: []
+    });
+  });
+  
+  it('creates list page state with videos', () => {
+    const videos = [
+      { id: '1', title: 'Video 1' },
+      { id: '2', title: 'Video 2' }
+    ];
+    const result = createListPageState(videos);
+    
+    expect(result.type).toBe('list');
+    expect(result.videos).toHaveLength(2);
+    expect(result.videos[0].title).toBe('Video 1');
+  });
+  
+  it('defaults to empty array', () => {
+    const result = createListPageState();
+    
+    expect(result).toEqual({
+      type: 'list',
+      videos: []
+    });
+  });
+});
+
+describe('createWatchPageState', () => {
+  it('creates empty watch page state', () => {
+    const result = createWatchPageState(null, [], []);
+    
+    expect(result).toEqual({
+      type: 'watch',
+      videoContext: null,
+      recommended: [],
+      chapters: []
+    });
+  });
+  
+  it('creates watch page state with all data', () => {
+    const videoContext = { videoId: 'abc', title: 'Cool Video', channelName: 'Creator' };
+    const recommended = [{ id: 'xyz', title: 'Related' }];
+    const chapters = [{ title: 'Intro', time: 0, timeText: '0:00' }];
+    
+    const result = createWatchPageState(videoContext, recommended, chapters);
+    
+    expect(result.type).toBe('watch');
+    expect(result.videoContext.videoId).toBe('abc');
+    expect(result.recommended).toHaveLength(1);
+    expect(result.chapters).toHaveLength(1);
+  });
+  
+  it('defaults all fields', () => {
+    const result = createWatchPageState();
+    
+    expect(result).toEqual({
+      type: 'watch',
+      videoContext: null,
+      recommended: [],
+      chapters: []
+    });
+  });
+});
 
 describe('onTranscriptRequest', () => {
   it('sets loading state from null', () => {

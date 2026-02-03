@@ -114,6 +114,7 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 025 | youtube-cleanup | Remove legacy flat state compatibility, simplify to nested structure only |
 | 026 | transcript-state | Pure state transitions for transcript, pass context to onEnter hooks |
 | 027 | chapters-state | Pure state transitions for chapters, drawer reads from state |
+| 028 | pagestate-architecture | Fix HtDP violation: items stored in state.page, view reads from state |
 
 ### In Progress
 

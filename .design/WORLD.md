@@ -2,6 +2,8 @@
 
 Vilify follows the HtDP World Program model: unified state, pure event handlers, pure render, with I/O isolated at the boundary.
 
+> **⚠️ ARCHITECTURAL ISSUE**: The current implementation violates the HtDP model by calling `config.getItems()` during render instead of reading from `state.page`. Items should be fetched by event handlers and stored in PageState. See iteration 028 for the fix plan.
+
 ## WorldState
 
 **WorldState** is `AppState` - the complete state of the application at any moment.
