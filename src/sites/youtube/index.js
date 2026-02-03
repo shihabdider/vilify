@@ -210,9 +210,17 @@ const watchPageConfig = {
     const videoId = extractVideoId(location.href);
     if (!videoId) return;
     
+    const dp = getDataProvider();
+    
     // Set loading state immediately using pure transitions
     ctx.updateSiteState(state => onTranscriptRequest(state, videoId));
     ctx.updateSiteState(state => onChaptersRequest(state, videoId));
+    
+    // Wait for watch data (initialData + playerResponse) then re-render
+    // This ensures views/uploadDate are available from bridge data
+    dp.waitForWatchData(() => {
+      ctx.render();
+    }, 2000);
     
     // Async I/O - fetch transcript (delay for player API readiness)
     setTimeout(async () => {
@@ -223,6 +231,8 @@ const watchPageConfig = {
       // Update state with result using pure transition
       // onTranscriptLoad validates videoId matches (ignores stale results)
       ctx.updateSiteState(state => onTranscriptLoad(state, result));
+      // Re-render to show transcript hint in video info box
+      ctx.render();
     }, 500);
     
     // Async I/O - fetch chapters (slight delay for DOM to settle)
@@ -237,6 +247,8 @@ const watchPageConfig = {
         videoId,
         chapters
       }));
+      // Re-render to update UI with chapters data
+      ctx.render();
     }, 300);
   },
   

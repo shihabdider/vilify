@@ -69,6 +69,9 @@ export function createDataProvider() {
   let bridgeListenerInstalled = false;
   let navigationWatcher = null;
   
+  // Callbacks waiting for player response (watch pages)
+  let playerResponseCallbacks = [];
+  
   /**
    * Handle data from the MAIN world bridge
    */
@@ -83,6 +86,8 @@ export function createDataProvider() {
     
     if (type === 'playerResponse' && data) {
       cachedPlayerResponse = data;
+      // Notify any callbacks waiting for player response
+      notifyPlayerResponseReady();
     }
     
     if (type === 'continuationData' && data) {
@@ -169,6 +174,17 @@ export function createDataProvider() {
   }
   
   /**
+   * Notify all waiting callbacks that player response is ready
+   */
+  function notifyPlayerResponseReady() {
+    const callbacks = playerResponseCallbacks;
+    playerResponseCallbacks = [];
+    for (const cb of callbacks) {
+      cb();
+    }
+  }
+  
+  /**
    * Install bridge event listener
    */
   function installBridgeListener() {
@@ -201,6 +217,39 @@ export function createDataProvider() {
         }
       }, timeout);
     });
+  }
+  
+  /**
+   * Wait for watch page data (both initialData and playerResponse)
+   * @param {Function} onReady - Callback when data is ready
+   * @param {number} timeout - Timeout in ms
+   */
+  function waitForWatchData(onReady, timeout = 2000) {
+    // If we already have both, call immediately
+    if (cachedInitialData && cachedPlayerResponse) {
+      onReady();
+      return;
+    }
+    
+    let resolved = false;
+    const resolve = () => {
+      if (resolved) return;
+      resolved = true;
+      onReady();
+    };
+    
+    // Wait for player response if we don't have it
+    if (!cachedPlayerResponse) {
+      playerResponseCallbacks.push(resolve);
+    }
+    
+    // Also wait for initial data if missing
+    if (!cachedInitialData) {
+      dataReadyCallbacks.push(resolve);
+    }
+    
+    // Timeout fallback - render with whatever we have
+    setTimeout(resolve, timeout);
   }
   
   /**
@@ -358,6 +407,7 @@ export function createDataProvider() {
     getRecommendations,
     getPageType,
     waitForData,
+    waitForWatchData,
     startWatching,
     stopWatching,
     // For debugging
