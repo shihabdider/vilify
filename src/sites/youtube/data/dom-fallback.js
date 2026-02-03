@@ -26,7 +26,8 @@ export function scrapeDOMVideoContext() {
   return {
     videoId: ctx.videoId,
     title: ctx.title,
-    channel: ctx.channelName,
+    channelName: ctx.channelName,  // Watch page uses channelName
+    channel: ctx.channelName,       // Alias for compatibility
     channelUrl: ctx.channelUrl,
     description: ctx.description || '',
     chapters: ctx.chapters || [],
