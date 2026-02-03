@@ -1,39 +1,38 @@
 // Core orchestration - Main entry point for Vilify
-// Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
+// Following HTDP design from .design/DATA.md and .design/WORLD.md
+// Iteration 023: Encapsulated state via createApp()
 
-import { createAppState, getMode } from './state.js';
+import { 
+  createAppState,
+  getMode,
+  getVisibleItems,
+  onNavigate,
+  onFilterToggle,
+  onFilterChange,
+  onDrawerOpen,
+  onDrawerClose,
+  onSortChange,
+  onShowMessage,
+  onBoundaryHit,
+  onSearchToggle,
+  onSearchChange,
+  onPaletteQueryChange,
+  onPaletteNavigate,
+  onUrlChange,
+  onSelect
+} from './state.js';
 import { el, clear, updateListSelection, showMessage, flashBoundary, navigateList, isInputElement } from './view.js';
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
 import { setupNavigationObserver } from './navigation.js';
 import { setupKeyboardHandler } from './keyboard.js';
 import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, updateSortIndicator, updateItemCount, removeFocusMode } from './layout.js';
-import { sortItems, parseSortCommand, getSortLabel, getDefaultDirection, toggleDirection, SORT_FIELDS } from './sort.js';
+import { parseSortCommand, getSortLabel, getDefaultDirection, toggleDirection, SORT_FIELDS } from './sort.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
 
 import { injectDrawerStyles, renderDrawer, handleDrawerKey, closeDrawer } from './drawer.js';
-
-// =============================================================================
-// MODULE STATE
-// =============================================================================
-
-/** @type {AppState|null} Main application state */
-let state = null;
-
-/** @type {Object|null} Site-specific state (e.g., YouTubeState) */
-let siteState = null;
-
-/** @type {SiteConfig|null} Current site configuration */
-let currentConfig = null;
-
-/** @type {number|null} Content polling timer */
-let pollTimer = null;
-
-/** @type {number} Last seen video count for polling */
-let lastVideoCount = 0;
-
-/** @type {string|null} Previously rendered drawer state (to avoid re-render) */
-let lastRenderedDrawer = null;
+import { toView, toStatusBarView, toContentView, toDrawerView } from './view-tree.js';
+import { applyView, applyStatusBar, applyContent, applyDrawer, resetViewState } from './apply-view.js';
 
 // =============================================================================
 // CONSTANTS
@@ -42,812 +41,911 @@ let lastRenderedDrawer = null;
 const POLL_INTERVAL_MS = 200;
 
 // =============================================================================
-// CONTENT POLLING
+// CREATE APP
 // =============================================================================
 
 /**
- * Start polling for content changes on listing pages.
- * Re-renders when new videos are detected.
- * [I/O]
+ * Create an app instance with encapsulated state.
+ * All state is private via closure, returned interface provides controlled access.
+ * [PURE factory - returns I/O object]
+ *
+ * @param {SiteConfig} config - Site configuration
+ * @returns {App} App instance with init, destroy, getState, setState, getSiteState, setSiteState
+ *
+ * @example
+ * const app = createApp(youtubeConfig);
+ * await app.init();
+ * // ... later
+ * app.destroy();
  */
-function startContentPolling() {
-  stopContentPolling();
-  lastVideoCount = 0;
+export function createApp(config) {
+  // ==========================================================================
+  // ENCAPSULATED STATE (private via closure)
+  // ==========================================================================
   
-  const poll = () => {
-    const pageType = currentConfig?.getPageType?.() || 'other';
+  /** @type {AppState|null} Main application state */
+  let state = null;
+
+  /** @type {Object|null} Site-specific state (e.g., YouTubeState) */
+  let siteState = null;
+
+  /** @type {number|null} Content polling timer */
+  let pollTimer = null;
+
+  /** @type {number} Last seen video count for polling */
+  let lastVideoCount = 0;
+
+  /** @type {string|null} Previously rendered drawer state (to avoid re-render) */
+  let lastRenderedDrawer = null;
+
+  /** @type {Function|null} Keyboard handler cleanup function */
+  let cleanupKeyboard = null;
+
+  /** @type {MutationObserver|null} Navigation observer */
+  let navigationObserver = null;
+
+  // ==========================================================================
+  // CONTENT POLLING
+  // ==========================================================================
+
+  /**
+   * Start polling for content changes on listing pages.
+   * Re-renders when new videos are detected.
+   * [I/O]
+   */
+  function startContentPolling() {
+    stopContentPolling();
+    lastVideoCount = 0;
     
-    // Don't poll on watch page
-    if (pageType === 'watch') {
-      stopContentPolling();
+    const poll = () => {
+      const pageType = config?.getPageType?.() || 'other';
+      
+      // Don't poll on watch page
+      if (pageType === 'watch') {
+        stopContentPolling();
+        return;
+      }
+      
+      // Count video elements in DOM (YouTube-specific selectors)
+      const currentCount = document.querySelectorAll(
+        'ytd-rich-item-renderer, ytd-video-renderer, ' +
+        'ytd-compact-video-renderer, ytd-grid-video-renderer, ' +
+        'ytd-playlist-video-renderer, yt-lockup-view-model'
+      ).length;
+      
+      // Check if YouTube is still loading content
+      const isLoading = !!document.querySelector(
+        'ytd-continuation-item-renderer, tp-yt-paper-spinner, ' +
+        '#spinner, ytd-ghost-grid-renderer, ' +
+        'ytd-rich-grid-renderer[is-loading], .ytd-ghost-grid-renderer'
+      );
+      
+      // Re-render if video count changed and not currently loading
+      if (currentCount !== lastVideoCount && !isLoading && currentCount > 0) {
+        lastVideoCount = currentCount;
+        render();
+      }
+      
+      pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+    };
+    
+    poll();
+  }
+
+  /**
+   * Stop content polling.
+   * [I/O]
+   */
+  function stopContentPolling() {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  // ==========================================================================
+  // STATE ACCESSORS
+  // ==========================================================================
+
+  function getState() {
+    return state;
+  }
+
+  function setState(newState) {
+    state = newState;
+    render();
+  }
+
+  function getSiteState() {
+    return siteState;
+  }
+
+  function setSiteState(newState) {
+    siteState = newState;
+    render();
+  }
+
+  // ==========================================================================
+  // RENDERING
+  // ==========================================================================
+
+  /**
+   * Get drawer placeholder from current drawer handler.
+   * [PURE helper]
+   */
+  function getDrawerPlaceholder() {
+    const drawer = state?.ui?.drawer;
+    if (!drawer || drawer === 'palette') return null;
+    
+    const handler = config?.getDrawerHandler?.(drawer, siteState);
+    return handler?.getFilterPlaceholder?.() ?? null;
+  }
+
+  /**
+   * Main render function.
+   * Uses pure view computation (toView) followed by I/O application.
+   */
+  function render() {
+    if (!state || !config) return;
+
+    const pageType = config.getPageType ? config.getPageType() : 'other';
+
+    // Ensure focus mode container exists
+    let container = document.getElementById('vilify-content');
+    if (!container) {
+      renderFocusMode(config, state);
+      container = document.getElementById('vilify-content');
+    }
+
+    // Get items for view computation
+    const items = config.getItems ? config.getItems() : [];
+    
+    // Compute pure view tree (partial - just status bar and content for now)
+    const statusBarView = toStatusBarView(state, getDrawerPlaceholder());
+    const contentView = toContentView(state, config, items);
+
+    // Apply status bar view
+    const isSiteDrawer = state.ui.drawer !== null && 
+                         state.ui.drawer !== 'palette';
+    const shouldFocusInput = state.ui.drawer === 'palette' || 
+                             state.ui.filterActive ||
+                             isSiteDrawer;
+    updateStatusBar(state, shouldFocusInput, statusBarView.inputPlaceholder);
+
+    // Apply content view
+    updateSortIndicator(statusBarView.sortLabel);
+    updateItemCount(contentView.items.length);
+
+    // Render content based on computed view type
+    if (contentView.type === 'custom' && contentView.render) {
+      contentView.render(state, siteState, container);
+    } else if (contentView.type === 'listing') {
+      renderListing(contentView.items, contentView.selectedIdx, container);
+    } else if (contentView.type === 'empty') {
+      clear(container);
+      const empty = el('div', { class: 'vilify-empty' }, ['No items found']);
+      container.appendChild(empty);
+    }
+
+    // Handle palette rendering
+    if (state.ui.drawer === 'palette') {
+      const commands = config.getCommands
+        ? config.getCommands({
+            state,
+            siteState,
+            navigateTo,
+            copyToClipboard,
+            openPalette: (mode) => {
+              state = openPalette(state, mode);
+              render();
+            },
+            openRecommended: () => {
+              state = onDrawerOpen(state, 'recommended');
+              render();
+            },
+            openSearch: () => {
+              const searchInput = document.querySelector('input#search');
+              if (searchInput) searchInput.focus();
+            },
+            exitFocusMode: () => {
+              state = { ...state, core: { ...state.core, focusModeActive: false } };
+              removeFocusMode();
+              document.body.classList.remove('vilify-watch-page');
+            },
+            executeSort: (field) => {
+              state = onDrawerClose(state);
+              if (!field) {
+                state = onSortChange(state, null, 'desc');
+                showMessage('Sort reset');
+              } else if (state.ui.sort.field === field) {
+                const newDir = toggleDirection(state.ui.sort.direction);
+                state = onSortChange(state, field, newDir);
+                showMessage(`Sorted by ${getSortLabel(field, newDir)}`);
+              } else {
+                const newDir = getDefaultDirection(field);
+                state = onSortChange(state, field, newDir);
+                showMessage(`Sorted by ${getSortLabel(field, newDir)}`);
+              }
+              render();
+            },
+          })
+        : [];
+
+      // Filter commands by query
+      const query = state.ui.paletteQuery.startsWith(':')
+        ? state.ui.paletteQuery.slice(1)
+        : state.ui.paletteQuery;
+      const filtered = filterItems(commands, query);
+
+      renderPalette(filtered, state.ui.paletteSelectedIdx);
+      showPalette();
+    } else {
+      hidePalette();
+    }
+
+    // Handle site-specific drawer rendering
+    if (isSiteDrawer) {
+      if (state.ui.drawer !== lastRenderedDrawer) {
+        const handler = config.getDrawerHandler ? 
+                        config.getDrawerHandler(state.ui.drawer, siteState) : null;
+        renderDrawer(state.ui.drawer, handler);
+        lastRenderedDrawer = state.ui.drawer;
+      }
+    } else {
+      if (lastRenderedDrawer !== null) {
+        closeDrawer();
+        lastRenderedDrawer = null;
+      }
+    }
+  }
+
+  // ==========================================================================
+  // INPUT HANDLERS (for status bar input)
+  // ==========================================================================
+
+  function handleFilterChange(value) {
+    state = onFilterChange(state, value);
+    render();
+  }
+
+  function handleFilterSubmit(value, shiftKey) {
+    const items = config.getItems ? config.getItems() : [];
+    const filtered = getVisibleItems(state, items);
+    const result = onSelect(state, filtered, shiftKey);
+
+    if (result.action === 'navigate') {
+      navigateTo(result.url);
+    } else if (result.action === 'newTab') {
+      openInNewTab(result.url);
+    }
+  }
+
+  function handleFilterNavigate(direction) {
+    // Local filter navigation is handled by main list navigation
+  }
+
+  // ==========================================================================
+  // DRAWER INPUT HANDLERS
+  // ==========================================================================
+
+  function handleDrawerChange(value, mode) {
+    if (!state.ui.drawer || state.ui.drawer === 'palette') {
       return;
     }
     
-    // Count video elements in DOM (YouTube-specific selectors)
-    const currentCount = document.querySelectorAll(
-      'ytd-rich-item-renderer, ytd-video-renderer, ' +
-      'ytd-compact-video-renderer, ytd-grid-video-renderer, ' +
-      'ytd-playlist-video-renderer, yt-lockup-view-model'
-    ).length;
+    const handler = config.getDrawerHandler ? 
+                    config.getDrawerHandler(state.ui.drawer, siteState) : null;
     
-    // Check if YouTube is still loading content
-    const isLoading = !!document.querySelector(
-      'ytd-continuation-item-renderer, tp-yt-paper-spinner, ' +
-      '#spinner, ytd-ghost-grid-renderer, ' +
-      'ytd-rich-grid-renderer[is-loading], .ytd-ghost-grid-renderer'
-    );
-    
-    // Re-render if video count changed and not currently loading
-    if (currentCount !== lastVideoCount && !isLoading && currentCount > 0) {
-      lastVideoCount = currentCount;
-      render();
+    if (handler?.updateQuery) {
+      handler.updateQuery(value);
+    }
+  }
+
+  function handleDrawerSubmit(value, shiftKey, mode) {
+    if (!state.ui.drawer || state.ui.drawer === 'palette') {
+      return;
     }
     
-    pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
-  };
-  
-  poll();
-}
-
-/**
- * Stop content polling.
- * [I/O]
- */
-function stopContentPolling() {
-  if (pollTimer) {
-    clearTimeout(pollTimer);
-    pollTimer = null;
+    const handler = config.getDrawerHandler ? 
+                    config.getDrawerHandler(state.ui.drawer, siteState) : null;
+    
+    if (handler?.onKey) {
+      const result = handler.onKey('Enter', state);
+      if (result.handled) {
+        state = result.newState;
+        render();
+      }
+    }
   }
+
+  function handleDrawerNavigate(direction, mode) {
+    if (!state.ui.drawer || state.ui.drawer === 'palette') {
+      return;
+    }
+    
+    const handler = config.getDrawerHandler ? 
+                    config.getDrawerHandler(state.ui.drawer, siteState) : null;
+    
+    if (handler?.onKey) {
+      const key = direction === 'down' ? 'ArrowDown' : 'ArrowUp';
+      const result = handler.onKey(key, state);
+      if (result.handled) {
+        state = result.newState;
+      }
+    }
+  }
+
+  function handleSearchChange(value) {
+    state = onSearchChange(state, value);
+  }
+
+  function handleSearchSubmit(value) {
+    if (value.trim()) {
+      navigateTo('/results?search_query=' + encodeURIComponent(value.trim()));
+    }
+  }
+
+  function handleCommandChange(value) {
+    state = onPaletteQueryChange(state, value);
+    render();
+  }
+
+  function handleCommandSubmit(value, shiftKey) {
+    // Check for :q exit command
+    if (value.trim().toLowerCase() === ':q') {
+      state = onDrawerClose(state);
+      state = { ...state, core: { ...state.core, focusModeActive: false } };
+      
+      stopContentPolling();
+      removeFocusMode();
+      document.body.classList.remove('vilify-watch-page', 'vilify-loading');
+      hideLoadingScreen();
+      
+      const drawers = document.querySelectorAll(
+        '.vilify-drawer, #vilify-drawer-container, ' +
+        '#vilify-loading-overlay, .vilify-overlay'
+      );
+      drawers.forEach(el => el.remove());
+      
+      showMessage('Focus mode off (refresh to re-enable)');
+      return;
+    }
+
+    // Check for :sort command
+    const sortMatch = value.trim().match(/^:?sort\s*(.*)$/i);
+    if (sortMatch !== null) {
+      const sortArg = sortMatch[1].trim();
+      
+      if (!sortArg) {
+        state = onDrawerClose(state);
+        state = onSortChange(state, null, 'desc');
+        showMessage('Sort reset');
+        render();
+        return;
+      }
+      
+      const parsed = parseSortCommand(sortArg);
+      if (parsed) {
+        state = onDrawerClose(state);
+        
+        if (state.ui.sort.field === parsed.field && !parsed.reverse) {
+          const newDir = toggleDirection(state.ui.sort.direction);
+          state = onSortChange(state, parsed.field, newDir);
+        } else {
+          const defaultDir = getDefaultDirection(parsed.field);
+          const newDir = parsed.reverse ? toggleDirection(defaultDir) : defaultDir;
+          state = onSortChange(state, parsed.field, newDir);
+        }
+        
+        const label = getSortLabel(state.ui.sort.field, state.ui.sort.direction);
+        showMessage(`Sorted by ${label}`);
+        render();
+        return;
+      } else {
+        showMessage(`Unknown sort field: ${sortArg}`);
+        return;
+      }
+    }
+
+    // Execute selected command
+    const commands = config.getCommands
+      ? config.getCommands({ state, siteState, navigateTo, copyToClipboard })
+      : [];
+
+    const query = value.startsWith(':') ? value.slice(1) : value;
+    const filtered = filterItems(commands, query);
+    const actionable = filtered.filter((c) => !c.group);
+    const item = actionable[state.ui.paletteSelectedIdx];
+
+    if (item?.action) {
+      state = onDrawerClose(state);
+      state = onFilterToggle(state);
+      if (!state.ui.filterActive) {
+        state = onFilterToggle(state);
+      }
+      state = { ...state, ui: { ...state.ui, filterActive: false, filterQuery: '' } };
+      item.action();
+      render();
+    }
+  }
+
+  function handleCommandNavigate(direction) {
+    const commands = config.getCommands
+      ? config.getCommands({ state, siteState, navigateTo, copyToClipboard })
+      : [];
+
+    const query = state.ui.paletteQuery.startsWith(':') ? state.ui.paletteQuery.slice(1) : state.ui.paletteQuery;
+    const filtered = filterItems(commands, query);
+    const actionable = filtered.filter((c) => !c.group);
+    const count = actionable.length;
+
+    if (count === 0) return;
+
+    const result = onPaletteNavigate(state, direction, count);
+    state = result.state;
+    
+    if (result.boundary) {
+      flashBoundary();
+    }
+
+    render();
+  }
+
+  function handleInputEscape() {
+    if (state.ui.drawer === 'palette') {
+      state = onDrawerClose(state);
+    } else if (state.ui.drawer !== null) {
+      state = onDrawerClose(state);
+    }
+    if (state.ui.filterActive) {
+      state = onFilterToggle(state);
+    }
+    if (state.ui.searchActive) {
+      state = onSearchToggle(state);
+    }
+    render();
+  }
+
+  // ==========================================================================
+  // EVENT HANDLERS
+  // ==========================================================================
+
+  function handleListNavigation(direction) {
+    const items = config.getItems ? config.getItems() : [];
+    const filtered = getVisibleItems(state, items);
+
+    const result = onNavigate(state, direction, filtered.length);
+    state = result.state;
+
+    if (direction === 'top' || direction === 'bottom') {
+      const pos = state.ui.selectedIdx + 1;
+      const total = filtered.length;
+      showMessage(`${pos}/${total}`);
+    }
+
+    if (result.boundary) {
+      if (result.boundary === 'bottom' && !state.ui.filterActive) {
+        triggerLazyLoad();
+      } else {
+        flashBoundary();
+      }
+    }
+
+    render();
+  }
+
+  /**
+   * Trigger YouTube's lazy loading by scrolling continuation element into view.
+   * [I/O]
+   */
+  function triggerLazyLoad() {
+    const continuationSelectors = [
+      'ytd-continuation-item-renderer',
+      '#continuations ytd-continuation-item-renderer',
+      'ytd-rich-grid-renderer ytd-continuation-item-renderer',
+      'ytd-section-list-renderer ytd-continuation-item-renderer',
+    ];
+    
+    for (const selector of continuationSelectors) {
+      const continuation = document.querySelector(selector);
+      if (continuation) {
+        continuation.scrollIntoView({ behavior: 'instant', block: 'center' });
+        showMessage('Loading more...');
+        return;
+      }
+    }
+    
+    window.scrollBy({ top: window.innerHeight, behavior: 'instant' });
+  }
+
+  function handleSelect(shiftKey) {
+    if (state.ui.drawer === 'palette') {
+      handleCommandSubmit(state.ui.paletteQuery, shiftKey);
+    } else {
+      const items = config.getItems ? config.getItems() : [];
+      const filtered = getVisibleItems(state, items);
+      const result = onSelect(state, filtered, shiftKey);
+
+      if (result.action === 'navigate') {
+        navigateTo(result.url);
+      } else if (result.action === 'newTab') {
+        openInNewTab(result.url);
+      }
+    }
+  }
+
+  function handleSiteDrawerKey(key) {
+    if (!state.ui.drawer) return false;
+    if (state.ui.drawer === 'palette') return false;
+    
+    const handler = config.getDrawerHandler ? 
+                    config.getDrawerHandler(state.ui.drawer, siteState) : null;
+    
+    if (!handler) return false;
+    
+    const result = handleDrawerKey(key, state, handler);
+    
+    if (result.handled) {
+      const drawerClosed = result.newState.ui.drawer === null;
+      state = result.newState;
+      if (drawerClosed) {
+        render();
+      }
+      return true;
+    }
+    
+    return false;
+  }
+
+  function handleEscape() {
+    if (state.ui.drawer === 'palette') {
+      state = onDrawerClose(state);
+      render();
+    } else if (state.ui.drawer !== null) {
+      closeDrawer();
+      state = onDrawerClose(state);
+      render();
+    } else if (state.ui.filterActive) {
+      state = onFilterToggle(state);
+      render();
+    } else if (state.ui.searchActive) {
+      state = onSearchToggle(state);
+      render();
+    }
+  }
+
+  /**
+   * Get page config for a page type.
+   * [PURE helper]
+   */
+  function getPageConfig(pageType) {
+    return config?.pages?.[pageType] ?? null;
+  }
+
+  function handleNavigation(oldUrl, newUrl) {
+    // Get old page type before URL changes
+    const oldPageType = config.getPageType ? config.getPageType() : 'other';
+    const oldPageConfig = getPageConfig(oldPageType);
+    
+    // Call onLeave for old page
+    if (oldPageConfig?.onLeave) {
+      oldPageConfig.onLeave();
+    }
+    
+    showLoadingScreen(config);
+    stopContentPolling();
+
+    state = onUrlChange(state, newUrl, config);
+    lastRenderedDrawer = null;
+    
+    resetViewState();
+
+    if (config.createSiteState) {
+      siteState = config.createSiteState();
+      state = { ...state, site: siteState };
+    }
+
+    document.body.classList.remove('vilify-watch-page');
+
+    waitForContent(config).then(async () => {
+      render();
+      hideLoadingScreen();
+      
+      // Get new page type and call onEnter
+      const newPageType = config.getPageType ? config.getPageType() : 'other';
+      const newPageConfig = getPageConfig(newPageType);
+      
+      if (newPageConfig?.onEnter) {
+        // Pass context with state management functions
+        const ctx = {
+          getSiteState: () => siteState,
+          updateSiteState: (fn) => {
+            siteState = fn(siteState);
+            state = { ...state, site: siteState };
+          },
+          render
+        };
+        await newPageConfig.onEnter(ctx);
+      }
+      
+      // Legacy support for onContentReady
+      if (config.onContentReady) {
+        config.onContentReady();
+      }
+      
+      if (newPageType !== 'watch') {
+        startContentPolling();
+      }
+    });
+  }
+
+  function handleNextCommentPage() {
+    // Try page config first, then legacy config.watch
+    const pageConfig = getPageConfig('watch');
+    const fn = pageConfig?.nextCommentPage ?? config.watch?.nextCommentPage;
+    if (fn && siteState) {
+      siteState = fn(siteState);
+    }
+  }
+
+  function handlePrevCommentPage() {
+    // Try page config first, then legacy config.watch
+    const pageConfig = getPageConfig('watch');
+    const fn = pageConfig?.prevCommentPage ?? config.watch?.prevCommentPage;
+    if (fn && siteState) {
+      siteState = fn(siteState);
+    }
+  }
+
+  // ==========================================================================
+  // WAIT FOR CONTENT
+  // ==========================================================================
+
+  async function waitForContent(cfg, timeout = 5000) {
+    const start = Date.now();
+    
+    if (cfg.name === 'youtube') {
+      try {
+        const { getDataProvider } = await import('../sites/youtube/data/index.js');
+        const dp = getDataProvider();
+        if (dp.waitForData) {
+          await dp.waitForData(timeout);
+        }
+      } catch (e) {
+        // Fallback to DOM-based waiting
+      }
+    }
+    
+    const pageType = cfg.getPageType ? cfg.getPageType() : 'other';
+    if (pageType === 'watch') {
+      while (!document.querySelector('video.html5-main-video') && Date.now() - start < timeout) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+    } else {
+      while (Date.now() - start < timeout) {
+        const videoItems = document.querySelectorAll(
+          'ytd-rich-item-renderer, ytd-video-renderer, yt-lockup-view-model'
+        );
+        
+        if (videoItems.length > 0) {
+          break;
+        }
+        
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+  }
+
+  // ==========================================================================
+  // PUBLIC INTERFACE
+  // ==========================================================================
+
+  return {
+    /**
+     * Initialize the app - inject styles, set up handlers, show UI.
+     * [I/O]
+     */
+    async init() {
+      // Inject styles early
+      injectLoadingStyles();
+      injectFocusModeStyles();
+      injectPaletteStyles();
+      injectDrawerStyles();
+
+      // Show loading screen
+      showLoadingScreen(config);
+
+      // Wait for content
+      await waitForContent(config);
+
+      // Create initial state
+      state = createAppState(config);
+      state.core.focusModeActive = true;
+      state.core.lastUrl = location.href;
+
+      siteState = state.site;
+
+      // Apply site theme
+      if (config.theme) {
+        applyTheme(config.theme);
+      }
+
+      // Set up input callbacks
+      setInputCallbacks({
+        onFilterChange: handleFilterChange,
+        onFilterSubmit: handleFilterSubmit,
+        onFilterNavigate: handleFilterNavigate,
+        onSearchChange: handleSearchChange,
+        onSearchSubmit: handleSearchSubmit,
+        onCommandChange: handleCommandChange,
+        onCommandSubmit: handleCommandSubmit,
+        onCommandNavigate: handleCommandNavigate,
+        onDrawerChange: handleDrawerChange,
+        onDrawerSubmit: handleDrawerSubmit,
+        onDrawerNavigate: handleDrawerNavigate,
+        onEscape: handleInputEscape,
+      });
+
+      // Set up keyboard handling (returns cleanup function)
+      cleanupKeyboard = setupKeyboardHandler(config, getState, setState, {
+        onNavigate: handleListNavigation,
+        onSelect: handleSelect,
+        onEscape: handleEscape,
+        onRender: render,
+        onNextCommentPage: handleNextCommentPage,
+        onPrevCommentPage: handlePrevCommentPage,
+        onDrawerKey: handleSiteDrawerKey,
+      }, () => siteState);
+
+      // Set up SPA navigation observer
+      navigationObserver = setupNavigationObserver(handleNavigation);
+
+      // Add focus mode class
+      document.body.classList.add('vilify-focus-mode');
+
+      // Initial render
+      render();
+
+      // Hide loading screen
+      hideLoadingScreen();
+
+      // Start content polling for listing pages
+      const pageType = config.getPageType ? config.getPageType() : 'other';
+      if (pageType !== 'watch') {
+        startContentPolling();
+      }
+
+      // Call page-specific onEnter hook
+      const pageConfig = getPageConfig(pageType);
+      if (pageConfig?.onEnter) {
+        // Pass context with state management functions
+        const ctx = {
+          getSiteState: () => siteState,
+          updateSiteState: (fn) => {
+            siteState = fn(siteState);
+            state = { ...state, site: siteState };
+          },
+          render
+        };
+        await pageConfig.onEnter(ctx);
+      }
+
+      // Legacy: Call site's onContentReady hook
+      if (config.onContentReady) {
+        config.onContentReady();
+      }
+    },
+
+    /**
+     * Destroy the app - clean up event handlers and timers.
+     * [I/O]
+     */
+    destroy() {
+      // Stop content polling
+      stopContentPolling();
+
+      // Clean up keyboard handler
+      if (cleanupKeyboard) {
+        cleanupKeyboard();
+        cleanupKeyboard = null;
+      }
+
+      // Disconnect navigation observer
+      if (navigationObserver) {
+        navigationObserver.disconnect();
+        navigationObserver = null;
+      }
+
+      // Remove focus mode
+      removeFocusMode();
+      document.body.classList.remove('vilify-focus-mode', 'vilify-watch-page', 'vilify-loading');
+
+      // Remove loading overlay
+      hideLoadingScreen();
+
+      // Remove drawers
+      const drawers = document.querySelectorAll(
+        '.vilify-drawer, #vilify-drawer-container, ' +
+        '#vilify-loading-overlay, .vilify-overlay'
+      );
+      drawers.forEach(el => el.remove());
+
+      // Clear state
+      state = null;
+      siteState = null;
+      lastRenderedDrawer = null;
+    },
+
+    /**
+     * Get current app state (for testing).
+     * @returns {AppState|null}
+     */
+    getState,
+
+    /**
+     * Set app state (for testing).
+     * @param {AppState} newState
+     */
+    setState,
+
+    /**
+     * Get current site state (for compatibility).
+     * @returns {Object|null}
+     */
+    getSiteState,
+
+    /**
+     * Set site state (for compatibility).
+     * @param {Object} newState
+     */
+    setSiteState,
+  };
 }
 
 // =============================================================================
-// INITIALIZATION
+// LEGACY API (for backward compatibility)
 // =============================================================================
+
+/** @type {ReturnType<typeof createApp>|null} Singleton app instance for legacy API */
+let legacyApp = null;
 
 /**
  * Initialize site with configuration.
- * Entry point - shows loading, waits for content, sets up handlers.
+ * Legacy entry point - uses createApp() internally.
  * [I/O]
+ * 
+ * @deprecated Use createApp(config).init() instead
  */
 export function initSite(config) {
-  currentConfig = config;
-
-  // Inject styles early (before content loads)
-  injectLoadingStyles();
-  injectFocusModeStyles();
-  injectPaletteStyles();
-  injectDrawerStyles();
-
-  // Show loading screen with site theme
-  showLoadingScreen(config);
-
-  // Wait for content then initialize
-  waitForContent(config).then(() => {
-    // Create initial state
-    state = createAppState();
-    state.focusModeActive = true;
-    state.lastUrl = location.href;
-
-    // Create site-specific state if factory provided
-    if (config.createSiteState) {
-      siteState = config.createSiteState();
-    }
-
-    // Apply site theme
-    if (config.theme) {
-      applyTheme(config.theme);
-    }
-
-    // Set up input callbacks for status bar
-    setInputCallbacks({
-      onFilterChange: handleFilterChange,
-      onFilterSubmit: handleFilterSubmit,
-      onFilterNavigate: handleFilterNavigate,
-      onSearchChange: handleSearchChange,
-      onSearchSubmit: handleSearchSubmit,
-      onCommandChange: handleCommandChange,
-      onCommandSubmit: handleCommandSubmit,
-      onCommandNavigate: handleCommandNavigate,
-      onDrawerChange: handleDrawerChange,
-      onDrawerSubmit: handleDrawerSubmit,
-      onDrawerNavigate: handleDrawerNavigate,
-      onEscape: handleInputEscape,
-    });
-
-    // Set up keyboard handling
-    setupKeyboardHandler(config, getState, setState, {
-      onNavigate: handleListNavigation,
-      onSelect: handleSelect,
-      onEscape: handleEscape,
-      onRender: render,
-      onNextCommentPage: handleNextCommentPage,
-      onPrevCommentPage: handlePrevCommentPage,
-      onDrawerKey: handleSiteDrawerKey,
-    }, () => siteState);
-
-    // Set up SPA navigation observer
-    setupNavigationObserver(handleNavigation);
-
-    // Add focus mode class to body
-    document.body.classList.add('vilify-focus-mode');
-
-    // Initial render
-    render();
-
-    // Hide loading screen
-    hideLoadingScreen();
-
-    // Start content polling for listing pages
-    const pageType = config.getPageType ? config.getPageType() : 'other';
-    if (pageType !== 'watch') {
-      startContentPolling();
-    }
-
-    // Call site's onContentReady hook if provided
-    if (config.onContentReady) {
-      config.onContentReady();
-    }
-
-
-  });
-}
-
-/**
- * Wait for page content to be ready.
- * Uses data provider's waitForData when available (waits for bridge data).
- * Also waits for DOM to have duration badges on listing pages.
- */
-async function waitForContent(config, timeout = 5000) {
-  const start = Date.now();
-  
-  // Try to use data provider's waitForData (waits for bridge data)
-  if (config.name === 'youtube') {
-    try {
-      const { getDataProvider } = await import('../sites/youtube/data/index.js');
-      const dp = getDataProvider();
-      if (dp.waitForData) {
-        await dp.waitForData(timeout);
-      }
-    } catch (e) {
-      // Fallback to DOM-based waiting
-    }
+  // Destroy any existing app
+  if (legacyApp) {
+    legacyApp.destroy();
   }
   
-  // Wait for DOM elements based on page type
-  const pageType = config.getPageType ? config.getPageType() : 'other';
-  if (pageType === 'watch') {
-    // Wait for video element
-    while (!document.querySelector('video.html5-main-video') && Date.now() - start < timeout) {
-      await new Promise(r => setTimeout(r, 100));
-    }
-  } else {
-    // Wait for video items (duration comes from API data, no need to wait for DOM badges)
-    while (Date.now() - start < timeout) {
-      const videoItems = document.querySelectorAll(
-        'ytd-rich-item-renderer, ytd-video-renderer, yt-lockup-view-model'
-      );
-      
-      if (videoItems.length > 0) {
-        break;
-      }
-      
-      await new Promise(r => setTimeout(r, 50));
-    }
-  }
-}
-
-// =============================================================================
-// STATE ACCESSORS
-// =============================================================================
-
-function getState() {
-  return state;
-}
-
-function setState(newState) {
-  state = newState;
-  render();
+  // Create and initialize new app
+  legacyApp = createApp(config);
+  legacyApp.init();
 }
 
 /**
  * Get current site-specific state.
+ * Legacy accessor for backward compatibility.
  * @returns {Object|null}
+ * @deprecated Use app.getSiteState() instead
  */
 export function getSiteState() {
-  return siteState;
+  return legacyApp?.getSiteState() ?? null;
 }
 
 /**
  * Update site-specific state and re-render.
+ * Legacy accessor for backward compatibility.
  * @param {Object} newState - New site state
+ * @deprecated Use app.setSiteState() instead
  */
 export function setSiteState(newState) {
-  siteState = newState;
-  render();
-}
-
-// =============================================================================
-// RENDERING
-// =============================================================================
-
-/**
- * Main render function.
- */
-function render() {
-  if (!state || !currentConfig) return;
-
-  const pageType = currentConfig.getPageType ? currentConfig.getPageType() : 'other';
-
-  // Ensure focus mode container exists
-  let container = document.getElementById('vilify-content');
-  if (!container) {
-    renderFocusMode(currentConfig, state);
-    container = document.getElementById('vilify-content');
-  }
-
-  // Update status bar (mode badge, input visibility)
-  // Focus input when entering palette, local filter, or site drawer mode
-  const isSiteDrawer = state.drawerState !== null && 
-                       state.drawerState !== 'palette';
-  const shouldFocusInput = state.drawerState === 'palette' || 
-                           state.localFilterActive ||
-                           isSiteDrawer;
-  
-  // Get drawer placeholder if site drawer is open
-  let drawerPlaceholder = null;
-  if (isSiteDrawer && currentConfig.getDrawerHandler) {
-    const handler = currentConfig.getDrawerHandler(state.drawerState, siteState);
-    if (handler?.getFilterPlaceholder) {
-      drawerPlaceholder = handler.getFilterPlaceholder();
-    }
-  }
-  
-  updateStatusBar(state, shouldFocusInput, drawerPlaceholder);
-
-  // Render content based on page type and layout config
-  if (currentConfig.layouts && currentConfig.layouts[pageType]) {
-    const layout = currentConfig.layouts[pageType];
-
-    if (typeof layout === 'function') {
-      layout(state, siteState, container);
-    } else if (layout === 'listing') {
-      const items = currentConfig.getItems ? currentConfig.getItems() : [];
-
-      // Apply local filter if active (matches title or channel/meta)
-      let filtered = state.localFilterActive
-        ? items.filter((i) => {
-            const q = state.localFilterQuery.toLowerCase();
-            return i.title?.toLowerCase().includes(q) || i.meta?.toLowerCase().includes(q);
-          })
-        : items;
-
-      // Apply sorting if active
-      if (state.sortField) {
-        filtered = sortItems(filtered, state.sortField, state.sortDirection);
-      }
-
-      // Update sort indicator and count in status bar
-      updateSortIndicator(getSortLabel(state.sortField, state.sortDirection));
-      updateItemCount(filtered.length);
-
-      renderListing(filtered, state.selectedIdx, container);
-    }
-  }
-
-  // Handle palette rendering
-  if (state.drawerState === 'palette') {
-    const commands = currentConfig.getCommands
-      ? currentConfig.getCommands({
-          state,
-          siteState,
-          navigateTo,
-          copyToClipboard,
-          openPalette: (mode) => {
-            state = openPalette(state, mode);
-            render();
-          },
-          openRecommended: () => {
-            state = { ...state, drawerState: 'recommended' };
-            render();
-          },
-          openSearch: () => {
-            const searchInput = document.querySelector('input#search');
-            if (searchInput) searchInput.focus();
-          },
-          exitFocusMode: () => {
-            state.focusModeActive = false;
-            removeFocusMode();
-            document.body.classList.remove('vilify-watch-page');
-          },
-          executeSort: (field) => {
-            state = closePalette(state);
-            if (!field) {
-              // Reset sort
-              state.sortField = null;
-              state.sortDirection = 'desc';
-              state.selectedIdx = 0;
-              showMessage('Sort reset');
-            } else if (state.sortField === field) {
-              // Same field - toggle direction
-              state.sortDirection = toggleDirection(state.sortDirection);
-              state.selectedIdx = 0;
-              showMessage(`Sorted by ${getSortLabel(state.sortField, state.sortDirection)}`);
-            } else {
-              // New field
-              state.sortField = field;
-              state.sortDirection = getDefaultDirection(field);
-              state.selectedIdx = 0;
-              showMessage(`Sorted by ${getSortLabel(state.sortField, state.sortDirection)}`);
-            }
-            render();
-          },
-        })
-      : [];
-
-    // Filter commands by query (strip leading ':' for command mode)
-    const query = state.paletteQuery.startsWith(':')
-      ? state.paletteQuery.slice(1)
-      : state.paletteQuery;
-    const filtered = filterItems(commands, query);
-
-    renderPalette(filtered, state.paletteSelectedIdx);
-    showPalette();
-  } else {
-    hidePalette();
-  }
-
-  // Handle site-specific drawer rendering (description, chapters, etc.)
-  // isSiteDrawer already declared above for status bar
-  // Only render drawer when drawer state changes (avoid resetting scroll/selection)
-  if (isSiteDrawer) {
-    if (state.drawerState !== lastRenderedDrawer) {
-      const handler = currentConfig.getDrawerHandler ? 
-                      currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
-      renderDrawer(state.drawerState, handler);
-      lastRenderedDrawer = state.drawerState;
-    }
-  } else {
-    // Close any open site drawer when switching to palette or closing
-    if (lastRenderedDrawer !== null) {
-      closeDrawer();
-      lastRenderedDrawer = null;
-    }
-  }
-}
-
-// =============================================================================
-// INPUT HANDLERS (for status bar input)
-// =============================================================================
-
-function handleFilterChange(value) {
-  state.localFilterQuery = value;
-  render();
-}
-
-function handleFilterSubmit(value, shiftKey) {
-  // Select from main list (local filter mode)
-  const items = currentConfig.getItems ? currentConfig.getItems() : [];
-  const filtered = items.filter((i) => i.title?.toLowerCase().includes(value.toLowerCase()));
-  const item = filtered[state.selectedIdx];
-
-  if (item?.url) {
-    if (shiftKey) {
-      openInNewTab(item.url);
-    } else {
-      navigateTo(item.url);
-    }
-  }
-}
-
-function handleFilterNavigate(direction) {
-  // Local filter navigation is handled by main list navigation
-  // Site drawers (including recommended) use handleDrawerNavigate
-}
-
-// =============================================================================
-// DRAWER INPUT HANDLERS (for site-specific drawers like chapters)
-// =============================================================================
-
-function handleDrawerChange(value, mode) {
-  // Update the active drawer's filter query
-  if (!state.drawerState || state.drawerState === 'palette') {
-    return;
-  }
-  
-  const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
-  
-  if (handler?.updateQuery) {
-    handler.updateQuery(value);
-  }
-}
-
-function handleDrawerSubmit(value, shiftKey, mode) {
-  // Trigger selection in the active drawer via keyboard handler
-  if (!state.drawerState || state.drawerState === 'palette') {
-    return;
-  }
-  
-  const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
-  
-  if (handler?.onKey) {
-    const result = handler.onKey('Enter', state);
-    if (result.handled) {
-      state = result.newState;
-      render();
-    }
-  }
-}
-
-function handleDrawerNavigate(direction, mode) {
-  // Navigate in the active drawer
-  if (!state.drawerState || state.drawerState === 'palette') {
-    return;
-  }
-  
-  const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
-  
-  if (handler?.onKey) {
-    const key = direction === 'down' ? 'ArrowDown' : 'ArrowUp';
-    const result = handler.onKey(key, state);
-    if (result.handled) {
-      state = result.newState;
-      // Don't need full render, just navigation
-    }
-  }
-}
-
-function handleSearchChange(value) {
-  state.siteSearchQuery = value;
-}
-
-function handleSearchSubmit(value) {
-  if (value.trim()) {
-    navigateTo('/results?search_query=' + encodeURIComponent(value.trim()));
-  }
-}
-
-function handleCommandChange(value) {
-  state.paletteQuery = value;
-  state.paletteSelectedIdx = 0;
-  render();
-}
-
-function handleCommandSubmit(value, shiftKey) {
-  // Check for :q exit command explicitly (like userscript)
-  if (value.trim().toLowerCase() === ':q') {
-    // Full cleanup like userscript exitFocusMode()
-    state = closePalette(state);
-    state.focusModeActive = false;
-    
-    // Stop content polling
-    stopContentPolling();
-    
-    // Remove focus mode overlay and all classes
-    removeFocusMode();
-    document.body.classList.remove('vilify-watch-page', 'vilify-loading');
-    
-    // Remove loading overlay if present
-    hideLoadingScreen();
-    
-    // Remove any drawers
-    const drawers = document.querySelectorAll(
-      '.vilify-drawer, #vilify-drawer-container, ' +
-      '#vilify-loading-overlay, .vilify-overlay'
-    );
-    drawers.forEach(el => el.remove());
-    
-    showMessage('Focus mode off (refresh to re-enable)');
-    return;
-  }
-
-  // Check for :sort command
-  const sortMatch = value.trim().match(/^:?sort\s*(.*)$/i);
-  if (sortMatch !== null) {
-    const sortArg = sortMatch[1].trim();
-    
-    if (!sortArg) {
-      // :sort with no argument - reset to default order
-      state = closePalette(state);
-      state.sortField = null;
-      state.sortDirection = 'desc';
-      state.selectedIdx = 0;
-      showMessage('Sort reset');
-      render();
-      return;
-    }
-    
-    const parsed = parseSortCommand(sortArg);
-    if (parsed) {
-      state = closePalette(state);
-      
-      // If same field, toggle direction. If different field or reverse flag, set appropriately
-      if (state.sortField === parsed.field && !parsed.reverse) {
-        // Same field - toggle direction
-        state.sortDirection = toggleDirection(state.sortDirection);
-      } else {
-        // New field or explicit reverse
-        state.sortField = parsed.field;
-        const defaultDir = getDefaultDirection(parsed.field);
-        state.sortDirection = parsed.reverse ? toggleDirection(defaultDir) : defaultDir;
-      }
-      
-      state.selectedIdx = 0; // Reset selection when sorting
-      const label = getSortLabel(state.sortField, state.sortDirection);
-      showMessage(`Sorted by ${label}`);
-      render();
-      return;
-    } else {
-      // Invalid sort field
-      showMessage(`Unknown sort field: ${sortArg}`);
-      return;
-    }
-  }
-
-  // Execute selected command
-  const commands = currentConfig.getCommands
-    ? currentConfig.getCommands({ state, siteState, navigateTo, copyToClipboard })
-    : [];
-
-  const query = value.startsWith(':') ? value.slice(1) : value;
-  const filtered = filterItems(commands, query);
-  const actionable = filtered.filter((c) => !c.group);
-  const item = actionable[state.paletteSelectedIdx];
-
-  if (item?.action) {
-    state = closePalette(state);
-    state.localFilterActive = false;
-    item.action();
-    render();
-  }
-}
-
-function handleCommandNavigate(direction) {
-  const commands = currentConfig.getCommands
-    ? currentConfig.getCommands({ state, siteState, navigateTo, copyToClipboard })
-    : [];
-
-  const query = state.paletteQuery.startsWith(':') ? state.paletteQuery.slice(1) : state.paletteQuery;
-  const filtered = filterItems(commands, query);
-  const actionable = filtered.filter((c) => !c.group);
-  const count = actionable.length;
-
-  if (count === 0) return;
-
-  // Don't wrap at boundaries - flash instead
-  if (direction === 'down') {
-    if (state.paletteSelectedIdx >= count - 1) {
-      flashBoundary();
-      return;
-    }
-    state.paletteSelectedIdx = state.paletteSelectedIdx + 1;
-  } else {
-    if (state.paletteSelectedIdx <= 0) {
-      flashBoundary();
-      return;
-    }
-    state.paletteSelectedIdx = state.paletteSelectedIdx - 1;
-  }
-
-  render();
-}
-
-function handleInputEscape() {
-  // Close any open drawer or filter
-  if (state.drawerState === 'palette') {
-    state = closePalette(state);
-  } else if (state.drawerState !== null) {
-    // Close any site drawer (chapters, description, recommended, etc.)
-    state = { ...state, drawerState: null };
-  }
-  state.localFilterActive = false;
-  state.localFilterQuery = '';
-  state.siteSearchActive = false;
-  state.siteSearchQuery = '';
-  render();
-}
-
-// =============================================================================
-// EVENT HANDLERS
-// =============================================================================
-
-function handleListNavigation(direction) {
-  const items = currentConfig.getItems ? currentConfig.getItems() : [];
-  
-  // Apply filter if active (matches title or channel/meta)
-  const filtered = state.localFilterActive
-    ? items.filter((i) => {
-        const q = state.localFilterQuery.toLowerCase();
-        return i.title?.toLowerCase().includes(q) || i.meta?.toLowerCase().includes(q);
-      })
-    : items;
-
-  const result = navigateList(direction, state.selectedIdx, filtered.length);
-
-  state.selectedIdx = result.index;
-
-  // Show position feedback for jump navigation
-  if (direction === 'top' || direction === 'bottom') {
-    const pos = result.index + 1;
-    const total = filtered.length;
-    showMessage(`${pos}/${total}`);
-  }
-
-  // Handle boundary hit
-  if (result.boundary) {
-    if (result.boundary === 'bottom' && !state.localFilterActive) {
-      // At bottom - trigger lazy load to fetch more videos
-      triggerLazyLoad();
-    } else {
-      // Top boundary or filtering active - just flash
-      flashBoundary();
-    }
-  }
-
-  render();
-}
-
-/**
- * Trigger YouTube's lazy loading by scrolling continuation element into view.
- * YouTube uses IntersectionObserver on ytd-continuation-item-renderer elements.
- * [I/O]
- */
-function triggerLazyLoad() {
-  // Find YouTube's continuation element (triggers lazy load when visible)
-  const continuationSelectors = [
-    'ytd-continuation-item-renderer',
-    '#continuations ytd-continuation-item-renderer',
-    'ytd-rich-grid-renderer ytd-continuation-item-renderer',
-    'ytd-section-list-renderer ytd-continuation-item-renderer',
-  ];
-  
-  for (const selector of continuationSelectors) {
-    const continuation = document.querySelector(selector);
-    if (continuation) {
-      // Scroll continuation into view to trigger IntersectionObserver
-      continuation.scrollIntoView({ behavior: 'instant', block: 'center' });
-      showMessage('Loading more...');
-      return;
-    }
-  }
-  
-  // Fallback: scroll the page if no continuation element found
-  window.scrollBy({ top: window.innerHeight, behavior: 'instant' });
-}
-
-function handleSelect(shiftKey) {
-  if (state.drawerState === 'palette') {
-    handleCommandSubmit(state.paletteQuery, shiftKey);
-  } else {
-    const items = currentConfig.getItems ? currentConfig.getItems() : [];
-    
-    // Apply filter if active (matches title or channel/meta)
-    const filtered = state.localFilterActive
-      ? items.filter((i) => {
-          const q = state.localFilterQuery.toLowerCase();
-          return i.title?.toLowerCase().includes(q) || i.meta?.toLowerCase().includes(q);
-        })
-      : items;
-
-    const item = filtered[state.selectedIdx];
-
-    if (item?.url) {
-      if (shiftKey) {
-        openInNewTab(item.url);
-      } else {
-        navigateTo(item.url);
-      }
-    }
-  }
-}
-
-/**
- * Handle key events for site-specific drawers
- * Delegates to the drawer handler from site config
- */
-function handleSiteDrawerKey(key) {
-  if (!state.drawerState) return false;
-  if (state.drawerState === 'palette') return false;
-  
-  const handler = currentConfig.getDrawerHandler ? 
-                  currentConfig.getDrawerHandler(state.drawerState, siteState) : null;
-  
-  if (!handler) return false;
-  
-  const result = handleDrawerKey(key, state, handler);
-  
-  if (result.handled) {
-    const drawerClosed = result.newState.drawerState === null;
-    state = result.newState;
-    // Only full render when drawer closes - drawer handles its own internal updates
-    if (drawerClosed) {
-      render();
-    }
-    return true;
-  }
-  
-  return false;
-}
-
-function handleEscape() {
-  if (state.drawerState === 'palette') {
-    state = closePalette(state);
-    render();
-  } else if (state.drawerState !== null) {
-    // Close any open drawer (site-specific drawers)
-    closeDrawer();
-    state = { ...state, drawerState: null };
-    render();
-  } else if (state.localFilterActive) {
-    state.localFilterActive = false;
-    state.localFilterQuery = '';
-    render();
-  } else if (state.siteSearchActive) {
-    state.siteSearchActive = false;
-    state.siteSearchQuery = '';
-    render();
-  }
-}
-
-function handleNavigation(oldUrl, newUrl) {
-
-  // Show loading screen immediately
-  showLoadingScreen(currentConfig);
-
-  // Stop any existing content polling
-  stopContentPolling();
-
-  state.selectedIdx = 0;
-  state.localFilterQuery = '';
-  state.localFilterActive = false;
-  state.drawerState = null;
-  state.lastUrl = newUrl;
-  state.sortField = null;
-  state.sortDirection = 'desc';
-  lastRenderedDrawer = null;
-
-  // Reset site-specific state if needed
-  if (currentConfig.createSiteState) {
-    siteState = currentConfig.createSiteState();
-  }
-
-  // Remove watch page class if leaving watch page
-  document.body.classList.remove('vilify-watch-page');
-
-  waitForContent(currentConfig).then(() => {
-    render();
-    
-    // Hide loading screen after content ready
-    hideLoadingScreen();
-    
-    // Call site's onContentReady hook (for transcript loading, etc.)
-    if (currentConfig.onContentReady) {
-      currentConfig.onContentReady();
-    }
-    
-    // Start content polling for listing pages
-    const pageType = currentConfig.getPageType ? currentConfig.getPageType() : 'other';
-    if (pageType !== 'watch') {
-      startContentPolling();
-    }
-  });
-}
-
-function handleNextCommentPage() {
-  if (currentConfig.watch?.nextCommentPage && siteState) {
-    siteState = currentConfig.watch.nextCommentPage(siteState);
-    // Don't call render() - nextCommentPage already updates the UI directly
-    // Calling render() would re-render the entire watch page and reset comments
-  }
-}
-
-function handlePrevCommentPage() {
-  if (currentConfig.watch?.prevCommentPage && siteState) {
-    siteState = currentConfig.watch.prevCommentPage(siteState);
-    // Don't call render() - prevCommentPage already updates the UI directly
-    // Calling render() would re-render the entire watch page and reset comments
+  if (legacyApp) {
+    legacyApp.setSiteState(newState);
   }
 }
 
@@ -855,6 +953,10 @@ function handlePrevCommentPage() {
 // RE-EXPORTS
 // =============================================================================
 
-export { createAppState, getMode } from './state.js';
+export { createAppState, getMode, getVisibleItems } from './state.js';
 export { el, clear, showMessage } from './view.js';
 export { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
+
+// View tree functions (iteration 022)
+export { toView, toStatusBarView, toContentView, toDrawerView } from './view-tree.js';
+export { applyView, applyStatusBar, applyContent, applyDrawer, resetViewState } from './apply-view.js';

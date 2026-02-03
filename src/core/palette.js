@@ -108,18 +108,21 @@ export function filterItems(items, query) {
  *
  * @example
  * openPalette(state, 'command')
- *   => { ...state, drawerState: 'palette', paletteQuery: ':', paletteSelectedIdx: 0 }
+ *   => { ...state, ui: { drawer: 'palette', paletteQuery: ':', paletteSelectedIdx: 0 } }
  *
  * openPalette(state, 'video')
- *   => { ...state, drawerState: 'palette', paletteQuery: '', paletteSelectedIdx: 0 }
+ *   => { ...state, ui: { drawer: 'palette', paletteQuery: '', paletteSelectedIdx: 0 } }
  */
 export function openPalette(state, mode) {
   // Template: Compound - return new state with updated fields
   return {
     ...state,
-    drawerState: 'palette',
-    paletteQuery: mode === 'command' ? ':' : '',
-    paletteSelectedIdx: 0,
+    ui: {
+      ...state.ui,
+      drawer: 'palette',
+      paletteQuery: mode === 'command' ? ':' : '',
+      paletteSelectedIdx: 0,
+    }
   };
 }
 
@@ -133,14 +136,17 @@ export function openPalette(state, mode) {
  *
  * @example
  * closePalette(state)
- *   => { ...state, drawerState: null, paletteQuery: '' }
+ *   => { ...state, ui: { ...state.ui, drawer: null, paletteQuery: '' } }
  */
 export function closePalette(state) {
   // Template: Compound - return new state with cleared fields
   return {
     ...state,
-    drawerState: null,
-    paletteQuery: '',
+    ui: {
+      ...state.ui,
+      drawer: null,
+      paletteQuery: '',
+    }
   };
 }
 

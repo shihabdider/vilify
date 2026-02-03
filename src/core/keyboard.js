@@ -100,18 +100,22 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
   
   const KEY_SEQ_TIMEOUT_MS = 500;
 
-  document.addEventListener('keydown', (event) => {
+  const handler = (event) => {
     const state = getState();
     const target = event.target;
+
+    // Get state properties from nested structure
+    const { drawer, filterActive, searchActive } = state.ui;
+    const focusModeActive = state.core.focusModeActive;
 
     // Skip if target is input element (with exceptions for our inputs)
     if (isInputElement(target)) {
       const isDrawerFilter = target.id?.startsWith('vilify-drawer-') && target.id?.endsWith('-input');
-      const isStatusBarFilter = target.id === 'vilify-status-input' && state.localFilterActive;
+      const isStatusBarFilter = target.id === 'vilify-status-input' && filterActive;
       const isSiteDrawerInput = target.id === 'vilify-status-input' && 
-                                state.drawerState !== null && 
-                                state.drawerState !== 'palette' && 
-                                state.drawerState !== 'recommended';
+                                drawer !== null && 
+                                drawer !== 'palette' && 
+                                drawer !== 'recommended';
       const isYouTubeSearch = target.id === 'search' || 
                               target.closest?.('ytd-searchbox') || 
                               target.closest?.('#search-form');
@@ -149,7 +153,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
     }
 
     // Skip if focus mode not active
-    if (!state.focusModeActive) {
+    if (!focusModeActive) {
       return;
     }
 
@@ -158,22 +162,22 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       event.preventDefault();
       
       // Close any open modal first
-      if (state.drawerState !== null) {
-        setState({ ...state, drawerState: null, paletteQuery: '', paletteSelectedIdx: 0 });
+      if (drawer !== null) {
+        setState({ ...state, ui: { ...state.ui, drawer: null, paletteQuery: '', paletteSelectedIdx: 0 } });
         if (callbacks.onRender) callbacks.onRender();
         return;
       }
       
       // Exit filter mode
-      if (state.localFilterActive) {
-        setState({ ...state, localFilterActive: false, localFilterQuery: '' });
+      if (filterActive) {
+        setState({ ...state, ui: { ...state.ui, filterActive: false, filterQuery: '' } });
         if (callbacks.onRender) callbacks.onRender();
         return;
       }
       
       // Exit search mode
-      if (state.siteSearchActive) {
-        setState({ ...state, siteSearchActive: false, siteSearchQuery: '' });
+      if (searchActive) {
+        setState({ ...state, ui: { ...state.ui, searchActive: false, searchQuery: '' } });
         if (callbacks.onRender) callbacks.onRender();
         return;
       }
@@ -183,9 +187,9 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
 
     // Handle site-specific drawer keys (delegates to drawer handler)
     // Palette is handled separately, recommended drawer is handled by status bar input
-    if (state.drawerState !== null && 
-        state.drawerState !== 'palette' && 
-        state.drawerState !== 'recommended') {
+    if (drawer !== null && 
+        drawer !== 'palette' && 
+        drawer !== 'recommended') {
       event.preventDefault();
       if (callbacks.onDrawerKey) {
         const handled = callbacks.onDrawerKey(event.key);
@@ -196,7 +200,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
     }
 
     // Don't process key sequences when palette is open
-    if (state.drawerState === 'palette') {
+    if (drawer === 'palette') {
       return;
     }
 
@@ -250,7 +254,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       }
       
       // j/k only navigate when NOT filtering (user might type those letters)
-      if (!state.localFilterActive && !state.siteSearchActive) {
+      if (!filterActive && !searchActive) {
         if (event.key === 'j') {
           event.preventDefault();
           if (callbacks.onNavigate) {
@@ -276,26 +280,36 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
     }
 
     // Get key sequences from config, passing callbacks for drawer openers
+    // Helper to create new state with nested structure
+    const updateUI = (updates) => {
+      const currentState = getState();
+      return { ...currentState, ui: { ...currentState.ui, ...updates } };
+    };
+    
     const appCallbacks = {
       openPalette: (mode) => {
-        const newState = { ...state, drawerState: 'palette', paletteQuery: mode === 'command' ? ':' : '', paletteSelectedIdx: 0 };
+        const newState = updateUI({ 
+          drawer: 'palette', 
+          paletteQuery: mode === 'command' ? ':' : '', 
+          paletteSelectedIdx: 0 
+        });
         setState(newState);
       },
       openRecommended: () => {
-        setState({ ...state, drawerState: 'recommended' });
+        setState(updateUI({ drawer: 'recommended' }));
       },
       openLocalFilter: () => {
-        setState({ ...state, localFilterActive: true, localFilterQuery: '' });
+        setState(updateUI({ filterActive: true, filterQuery: '' }));
       },
       openSearch: () => {
         // Open our search mode
-        setState({ ...state, siteSearchActive: true, siteSearchQuery: '' });
+        setState(updateUI({ searchActive: true, searchQuery: '' }));
       },
       openDrawer: (drawerId) => {
-        setState({ ...state, drawerState: drawerId });
+        setState(updateUI({ drawer: drawerId }));
       },
       closeDrawer: () => {
-        setState({ ...state, drawerState: null });
+        setState(updateUI({ drawer: null }));
       },
       goToTop: () => {
         if (callbacks.onNavigate) {
@@ -311,11 +325,12 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         const siteState = getSiteState?.();
         if (!siteState) return;
         
-        const state = getState();
+        const currentState = getState();
+        const currentDrawer = currentState.ui?.drawer ?? null;
         
         // Toggle off if already open
-        if (state.drawerState === 'transcript') {
-          setState({ ...state, drawerState: null });
+        if (currentDrawer === 'transcript') {
+          setState(updateUI({ drawer: null }));
           return;
         }
         
@@ -332,10 +347,11 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         }
         
         // Open drawer
-        setState({ ...state, drawerState: 'transcript' });
+        setState(updateUI({ drawer: 'transcript' }));
       },
       exitFocusMode: () => {
-        setState({ ...state, focusModeActive: false });
+        const currentState = getState();
+        setState({ ...currentState, core: { ...currentState.core, focusModeActive: false } });
         removeFocusMode();
         document.body.classList.remove('vilify-watch-page');
       },
@@ -439,5 +455,17 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         keyTimer = null;
       }, KEY_SEQ_TIMEOUT_MS);
     }
-  }, true); // capture: true - intercept before YouTube
+  };
+  
+  // Add event listener (capture: true - intercept before YouTube)
+  document.addEventListener('keydown', handler, true);
+
+  // Return cleanup function
+  return function cleanup() {
+    document.removeEventListener('keydown', handler, true);
+    if (keyTimer) {
+      clearTimeout(keyTimer);
+      keyTimer = null;
+    }
+  };
 }

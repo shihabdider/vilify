@@ -517,22 +517,27 @@ export function updateStatusBar(state, focusInput = false, drawerPlaceholder = n
                        mode !== 'DESCRIPTION'; // Description doesn't need input
 
   // Update input visibility and value
+  // Support both new nested structure (state.ui.x) and legacy flat structure (state.x)
+  const filterQuery = state.ui?.filterQuery ?? state.localFilterQuery ?? '';
+  const searchQuery = state.ui?.searchQuery ?? state.siteSearchQuery ?? '';
+  const paletteQuery = state.ui?.paletteQuery ?? state.paletteQuery ?? '';
+  
   const input = document.getElementById('vilify-status-input');
   if (input) {
     if (mode === 'FILTER') {
       input.classList.add('visible');
       input.placeholder = 'Filter...';
-      input.value = state.localFilterQuery || '';
+      input.value = filterQuery;
       if (focusInput) input.focus();
     } else if (mode === 'SEARCH') {
       input.classList.add('visible');
       input.placeholder = 'Search YouTube...';
-      input.value = state.siteSearchQuery || '';
+      input.value = searchQuery;
       if (focusInput) input.focus();
     } else if (mode === 'COMMAND') {
       input.classList.add('visible');
       input.placeholder = 'Command...';
-      input.value = state.paletteQuery || '';
+      input.value = paletteQuery;
       if (focusInput) input.focus();
     } else if (isSiteDrawer) {
       // Site-specific drawer (CHAPTERS, etc.) - show input

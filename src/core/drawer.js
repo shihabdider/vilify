@@ -272,8 +272,11 @@ export function createListDrawer(config) {
     onKey: (key, state) => {
       const filtered = getFilteredItems();
       
+      // Helper to close drawer
+      const closeDrawer = () => ({ ...state, ui: { ...state.ui, drawer: null } });
+      
       if (key === 'Escape') {
-        return { handled: true, newState: { ...state, drawerState: null } };
+        return { handled: true, newState: closeDrawer() };
       }
       
       if (key === 'ArrowDown' || key === 'j') {
@@ -296,7 +299,7 @@ export function createListDrawer(config) {
         if (filtered.length > 0 && filtered[selectedIdx]) {
           config.onSelect(filtered[selectedIdx]);
         }
-        return { handled: true, newState: { ...state, drawerState: null } };
+        return { handled: true, newState: closeDrawer() };
       }
       
       return { handled: false, newState: state };
@@ -385,8 +388,11 @@ export function createContentDrawer(config) {
      * @returns {{ handled: boolean, newState: AppState }}
      */
     onKey: (key, state) => {
+      // Helper to close drawer
+      const closeDrawerState = () => ({ ...state, ui: { ...state.ui, drawer: null } });
+      
       if (key === 'Escape') {
-        return { handled: true, newState: { ...state, drawerState: null } };
+        return { handled: true, newState: closeDrawerState() };
       }
       
       if ((key === 'j' || key === 'ArrowDown') && contentEl) {
@@ -484,11 +490,7 @@ export function renderDrawer(drawerState, handler) {
  * @returns {{ handled: boolean, newState: AppState }}
  */
 export function handleDrawerKey(key, state, handler) {
-  if (state.drawerState === null) {
-    return { handled: false, newState: state };
-  }
-  
-  if (handler === null) {
+  if (state.ui.drawer === null || handler === null) {
     return { handled: false, newState: state };
   }
   

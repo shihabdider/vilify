@@ -209,14 +209,14 @@ export async function fetchTranscript(videoId) {
     // Check if transcript is available
     if (!hasTranscriptAvailable()) {
       console.log('[Vilify] No transcript endpoint found - video has no captions');
-      return { status: 'unavailable', lines: [], language: null };
+      return { status: 'unavailable', videoId, lines: [], language: null };
     }
     
     // Check if panel already has segments (maybe from previous load)
     let lines = scrapeTranscriptFromDOM();
     if (lines.length > 0) {
       console.log('[Vilify] Found existing transcript in DOM:', lines.length, 'lines');
-      return { status: 'loaded', lines, language: 'en' };
+      return { status: 'loaded', videoId, lines, language: 'en' };
     }
     
     // Try to open the transcript panel
@@ -224,7 +224,7 @@ export async function fetchTranscript(videoId) {
     
     if (!panelOpened) {
       console.log('[Vilify] Could not open transcript panel');
-      return { status: 'unavailable', lines: [], language: null };
+      return { status: 'unavailable', videoId, lines: [], language: null };
     }
     
     // Wait for segments to load
@@ -240,16 +240,17 @@ export async function fetchTranscript(videoId) {
     console.log('[Vilify] Scraped', lines.length, 'transcript lines');
     
     if (lines.length === 0) {
-      return { status: 'unavailable', lines: [], language: null };
+      return { status: 'unavailable', videoId, lines: [], language: null };
     }
     
     return { 
       status: 'loaded', 
+      videoId,
       lines, 
       language: 'en'
     };
   } catch (e) {
     console.error('[Vilify] Error fetching transcript:', e);
-    return { status: 'unavailable', lines: [], language: null };
+    return { status: 'unavailable', videoId, lines: [], language: null };
   }
 }

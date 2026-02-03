@@ -615,6 +615,242 @@ Examples:
 
 ---
 
+## View Types (Iteration 022)
+
+Types for pure view computation. These represent the UI as data, separate from DOM.
+
+### ViewTree
+
+A ViewTree is a structure:
+- statusBar: StatusBarView - status bar state
+- content: ContentView - main content area
+- drawer: DrawerView | null - drawer state (null = closed)
+
+**Classification**: Compound
+
+**Interpretation**: Complete view state computed from AppState. This is the pure "image" that gets applied to DOM. No DOM references, no side effects.
+
+**Hierarchy**:
+```
+ViewTree
+├── statusBar: StatusBarView
+│   ├── mode
+│   ├── inputVisible
+│   ├── inputValue
+│   ├── inputPlaceholder
+│   ├── inputFocus
+│   ├── sortLabel
+│   ├── itemCount
+│   └── hints
+├── content: ContentView
+│   ├── type: 'listing' | 'custom' | 'empty'
+│   ├── items (for listing)
+│   ├── selectedIdx
+│   └── render (for custom)
+└── drawer: DrawerView | null
+    ├── type
+    ├── visible
+    ├── items (for palette)
+    ├── selectedIdx
+    └── handler (for site drawers)
+```
+
+Examples:
+```js
+// Normal listing mode
+{
+  statusBar: {
+    mode: 'NORMAL',
+    inputVisible: false,
+    inputValue: '',
+    inputPlaceholder: '',
+    inputFocus: false,
+    sortLabel: null,
+    itemCount: 24,
+    hints: null
+  },
+  content: {
+    type: 'listing',
+    items: [{ title: 'Video 1', ... }, ...],
+    selectedIdx: 0,
+    render: null
+  },
+  drawer: null
+}
+
+// Filter mode with palette open
+{
+  statusBar: {
+    mode: 'COMMAND',
+    inputVisible: true,
+    inputValue: ':sort',
+    inputPlaceholder: 'Command...',
+    inputFocus: true,
+    sortLabel: 'date↓',
+    itemCount: 24,
+    hints: '↑↓ navigate ↵ select esc close'
+  },
+  content: {
+    type: 'listing',
+    items: [...],
+    selectedIdx: 3,
+    render: null
+  },
+  drawer: {
+    type: 'palette',
+    visible: true,
+    items: [{ label: 'Sort by date', ... }, ...],
+    selectedIdx: 0,
+    handler: null
+  }
+}
+```
+
+---
+
+### StatusBarView
+
+A StatusBarView is a structure:
+- mode: String - mode badge text ('NORMAL', 'FILTER', 'COMMAND', etc.)
+- inputVisible: Boolean - show status bar input?
+- inputValue: String - current input value
+- inputPlaceholder: String - input placeholder text
+- inputFocus: Boolean - should input be focused?
+- sortLabel: String | null - sort indicator text (e.g., 'date↓')
+- itemCount: Number | null - item count to display
+- hints: String | null - hint text for current mode
+
+**Classification**: Compound
+
+**Interpretation**: Pure data representing status bar state. No DOM references.
+
+Examples:
+```js
+// Normal mode
+{
+  mode: 'NORMAL',
+  inputVisible: false,
+  inputValue: '',
+  inputPlaceholder: '',
+  inputFocus: false,
+  sortLabel: null,
+  itemCount: 42,
+  hints: null
+}
+
+// Filter mode
+{
+  mode: 'FILTER',
+  inputVisible: true,
+  inputValue: 'react',
+  inputPlaceholder: 'Filter...',
+  inputFocus: true,
+  sortLabel: 'title↑',
+  itemCount: 5,
+  hints: '↑↓ navigate ↵ select esc close'
+}
+
+// Drawer mode (chapters)
+{
+  mode: 'CHAPTERS',
+  inputVisible: true,
+  inputValue: '',
+  inputPlaceholder: 'Filter chapters...',
+  inputFocus: true,
+  sortLabel: null,
+  itemCount: null,
+  hints: '↑↓ navigate ↵ select esc close'
+}
+```
+
+---
+
+### ContentView
+
+A ContentView is a structure:
+- type: 'listing' | 'custom' | 'empty' - content type
+- items: Item[] - items to display (for listing type)
+- selectedIdx: Number - selected item index
+- render: Function | null - custom render function (for custom type)
+
+**Classification**: Compound
+
+**Interpretation**: Pure data representing main content area. For 'listing', items are pre-filtered/sorted. For 'custom', render function handles layout (watch page, etc.).
+
+Examples:
+```js
+// Listing page
+{
+  type: 'listing',
+  items: [
+    { title: 'Video 1', meta: '100K views', url: '/watch?v=abc', ... },
+    { title: 'Video 2', meta: '50K views', url: '/watch?v=def', ... }
+  ],
+  selectedIdx: 0,
+  render: null
+}
+
+// Watch page (custom layout)
+{
+  type: 'custom',
+  items: [],
+  selectedIdx: 0,
+  render: (container) => { /* watch page layout */ }
+}
+
+// Empty state
+{
+  type: 'empty',
+  items: [],
+  selectedIdx: 0,
+  render: null
+}
+```
+
+---
+
+### DrawerView
+
+A DrawerView is a structure:
+- type: DrawerType - drawer type ('palette', 'chapters', etc.)
+- visible: Boolean - is drawer visible?
+- items: Item[] - items to display (for palette)
+- selectedIdx: Number - selected item in drawer
+- handler: DrawerHandler | null - handler for site-specific drawers
+
+**Classification**: Compound
+
+**Interpretation**: Pure data representing drawer state. For palette, items are filtered commands. For site drawers, handler manages rendering.
+
+Examples:
+```js
+// Command palette
+{
+  type: 'palette',
+  visible: true,
+  items: [
+    { label: 'Sort by date', keys: ':sd', action: ... },
+    { label: 'Sort by views', keys: ':sv', action: ... }
+  ],
+  selectedIdx: 0,
+  handler: null
+}
+
+// Site drawer (chapters)
+{
+  type: 'chapters',
+  visible: true,
+  items: [],  // Handler manages its own items
+  selectedIdx: 0,
+  handler: { render: ..., onKey: ..., cleanup: ... }
+}
+
+// No drawer
+null
+```
+
+---
+
 ## YouTube-Specific Types
 
 ### YouTubeDrawerType
@@ -928,20 +1164,72 @@ Examples:
 
 A TranscriptResult is a structure:
 - status: TranscriptStatus - loading state
+- videoId: String - video ID this result is for (for validation)
 - lines: Array\<TranscriptLine\> - transcript lines (empty if not loaded)
 - language: String | null - language code (e.g., 'en')
+
+**Classification**: Compound
+
+**Interpretation**: Represents the current state of transcript fetching for a video.
+The videoId field enables validating that a loaded result matches the current video
+(important for async operations when user may have navigated away).
 
 Examples:
 ```js
 // Transcript loaded
-{ status: 'loaded', lines: [{ time: 0, timeText: '0:00', duration: 3, text: 'Hello' }, ...], language: 'en' }
+{ status: 'loaded', videoId: 'dQw4w9WgXcQ', lines: [{ time: 0, timeText: '0:00', duration: 3, text: 'Hello' }, ...], language: 'en' }
 
 // Still loading
-{ status: 'loading', lines: [], language: null }
+{ status: 'loading', videoId: 'dQw4w9WgXcQ', lines: [], language: null }
 
 // No transcript available
-{ status: 'unavailable', lines: [], language: null }
+{ status: 'unavailable', videoId: 'dQw4w9WgXcQ', lines: [], language: null }
 ```
+
+### Pure Transitions for TranscriptResult
+
+| Function | Signature | Purpose |
+|----------|-----------|---------|
+| onTranscriptRequest | YouTubeState × String → YouTubeState | Mark transcript as loading for videoId |
+| onTranscriptLoad | YouTubeState × TranscriptResult → YouTubeState | Store fetched transcript (validates videoId) |
+
+---
+
+### ChaptersResult
+
+A ChaptersResult is a structure:
+- status: ChaptersStatus - loading state ('loading' | 'loaded')
+- videoId: String - video ID this result is for (for validation)
+- chapters: Array\<Chapter\> - chapter list (empty if loading or no chapters)
+
+**Classification**: Compound
+
+**Interpretation**: Represents the current state of chapters fetching for a video.
+The videoId field enables validating that a loaded result matches the current video
+(important for async operations when user may have navigated away).
+
+Examples:
+```js
+// Chapters loaded (with chapters)
+{ status: 'loaded', videoId: 'dQw4w9WgXcQ', chapters: [
+  { title: 'Intro', time: 0, timeText: '0:00', thumbnailUrl: '...' },
+  { title: 'Main Content', time: 120, timeText: '2:00', thumbnailUrl: '...' }
+]}
+
+// Chapters loaded (no chapters in video)
+{ status: 'loaded', videoId: 'abc123', chapters: [] }
+
+// Still loading
+{ status: 'loading', videoId: 'dQw4w9WgXcQ', chapters: [] }
+```
+
+### Pure Transitions for ChaptersResult
+
+| Function | Signature | Purpose |
+|----------|-----------|---------|
+| onChaptersRequest | YouTubeState × String → YouTubeState | Mark chapters as loading for videoId |
+| onChaptersLoad | YouTubeState × ChaptersResult → YouTubeState | Store fetched chapters (validates videoId) |
+| onChaptersClear | YouTubeState → YouTubeState | Clear chapters state |
 
 ---
 
@@ -956,6 +1244,7 @@ A YouTubeState is a structure:
 - watchPageRetryCount: Number - internal retry tracking
 - commentLoadAttempts: Number - internal retry tracking
 - transcript: TranscriptResult | null - cached transcript data for current video
+- chapters: ChaptersResult | null - cached chapters data for current video
 
 Note: Drawer state (which drawer is open) is in AppState.drawerState.
 Note: Drawer handlers manage their own internal state (query, selection index) via closures.
@@ -966,19 +1255,21 @@ Examples:
 { chapterQuery: '', chapterSelectedIdx: 0,
   commentPage: 0, commentPageStarts: [0],
   settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0,
-  transcript: null }
+  transcript: null, chapters: null }
 
-// After transcript loaded
+// After transcript and chapters loaded
 { chapterQuery: '', chapterSelectedIdx: 0,
   commentPage: 0, commentPageStarts: [0],
   settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0,
-  transcript: { status: 'loaded', lines: [...], language: 'en' } }
+  transcript: { status: 'loaded', videoId: 'abc', lines: [...], language: 'en' },
+  chapters: { status: 'loaded', videoId: 'abc', chapters: [...] } }
 
 // After navigating to second comment page
 { chapterQuery: '', chapterSelectedIdx: 0,
   commentPage: 1, commentPageStarts: [0, 5],
   settingsApplied: true, watchPageRetryCount: 0, commentLoadAttempts: 0,
-  transcript: { status: 'loaded', lines: [...], language: 'en' } }
+  transcript: { status: 'loaded', videoId: 'abc', lines: [...], language: 'en' },
+  chapters: { status: 'loaded', videoId: 'abc', chapters: [] } }
 ```
 
 ---
@@ -1009,6 +1300,7 @@ Examples:
 | TranscriptLine | Compound | YouTube | Access all fields |
 | TranscriptStatus | Enum | YouTube | Case per variant |
 | TranscriptResult | Compound | YouTube | Access all fields |
+| ChaptersResult | Compound | YouTube | Access all fields |
 | YouTubeState | Compound | YouTube | Access all fields |
 
 ---

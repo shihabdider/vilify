@@ -1,55 +1,87 @@
 // State management - Core state functions for Vilify
-// Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
+// Following HTDP design from .design/DATA.md and .design/WORLD.md
+
+import { sortItems } from './sort.js';
+
+// =============================================================================
+// STATE CREATION
+// =============================================================================
 
 /**
- * Creates initial application state with all defaults.
- * [PURE]
+ * Creates initial UIState with all defaults.
+ * [PURE] (internal helper)
  *
- * @returns {AppState} Initial state
- *
- * @example
- * createAppState()
- *   => { focusModeActive: false, drawerState: null, paletteQuery: '',
- *        paletteSelectedIdx: 0, selectedIdx: 0, localFilterActive: false,
- *        localFilterQuery: '', siteSearchActive: false, siteSearchQuery: '',
- *        keySeq: '', lastUrl: '', sortField: null, sortDirection: 'desc' }
+ * @returns {UIState} Initial UI state
  */
-export function createAppState() {
-  // Template: Compound - construct all fields
+function createUIState() {
   return {
-    focusModeActive: false,
-    drawerState: null,  // DrawerState: null | 'palette' | site-specific string
-    paletteQuery: '',   // TODO: Move to palette drawer internal state in future iteration
-    paletteSelectedIdx: 0, // TODO: Move to palette drawer internal state in future iteration
+    drawer: null,           // DrawerType: null | 'palette' | site-specific string
+    paletteQuery: '',
+    paletteSelectedIdx: 0,
     selectedIdx: 0,
-    localFilterActive: false,
-    localFilterQuery: '',
-    siteSearchActive: false,
-    siteSearchQuery: '',
+    filterActive: false,
+    filterQuery: '',
+    searchActive: false,
+    searchQuery: '',
     keySeq: '',
-    lastUrl: '',
-    // Sort state (listing pages only)
-    sortField: null,      // null | 'date' | 'duration' | 'title' | 'channel' | 'views'
-    sortDirection: 'desc' // 'asc' | 'desc'
+    sort: { field: null, direction: 'desc' },
+    message: null,          // Message | null
+    boundaryFlash: null     // BoundaryFlash | null
   };
 }
 
 /**
- * Returns a fresh state, discarding all current values.
- * Equivalent to createAppState().
+ * Creates initial AppCore with all defaults.
+ * [PURE] (internal helper)
+ *
+ * @returns {AppCore} Initial core state
+ */
+function createAppCore() {
+  return {
+    focusModeActive: false,
+    lastUrl: ''
+  };
+}
+
+/**
+ * Creates initial application state with nested structure.
  * [PURE]
  *
- * @param {AppState} _state - Current state (ignored)
- * @returns {AppState} Fresh initial state
+ * @param {SiteConfig|null} config - Optional site configuration
+ * @returns {AppState} Initial state with nested structure (core, ui, site, page)
  *
  * @example
- * resetState({ focusModeActive: true, ... })
- *   => { focusModeActive: false, ... }
+ * // No config
+ * createAppState()
+ *   => { core: { focusModeActive: false, lastUrl: '' },
+ *        ui: { drawer: null, paletteQuery: '', ... },
+ *        site: null, page: null }
+ *
+ * @example
+ * // With site config that has createSiteState
+ * createAppState({ name: 'youtube', createSiteState: () => ({ transcript: null }) })
+ *   => { core: { ... }, ui: { ... },
+ *        site: { transcript: null }, page: null }
+ *
+ * @example
+ * // With site config but no createSiteState
+ * createAppState({ name: 'google' })
+ *   => { core: { ... }, ui: { ... }, site: null, page: null }
  */
-export function resetState(_state) {
-  // Template: Compound - ignore input, return fresh state
-  return createAppState();
+export function createAppState(config = null) {
+  // Template: Compound - construct all fields
+  // config is optional Compound - access createSiteState if exists
+  return {
+    core: createAppCore(),
+    ui: createUIState(),
+    site: config?.createSiteState ? config.createSiteState() : null,
+    page: null
+  };
 }
+
+// =============================================================================
+// STATE QUERIES
+// =============================================================================
 
 /**
  * Derives display mode from current state.
@@ -59,36 +91,587 @@ export function resetState(_state) {
  * @returns {string} Current mode (NORMAL, COMMAND, FILTER, SEARCH, or drawer name uppercased)
  *
  * @example
- * getMode({ drawerState: null, localFilterActive: false, siteSearchActive: false, ... })  => 'NORMAL'
- * getMode({ drawerState: 'palette', ... })                                                 => 'COMMAND'
- * getMode({ drawerState: null, localFilterActive: true, ... })                             => 'FILTER'
- * getMode({ drawerState: null, siteSearchActive: true, ... })                              => 'SEARCH'
- * getMode({ drawerState: 'chapters', ... })                                                => 'CHAPTERS'
- * getMode({ drawerState: 'description', ... })                                             => 'DESCRIPTION'
- * getMode({ drawerState: 'recommended', ... })                                             => 'RECOMMENDED'
+ * getMode({ ui: { drawer: null, filterActive: false, searchActive: false } })  => 'NORMAL'
+ * getMode({ ui: { drawer: 'palette' } })                                        => 'COMMAND'
+ * getMode({ ui: { drawer: null, filterActive: true } })                         => 'FILTER'
+ * getMode({ ui: { drawer: null, searchActive: true } })                         => 'SEARCH'
+ * getMode({ ui: { drawer: 'chapters' } })                                       => 'CHAPTERS'
  */
 export function getMode(state) {
-  // Template: Compound - access drawerState, localFilterActive, siteSearchActive
-  // Priority order: drawers > localFilter (FILTER) > siteSearch (SEARCH) > NORMAL
+  // Template: Compound - access drawer, filterActive, searchActive
+  const { drawer, filterActive, searchActive } = state.ui;
 
-  if (state.drawerState === 'palette') {
+  // Priority order: drawers > filter > search > normal
+  if (drawer === 'palette') {
     return 'COMMAND';
   }
 
-  // Any other drawer state - return uppercased drawer name
-  if (state.drawerState !== null) {
-    return state.drawerState.toUpperCase();
+  if (drawer !== null) {
+    return drawer.toUpperCase();
   }
 
-  if (state.localFilterActive) {
+  if (filterActive) {
     return 'FILTER';
   }
 
-  if (state.siteSearchActive) {
+  if (searchActive) {
     return 'SEARCH';
   }
 
   return 'NORMAL';
 }
 
+/**
+ * Get visible items after applying filter and sort.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {Array<Item>} items - All items
+ * @returns {Array<Item>} Filtered and sorted items
+ *
+ * @example
+ * // No filter, no sort - returns all items
+ * getVisibleItems({ ui: { filterActive: false, sort: { field: null } } }, items)
+ *   => items
+ *
+ * @example
+ * // With filter - returns matching items
+ * getVisibleItems({ ui: { filterActive: true, filterQuery: 'music' } }, items)
+ *   => items matching 'music' in title or meta
+ *
+ * @example
+ * // With sort - returns sorted items
+ * getVisibleItems({ ui: { sort: { field: 'date', direction: 'desc' } } }, items)
+ *   => items sorted by date descending
+ */
+export function getVisibleItems(state, items) {
+  // Template: items is List → filter then map/sort
+  // state is Compound → access filterActive, filterQuery, sort
+  
+  if (!items || items.length === 0) return [];
+  
+  const { filterActive, filterQuery, sort } = state.ui;
+  
+  let result = items;
+  
+  // Apply filter if active
+  if (filterActive && filterQuery) {
+    const query = filterQuery.toLowerCase();
+    result = result.filter(item => {
+      const titleMatch = item.title?.toLowerCase().includes(query);
+      const metaMatch = item.meta?.toLowerCase().includes(query);
+      return titleMatch || metaMatch;
+    });
+  }
+  
+  // Apply sort if set
+  if (sort.field) {
+    result = sortItems(result, sort.field, sort.direction);
+  }
+  
+  return result;
+}
 
+// =============================================================================
+// STATE TRANSITIONS
+// =============================================================================
+
+/**
+ * Move selection in a list. Returns new state and boundary info.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} direction - 'up' | 'down' | 'top' | 'bottom'
+ * @param {number} itemCount - Total number of items in list
+ * @returns {{ state: AppState, boundary: 'top' | 'bottom' | null }} New state and boundary hit info
+ *
+ * @example
+ * // Move down from index 0, 5 items
+ * onNavigate(state, 'down', 5)  => { state: { ui: { selectedIdx: 1 } }, boundary: null }
+ *
+ * @example
+ * // Move down at bottom (index 4, 5 items)
+ * onNavigate(state, 'down', 5)  => { state: { ui: { selectedIdx: 4 } }, boundary: 'bottom' }
+ *
+ * @example
+ * // Move up at top (index 0)
+ * onNavigate(state, 'up', 5)    => { state: { ui: { selectedIdx: 0 } }, boundary: 'top' }
+ *
+ * @example
+ * // Jump to top
+ * onNavigate(state, 'top', 5)   => { state: { ui: { selectedIdx: 0 } }, boundary: null }
+ *
+ * @example
+ * // Jump to bottom
+ * onNavigate(state, 'bottom', 5) => { state: { ui: { selectedIdx: 4 } }, boundary: null }
+ *
+ * @example
+ * // Empty list
+ * onNavigate(state, 'down', 0)  => { state: { ui: { selectedIdx: 0 } }, boundary: null }
+ */
+export function onNavigate(state, direction, itemCount) {
+  // Template: direction is Enumeration → case per value
+  // itemCount is Atomic → use directly
+  // state is Compound → access ui.selectedIdx
+  
+  const currentIdx = state.ui.selectedIdx;
+  const maxIdx = Math.max(0, itemCount - 1);
+  
+  let newIdx = currentIdx;
+  let boundary = null;
+  
+  switch (direction) {
+    case 'down':
+      if (currentIdx >= maxIdx) {
+        boundary = 'bottom';
+      } else {
+        newIdx = currentIdx + 1;
+      }
+      break;
+      
+    case 'up':
+      if (currentIdx <= 0) {
+        boundary = 'top';
+      } else {
+        newIdx = currentIdx - 1;
+      }
+      break;
+      
+    case 'top':
+      newIdx = 0;
+      break;
+      
+    case 'bottom':
+      newIdx = maxIdx;
+      break;
+  }
+  
+  // Handle empty list
+  if (itemCount === 0) {
+    newIdx = 0;
+    boundary = null;
+  }
+  
+  return {
+    state: { ...state, ui: { ...state.ui, selectedIdx: newIdx } },
+    boundary
+  };
+}
+
+/**
+ * Toggle filter mode on/off.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @returns {AppState} New state with filterActive toggled and filterQuery cleared if turning off
+ *
+ * @example
+ * // Turn on filter mode
+ * onFilterToggle({ ui: { filterActive: false } })
+ *   => { ui: { filterActive: true, filterQuery: '' } }
+ *
+ * @example
+ * // Turn off filter mode (clears query)
+ * onFilterToggle({ ui: { filterActive: true, filterQuery: 'test' } })
+ *   => { ui: { filterActive: false, filterQuery: '' } }
+ */
+export function onFilterToggle(state) {
+  // Template: Compound → access filterActive, filterQuery
+  const isActive = state.ui.filterActive;
+  
+  return {
+    ...state,
+    ui: {
+      ...state.ui,
+      filterActive: !isActive,
+      filterQuery: '',  // Clear query when toggling
+      selectedIdx: !isActive ? state.ui.selectedIdx : 0  // Reset selection when turning off
+    }
+  };
+}
+
+/**
+ * Update filter query text.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} query - New filter query
+ * @returns {AppState} New state with updated filterQuery and reset selectedIdx
+ *
+ * @example
+ * onFilterChange({ ui: { filterQuery: '' } }, 'test')
+ *   => { ui: { filterQuery: 'test', selectedIdx: 0 } }
+ */
+export function onFilterChange(state, query) {
+  // Template: query is Atomic → use directly
+  return {
+    ...state,
+    ui: {
+      ...state.ui,
+      filterQuery: query,
+      selectedIdx: 0  // Reset selection when filter changes
+    }
+  };
+}
+
+/**
+ * Open a drawer.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} drawerType - Drawer to open ('palette', 'chapters', etc.)
+ * @returns {AppState} New state with drawer open
+ *
+ * @example
+ * onDrawerOpen({ ui: { drawer: null } }, 'palette')
+ *   => { ui: { drawer: 'palette', paletteQuery: '', paletteSelectedIdx: 0 } }
+ *
+ * @example
+ * onDrawerOpen({ ui: { drawer: null } }, 'chapters')
+ *   => { ui: { drawer: 'chapters' } }
+ */
+export function onDrawerOpen(state, drawerType) {
+  // Template: drawerType is Atomic → use directly
+  const updates = { drawer: drawerType };
+  
+  // Reset palette state when opening palette
+  if (drawerType === 'palette') {
+    updates.paletteQuery = '';
+    updates.paletteSelectedIdx = 0;
+  }
+  
+  return {
+    ...state,
+    ui: { ...state.ui, ...updates }
+  };
+}
+
+/**
+ * Close the current drawer.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @returns {AppState} New state with drawer closed
+ *
+ * @example
+ * onDrawerClose({ ui: { drawer: 'palette' } })
+ *   => { ui: { drawer: null, paletteQuery: '', paletteSelectedIdx: 0 } }
+ */
+export function onDrawerClose(state) {
+  return {
+    ...state,
+    ui: {
+      ...state.ui,
+      drawer: null,
+      paletteQuery: '',
+      paletteSelectedIdx: 0
+    }
+  };
+}
+
+/**
+ * Update partial key sequence.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} key - Key to append to sequence
+ * @returns {AppState} New state with updated keySeq
+ *
+ * @example
+ * onKeySeqUpdate({ ui: { keySeq: '' } }, 'g')
+ *   => { ui: { keySeq: 'g' } }
+ *
+ * @example
+ * onKeySeqUpdate({ ui: { keySeq: 'g' } }, 'h')
+ *   => { ui: { keySeq: 'gh' } }
+ */
+export function onKeySeqUpdate(state, key) {
+  const newSeq = state.ui.keySeq + key;
+  return { ...state, ui: { ...state.ui, keySeq: newSeq } };
+}
+
+/**
+ * Clear key sequence.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @returns {AppState} New state with empty keySeq
+ *
+ * @example
+ * onKeySeqClear({ ui: { keySeq: 'gh' } })
+ *   => { ui: { keySeq: '' } }
+ */
+export function onKeySeqClear(state) {
+  return { ...state, ui: { ...state.ui, keySeq: '' } };
+}
+
+/**
+ * Update sort configuration.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string|null} field - Sort field (null to reset)
+ * @param {string} direction - 'asc' or 'desc'
+ * @returns {AppState} New state with updated sort and reset selectedIdx
+ *
+ * @example
+ * onSortChange({ ui: { sort: { field: null, direction: 'desc' } } }, 'date', 'asc')
+ *   => { ui: { sort: { field: 'date', direction: 'asc' }, selectedIdx: 0 } }
+ *
+ * @example
+ * // Reset sort
+ * onSortChange(state, null, 'desc')
+ *   => { ui: { sort: { field: null, direction: 'desc' }, selectedIdx: 0 } }
+ */
+export function onSortChange(state, field, direction) {
+  return {
+    ...state,
+    ui: {
+      ...state.ui,
+      sort: { field, direction },
+      selectedIdx: 0
+    }
+  };
+}
+
+/**
+ * Show a flash message.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} text - Message text
+ * @returns {AppState} New state with message set
+ *
+ * @example
+ * onShowMessage(state, 'Copied!')
+ *   => { ui: { message: { text: 'Copied!', timestamp: <now> } } }
+ */
+export function onShowMessage(state, text) {
+  const message = { text, timestamp: Date.now() };
+  return { ...state, ui: { ...state.ui, message } };
+}
+
+/**
+ * Flash boundary indicator.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {'top'|'bottom'} edge - Which edge was hit
+ * @returns {AppState} New state with boundaryFlash set
+ *
+ * @example
+ * onBoundaryHit(state, 'top')
+ *   => { ui: { boundaryFlash: { edge: 'top', timestamp: <now> } } }
+ */
+export function onBoundaryHit(state, edge) {
+  const boundaryFlash = { edge, timestamp: Date.now() };
+  return { ...state, ui: { ...state.ui, boundaryFlash } };
+}
+
+/**
+ * Clear expired flash states.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {number} messageTimeout - Message display duration in ms (default 2000)
+ * @param {number} flashTimeout - Boundary flash duration in ms (default 150)
+ * @returns {AppState} New state with expired flashes cleared
+ */
+export function onClearFlash(state, messageTimeout = 2000, flashTimeout = 150) {
+  const now = Date.now();
+  
+  const { message, boundaryFlash } = state.ui;
+  
+  const newMessage = message && (now - message.timestamp) >= messageTimeout ? null : message;
+  const newFlash = boundaryFlash && (now - boundaryFlash.timestamp) >= flashTimeout ? null : boundaryFlash;
+  
+  return {
+    ...state,
+    ui: { ...state.ui, message: newMessage, boundaryFlash: newFlash }
+  };
+}
+
+/**
+ * Toggle search mode on/off.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @returns {AppState} New state with searchActive toggled
+ */
+export function onSearchToggle(state) {
+  const isActive = state.ui.searchActive;
+  
+  return {
+    ...state,
+    ui: {
+      ...state.ui,
+      searchActive: !isActive,
+      searchQuery: ''
+    }
+  };
+}
+
+/**
+ * Update search query text.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} query - New search query
+ * @returns {AppState} New state with updated searchQuery
+ */
+export function onSearchChange(state, query) {
+  return { ...state, ui: { ...state.ui, searchQuery: query } };
+}
+
+/**
+ * Update command palette query.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} query - New palette query
+ * @returns {AppState} New state with updated paletteQuery and reset selection
+ */
+export function onPaletteQueryChange(state, query) {
+  return {
+    ...state,
+    ui: { ...state.ui, paletteQuery: query, paletteSelectedIdx: 0 }
+  };
+}
+
+/**
+ * Navigate in command palette.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} direction - 'up' or 'down'
+ * @param {number} itemCount - Number of items in palette
+ * @returns {{ state: AppState, boundary: 'top' | 'bottom' | null }}
+ */
+export function onPaletteNavigate(state, direction, itemCount) {
+  const currentIdx = state.ui.paletteSelectedIdx;
+  const maxIdx = Math.max(0, itemCount - 1);
+  
+  let newIdx = currentIdx;
+  let boundary = null;
+  
+  if (direction === 'down') {
+    if (currentIdx >= maxIdx) {
+      boundary = 'bottom';
+    } else {
+      newIdx = currentIdx + 1;
+    }
+  } else if (direction === 'up') {
+    if (currentIdx <= 0) {
+      boundary = 'top';
+    } else {
+      newIdx = currentIdx - 1;
+    }
+  }
+  
+  if (itemCount === 0) {
+    newIdx = 0;
+    boundary = null;
+  }
+  
+  return {
+    state: { ...state, ui: { ...state.ui, paletteSelectedIdx: newIdx } },
+    boundary
+  };
+}
+
+/**
+ * Handle URL change (navigation).
+ * Resets page-specific state while preserving site state.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} newUrl - New URL
+ * @param {SiteConfig|null} config - Site config for recreating site state if needed
+ * @returns {AppState} New state with page reset
+ */
+export function onUrlChange(state, newUrl, config = null) {
+  return {
+    ...state,
+    core: { ...state.core, lastUrl: newUrl },
+    ui: {
+      ...state.ui,
+      drawer: null,
+      paletteQuery: '',
+      paletteSelectedIdx: 0,
+      selectedIdx: 0,
+      filterActive: false,
+      filterQuery: '',
+      keySeq: '',
+      sort: { field: null, direction: 'desc' },
+      message: null,
+      boundaryFlash: null
+      // Note: searchActive/searchQuery preserved (user might want to continue searching)
+    },
+    // site preserved, page reset
+    page: null
+  };
+}
+
+/**
+ * Update items (from content polling).
+ * This is a placeholder - items are typically not stored in AppState directly.
+ * Instead, they're fetched via SiteConfig.getItems().
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {Array} items - New items (stored in page state if needed)
+ * @returns {AppState} State (potentially with page.items updated)
+ */
+export function onItemsUpdate(state, items) {
+  // Items are typically fetched fresh via getItems(), not stored in state
+  // This function exists for cases where we need to cache items
+  if (state.page && typeof state.page === 'object') {
+    return {
+      ...state,
+      page: { ...state.page, items }
+    };
+  }
+  return state;
+}
+
+/**
+ * Determine action for selecting current item.
+ * Returns action descriptor - I/O shell handles actual navigation.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {Array<Item>} visibleItems - Items currently visible (after filter/sort)
+ * @param {boolean} shiftKey - Whether shift was held (open in new tab)
+ * @returns {{ action: 'navigate'|'newTab'|null, url: string|null }} Action descriptor
+ *
+ * @example
+ * // Normal select - navigate to item
+ * onSelect(state, [{ url: '/watch?v=abc' }], false)
+ *   => { action: 'navigate', url: '/watch?v=abc' }
+ *
+ * @example
+ * // Shift+select - open in new tab
+ * onSelect(state, [{ url: '/watch?v=abc' }], true)
+ *   => { action: 'newTab', url: '/watch?v=abc' }
+ *
+ * @example
+ * // No item selected
+ * onSelect(state, [], false)
+ *   => { action: null, url: null }
+ */
+export function onSelect(state, visibleItems, shiftKey = false) {
+  // Template: visibleItems is List → access by index
+  // state is Compound → access selectedIdx
+  // shiftKey is Boolean → case per value
+  
+  const item = visibleItems[state.ui.selectedIdx];
+  
+  if (!item || !item.url) {
+    return { action: null, url: null };
+  }
+  
+  return {
+    action: shiftKey ? 'newTab' : 'navigate',
+    url: item.url
+  };
+}

@@ -8,7 +8,7 @@ import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers } from './drawers/index.js';
 import { fetchTranscript } from './transcript.js';
-import { getSiteState, setSiteState } from '../../core/index.js';
+import { onTranscriptRequest, onTranscriptLoad, onChaptersRequest, onChaptersLoad } from './state.js';
 import { renderYouTubeItem, injectYouTubeItemStyles } from './items.js';
 import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout.js';
 import { sortItems, getSortLabel } from '../../core/sort.js';
@@ -60,6 +60,7 @@ function createYouTubeState() {
     watchPageRetryCount: 0,
     commentLoadAttempts: 0,
     transcript: null,  // TranscriptResult | null - cached transcript data
+    chapters: null,    // ChaptersResult | null - cached chapters data
   };
 }
 
@@ -88,9 +89,11 @@ function renderYouTubeListing(state, siteState, container) {
   const dp = getDataProvider();
   let items = dp.getVideos();
   
+  const { filterActive, filterQuery, sort, selectedIdx } = state.ui;
+  
   // Apply local filter if active
-  if (state.localFilterActive) {
-    const q = state.localFilterQuery.toLowerCase();
+  if (filterActive) {
+    const q = filterQuery.toLowerCase();
     items = items.filter(i => 
       i.title?.toLowerCase().includes(q) || 
       i.meta?.toLowerCase().includes(q)
@@ -98,15 +101,15 @@ function renderYouTubeListing(state, siteState, container) {
   }
   
   // Apply sorting if active
-  if (state.sortField) {
-    items = sortItems(items, state.sortField, state.sortDirection);
+  if (sort.field) {
+    items = sortItems(items, sort.field, sort.direction);
   }
   
   // Update sort indicator and count in status bar
-  updateSortIndicator(getSortLabel(state.sortField, state.sortDirection));
+  updateSortIndicator(getSortLabel(sort.field, sort.direction));
   updateItemCount(items.length);
   
-  renderListing(items, state.selectedIdx, container, renderYouTubeItem);
+  renderListing(items, selectedIdx, container, renderYouTubeItem);
 }
 
 /** Current watch page retry timer */
@@ -161,9 +164,97 @@ function renderWatchWithRetry(state, siteState, container, retryCount = 0) {
 // SITE CONFIG
 // =============================================================================
 
+// =============================================================================
+// PAGE CONFIGURATIONS
+// =============================================================================
+
+/**
+ * Default listing page config.
+ * Used for home, search, subscriptions, channel, playlist, etc.
+ * @type {PageConfig}
+ */
+const listingPageConfig = {
+  render: renderYouTubeListing,
+  // No special lifecycle needed for listing pages
+};
+
+/**
+ * Watch page config with lifecycle hooks.
+ * @type {PageConfig}
+ */
+const watchPageConfig = {
+  render: (state, siteState, container) => {
+    renderWatchWithRetry(state, siteState, container, 0);
+  },
+  
+  /**
+   * Called when entering watch page.
+   * Applies video settings, initiates transcript and chapters fetch.
+   * Uses pure state transitions for async data management.
+   * 
+   * @param {Object} ctx - Context with state management functions
+   * @param {Function} ctx.getSiteState - Get current site state
+   * @param {Function} ctx.updateSiteState - Update site state via function
+   * @param {Function} ctx.render - Trigger re-render
+   */
+  onEnter: async (ctx) => {
+    applyDefaultVideoSettings();
+    
+    const videoId = extractVideoId(location.href);
+    if (!videoId) return;
+    
+    // Set loading state immediately using pure transitions
+    ctx.updateSiteState(state => onTranscriptRequest(state, videoId));
+    ctx.updateSiteState(state => onChaptersRequest(state, videoId));
+    
+    // Async I/O - fetch transcript (delay for player API readiness)
+    setTimeout(async () => {
+      console.log('[Vilify] Fetching transcript for', videoId);
+      const result = await fetchTranscript(videoId);
+      console.log('[Vilify] Transcript result:', result.status, result.lines.length, 'lines');
+      
+      // Update state with result using pure transition
+      // onTranscriptLoad validates videoId matches (ignores stale results)
+      ctx.updateSiteState(state => onTranscriptLoad(state, result));
+    }, 500);
+    
+    // Async I/O - fetch chapters (slight delay for DOM to settle)
+    setTimeout(() => {
+      console.log('[Vilify] Fetching chapters for', videoId);
+      const chapters = getChapters();
+      console.log('[Vilify] Chapters result:', chapters.length, 'chapters');
+      
+      // Update state with result using pure transition
+      ctx.updateSiteState(state => onChaptersLoad(state, {
+        status: 'loaded',
+        videoId,
+        chapters
+      }));
+    }, 300);
+  },
+  
+  /**
+   * Called when leaving watch page.
+   * Cleans up retry timer, drawers, and transcript state.
+   */
+  onLeave: () => {
+    clearWatchRetry();
+    resetYouTubeDrawers();
+    // Note: transcript state cleared via onUrlChange in core
+  },
+  
+  // Watch page specific functions
+  nextCommentPage,
+  prevCommentPage,
+};
+
+// =============================================================================
+// SITE CONFIG
+// =============================================================================
+
 /**
  * YouTube site configuration.
- * Defines theme, page detection, scrapers, commands, and layouts.
+ * Defines theme, page detection, scrapers, commands, and page configs.
  * @type {SiteConfig}
  */
 export const youtubeConfig = {
@@ -236,27 +327,21 @@ export const youtubeConfig = {
   getDrawerHandler: getYouTubeDrawerHandler,
 
   /**
-   * Layout definitions per page type.
-   * Maps YouTubePageType to LayoutDef.
-   * Uses custom renderYouTubeListing for two-column layout with views/duration.
-   * @type {Layouts}
+   * Page configurations per page type.
+   * Maps YouTubePageType to PageConfig.
+   * @type {Record<string, PageConfig>}
    */
-  layouts: {
-    home: renderYouTubeListing,
-    search: renderYouTubeListing,
-    subscriptions: renderYouTubeListing,
-    channel: renderYouTubeListing,
-    playlist: renderYouTubeListing,
-    history: renderYouTubeListing,
-    library: renderYouTubeListing,
-    shorts: renderYouTubeListing,
-    other: renderYouTubeListing,
-    watch: (state, siteState, container) => {
-      // Custom watch page layout with retry logic for async metadata
-      clearWatchRetry();
-      resetYouTubeDrawers(); // Clean up any open drawers
-      renderWatchWithRetry(state, siteState, container, 0);
-    },
+  pages: {
+    home: listingPageConfig,
+    search: listingPageConfig,
+    subscriptions: listingPageConfig,
+    channel: listingPageConfig,
+    playlist: listingPageConfig,
+    history: listingPageConfig,
+    library: listingPageConfig,
+    shorts: listingPageConfig,
+    other: listingPageConfig,
+    watch: watchPageConfig,
   },
 
   /**
@@ -264,40 +349,6 @@ export const youtubeConfig = {
    * @returns {YouTubeState}
    */
   createSiteState: createYouTubeState,
-
-  /**
-   * Called after initial render completes.
-   * Applies default video settings on watch page.
-   * Fetches transcript for watch page.
-   */
-  onContentReady: async () => {
-    if (getYouTubePageType() === 'watch') {
-      applyDefaultVideoSettings();
-      
-      // Fetch transcript (with small delay to ensure player API is ready)
-      const videoId = extractVideoId(location.href);
-      if (videoId) {
-        // Wait for player to be fully initialized
-        setTimeout(async () => {
-          console.log('[Vilify] Fetching transcript for', videoId);
-          const transcript = await fetchTranscript(videoId);
-          console.log('[Vilify] Transcript result:', transcript.status, transcript.lines.length, 'lines');
-          const currentState = getSiteState();
-          if (currentState) {
-            setSiteState({ ...currentState, transcript });
-          }
-        }, 500);
-      }
-    }
-  },
-
-  /**
-   * Watch page specific functions (for comment pagination).
-   */
-  watch: {
-    nextCommentPage,
-    prevCommentPage,
-  },
 };
 
 // =============================================================================

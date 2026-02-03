@@ -2,8 +2,8 @@
 
 **Problem**: Refactor Vilify to align with HtDP World model - unified AppState, pure transitions, isolated side effects
 **Type**: Interactive (World program)
-**Iteration**: 021 (htdp-refactor)
-**Simplified Scope**: Unify state + pure transitions in `src/core/` only
+**Iteration**: 027 (chapters-state) ✓ COMPLETE
+**Previous**: 026 (transcript-state) ✓ COMPLETE
 
 ## Information
 
@@ -91,10 +91,12 @@ See WISHES.md for full list with signatures and purposes.
 
 | # | Name | Scope |
 |---|------|-------|
-| 022 | pure-view | Extract `toView()` pure function, create ViewTree type, isolate DOM in `applyView()` |
-| 023 | init-orchestration | Create `init()` entry point, move all event listener setup there, remove module-level state |
-| 024 | site-page-config | Extract PageConfig from SiteConfig, implement page lifecycle (onEnter/onLeave) |
-| 025 | youtube-cleanup | YouTube-specific state/transition cleanup |
+| ~~022~~ | ~~pure-view~~ | ~~Extract `toView()` pure function, create ViewTree type, isolate DOM in `applyView()`~~ ✓ |
+| ~~023~~ | ~~init-orchestration~~ | ~~Create `init()` entry point, move all event listener setup there, remove module-level state~~ ✓ |
+| ~~024~~ | ~~site-page-config~~ | ~~Extract PageConfig from SiteConfig, implement page lifecycle (onEnter/onLeave)~~ ✓ |
+| ~~025~~ | ~~youtube-cleanup~~ | ~~Remove legacy flat state compatibility, simplify to nested structure only~~ ✓ |
+| ~~026~~ | ~~transcript-state~~ | ~~Pure state transitions for transcript, pass context to onEnter hooks~~ ✓ |
+| ~~027~~ | ~~chapters-state~~ | ~~Convert chapters to proper state transitions~~ ✓ |
 
 ## Notes
 

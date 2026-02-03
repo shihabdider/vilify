@@ -107,12 +107,17 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 017 | channel-videos-navigation | `gc` goes to channel/videos, lazy loading trigger on listing pages |
 | 018 | gg-G-navigation | `gg` goes to top, `G` goes to bottom of list |
 | 020 | list-sorting | Sort listings via `:sort` command with Vim-style prefix matching |
+| 021 | htdp-refactor | Unify AppState + pure transitions (HtDP World model alignment) |
+| 022 | pure-view | Extract toView() pure function, ViewTree types, isolate DOM in applyView() |
+| 023 | init-orchestration | Encapsulate state via createApp() factory, cleanup functions for handlers |
+| 024 | site-page-config | Extract PageConfig with lifecycle hooks (onEnter/onLeave) |
+| 025 | youtube-cleanup | Remove legacy flat state compatibility, simplify to nested structure only |
+| 026 | transcript-state | Pure state transitions for transcript, pass context to onEnter hooks |
+| 027 | chapters-state | Pure state transitions for chapters, drawer reads from state |
 
 ### In Progress
 
-| # | Name | Summary |
-|---|------|---------|
-| 021 | htdp-refactor | Unify AppState + pure transitions (HtDP World model alignment) |
+(none)
 
 ## Current Issues
 

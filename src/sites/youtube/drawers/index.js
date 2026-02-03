@@ -9,16 +9,19 @@ export { getChapterDrawer, resetChapterDrawer, getDescriptionDrawer, resetDescri
 
 /**
  * Get drawer handler for the given drawer state.
- * Returns null for unknown drawer states.
+ * Returns null for unknown drawer states or when data is not loaded.
  * [PURE]
  *
  * @param {string} drawerState - Current drawer state
- * @param {YouTubeState|null} siteState - Site-specific state (for transcript)
+ * @param {YouTubeState|null} siteState - Site-specific state (for transcript/chapters)
  * @returns {DrawerHandler|null}
  */
 export function getYouTubeDrawerHandler(drawerState, siteState) {
   if (drawerState === 'chapters') {
-    return getChapterDrawer();
+    if (siteState?.chapters?.status === 'loaded') {
+      return getChapterDrawer(siteState.chapters);
+    }
+    return null;
   }
   
   if (drawerState === 'description') {
@@ -29,6 +32,7 @@ export function getYouTubeDrawerHandler(drawerState, siteState) {
     if (siteState?.transcript?.status === 'loaded') {
       return getTranscriptDrawer(siteState.transcript);
     }
+    return null;
   }
   
   return null;

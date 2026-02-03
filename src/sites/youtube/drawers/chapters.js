@@ -2,23 +2,22 @@
 // Uses core's createListDrawer factory
 
 import { createListDrawer } from '../../../core/drawer.js';
-import { el } from '../../../core/view.js';
-import { getChapters } from '../scraper.js';
+import { el, showMessage } from '../../../core/view.js';
 import { seekToChapter } from '../player.js';
-import { showMessage } from '../../../core/view.js';
 
 /**
  * Create chapter picker drawer for YouTube watch page.
  * Uses core's createListDrawer with YouTube-specific configuration.
  * [PURE] (returns handler)
  *
+ * @param {ChaptersResult} chaptersResult - Chapters data from state
  * @returns {DrawerHandler}
  */
-export function createChapterDrawer() {
+export function createChapterDrawer(chaptersResult) {
   return createListDrawer({
     id: 'chapters',
     
-    getItems: () => getChapters(),
+    getItems: () => chaptersResult.chapters,
     
     renderItem: (chapter, isSelected) => {
       const itemEl = el('div', {}, [
@@ -49,14 +48,23 @@ export function createChapterDrawer() {
 /** @type {DrawerHandler|null} Cached drawer instance */
 let chapterDrawer = null;
 
+/** @type {ChaptersResult|null} Cached chapters data */
+let cachedChapters = null;
+
 /**
  * Get or create the chapter drawer handler.
- * Caches the handler for reuse.
+ * Recreates if chapters data changed.
+ * @param {ChaptersResult} chaptersResult - Chapters data from state
  * @returns {DrawerHandler}
  */
-export function getChapterDrawer() {
-  if (!chapterDrawer) {
-    chapterDrawer = createChapterDrawer();
+export function getChapterDrawer(chaptersResult) {
+  // Recreate if chapters changed
+  if (!chapterDrawer || chaptersResult !== cachedChapters) {
+    if (chapterDrawer?.cleanup) {
+      chapterDrawer.cleanup();
+    }
+    chapterDrawer = createChapterDrawer(chaptersResult);
+    cachedChapters = chaptersResult;
   }
   return chapterDrawer;
 }
@@ -65,8 +73,9 @@ export function getChapterDrawer() {
  * Reset the cached drawer (call when navigating away from watch page)
  */
 export function resetChapterDrawer() {
-  if (chapterDrawer && chapterDrawer.cleanup) {
+  if (chapterDrawer?.cleanup) {
     chapterDrawer.cleanup();
   }
   chapterDrawer = null;
+  cachedChapters = null;
 }
