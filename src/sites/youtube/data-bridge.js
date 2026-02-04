@@ -137,25 +137,6 @@ function interceptFetch() {
 }
 
 /**
- * Get YouTube API context from ytcfg
- */
-function getApiContext() {
-  if (typeof ytcfg === 'undefined' || !ytcfg.get) {
-    return null;
-  }
-  
-  return {
-    client: {
-      hl: ytcfg.get('HL') || 'en',
-      gl: ytcfg.get('GL') || 'US',
-      clientName: 'WEB',
-      clientVersion: ytcfg.get('INNERTUBE_CLIENT_VERSION') || '2.20240101.00.00',
-      visitorData: ytcfg.get('VISITOR_DATA') || '',
-    }
-  };
-}
-
-/**
  * Get authorization header for YouTube API calls
  */
 function getAuthHeader() {
@@ -184,10 +165,59 @@ function getAuthHeader() {
 }
 
 /**
+ * Get full YouTube API context from ytcfg (matching YouTube's format)
+ */
+function getFullApiContext() {
+  if (typeof ytcfg === 'undefined' || !ytcfg.get) {
+    return null;
+  }
+  
+  // Try to get the full innertube context that YouTube uses
+  const innertubeContext = ytcfg.get('INNERTUBE_CONTEXT');
+  if (innertubeContext) {
+    console.log('[Vilify Bridge] Using INNERTUBE_CONTEXT from ytcfg');
+    return innertubeContext;
+  }
+  
+  // Fallback to building our own
+  console.log('[Vilify Bridge] Building context manually');
+  return {
+    client: {
+      hl: ytcfg.get('HL') || 'en',
+      gl: ytcfg.get('GL') || 'US',
+      remoteHost: ytcfg.get('REMOTE_HOST') || '',
+      deviceMake: '',
+      deviceModel: '',
+      visitorData: ytcfg.get('VISITOR_DATA') || '',
+      userAgent: navigator.userAgent,
+      clientName: 'WEB',
+      clientVersion: ytcfg.get('INNERTUBE_CLIENT_VERSION') || '2.20240101.00.00',
+      osName: navigator.platform.includes('Mac') ? 'Macintosh' : navigator.platform.includes('Win') ? 'Windows' : 'Linux',
+      osVersion: '',
+      originalUrl: location.href,
+      platform: 'DESKTOP',
+      clientFormFactor: 'UNKNOWN_FORM_FACTOR',
+      userInterfaceTheme: 'USER_INTERFACE_THEME_DARK',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      browserName: 'Chrome',
+      browserVersion: navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || '',
+    },
+    user: {
+      lockedSafetyMode: false
+    },
+    request: {
+      useSsl: true,
+      internalExperimentFlags: [],
+      consistencyTokenJars: []
+    }
+  };
+}
+
+/**
  * Add video to Watch Later playlist via YouTube API
  */
 async function addToWatchLater(videoId) {
-  const context = getApiContext();
+  const context = getFullApiContext();
   if (!context) {
     return { success: false, error: 'No API context' };
   }
@@ -198,7 +228,14 @@ async function addToWatchLater(videoId) {
   }
   
   const apiKey = typeof ytcfg !== 'undefined' && ytcfg.get ? ytcfg.get('INNERTUBE_API_KEY') : null;
-  const url = `https://www.youtube.com/youtubei/v1/browse/edit_playlist${apiKey ? `?key=${apiKey}` : ''}`;
+  const url = `https://www.youtube.com/youtubei/v1/browse/edit_playlist?prettyPrint=false${apiKey ? `&key=${apiKey}` : ''}`;
+  
+  // Get click tracking params from ytInitialData if available
+  let clickTrackingParams = '';
+  if (typeof ytInitialData !== 'undefined' && ytInitialData?.responseContext?.serviceTrackingParams) {
+    // Generate a basic tracking param
+    clickTrackingParams = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(20))));
+  }
   
   const body = {
     context,
@@ -209,6 +246,25 @@ async function addToWatchLater(videoId) {
     playlistId: 'WL'
   };
   
+  // Add click tracking if we have it
+  if (clickTrackingParams) {
+    body.clickTracking = { clickTrackingParams };
+  }
+  
+  console.log('[Vilify Bridge] Sending to API:', url);
+  console.log('[Vilify Bridge] Request body:', JSON.stringify(body, null, 2));
+  console.log('[Vilify Bridge] Auth header:', authHeader?.substring(0, 30) + '...');
+  
+  // Get visitor data for header
+  const visitorData = context.client?.visitorData || '';
+  
+  // Get the active auth user index (important for multi-account users)
+  const authUser = typeof ytcfg !== 'undefined' && ytcfg.get 
+    ? (ytcfg.get('SESSION_INDEX') ?? '0')
+    : '0';
+  
+  console.log('[Vilify Bridge] Using auth user:', authUser);
+  
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -216,23 +272,36 @@ async function addToWatchLater(videoId) {
         'Content-Type': 'application/json',
         'Authorization': authHeader,
         'X-Origin': 'https://www.youtube.com',
+        'X-Goog-AuthUser': String(authUser),
+        'X-Goog-Visitor-Id': visitorData,
+        'X-Youtube-Client-Name': '1',
+        'X-Youtube-Client-Version': context.client.clientVersion,
+        'X-Youtube-Bootstrap-Logged-In': 'true',
       },
       body: JSON.stringify(body),
-      credentials: 'include'
+      credentials: 'include',
+      cache: 'no-store'
     });
     
+    const data = await response.json();
+    console.log('[Vilify Bridge] API response:', response.status, JSON.stringify(data, null, 2));
+    
     if (response.ok) {
-      const data = await response.json();
       // Check if the response indicates success
       const status = data?.status;
-      if (status === 'STATUS_SUCCEEDED' || !data?.error) {
+      if (status === 'STATUS_SUCCEEDED') {
         return { success: true };
       }
-      return { success: false, error: data?.error?.message || 'API error' };
+      // Check for playlistEditResults which indicates success
+      if (data?.playlistEditResults) {
+        return { success: true };
+      }
+      return { success: false, error: data?.error?.message || 'Unknown API response' };
     } else {
-      return { success: false, error: `HTTP ${response.status}` };
+      return { success: false, error: `HTTP ${response.status}: ${data?.error?.message || ''}` };
     }
   } catch (e) {
+    console.error('[Vilify Bridge] API error:', e);
     return { success: false, error: e.message };
   }
 }
@@ -242,15 +311,19 @@ async function addToWatchLater(videoId) {
  */
 document.addEventListener('__vilify_command__', async (event) => {
   const { command, data, requestId } = event.detail || {};
+  console.log('[Vilify Bridge] Received command:', command, data);
   
   if (command === 'addToWatchLater' && data?.videoId) {
     const result = await addToWatchLater(data.videoId);
+    console.log('[Vilify Bridge] Watch Later result:', result);
     // Send result back to content script
     document.dispatchEvent(new CustomEvent('__vilify_response__', {
       detail: { requestId, result }
     }));
   }
 });
+
+console.log('[Vilify Bridge] Command listener registered');
 
 // Initialize - start waiting for data
 waitForInitialData();

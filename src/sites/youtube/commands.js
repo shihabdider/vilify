@@ -670,12 +670,14 @@ export function getYouTubeSingleKeyActions(app) {
  * await addToWatchLater('dQw4w9WgXcQ')  // => true if added
  */
 export async function addToWatchLater(videoId) {
+  console.log('[Vilify] addToWatchLater called for:', videoId);
   return new Promise((resolve) => {
     const requestId = `wl_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     
     // Set up response listener
     const responseHandler = (event) => {
       const { requestId: respId, result } = event.detail || {};
+      console.log('[Vilify] Got response:', respId, result);
       if (respId === requestId) {
         document.removeEventListener('__vilify_response__', responseHandler);
         resolve(result?.success === true);
@@ -685,6 +687,7 @@ export async function addToWatchLater(videoId) {
     document.addEventListener('__vilify_response__', responseHandler);
     
     // Send command to data-bridge in MAIN world
+    console.log('[Vilify] Sending command to bridge...');
     document.dispatchEvent(new CustomEvent('__vilify_command__', {
       detail: {
         command: 'addToWatchLater',
@@ -695,6 +698,7 @@ export async function addToWatchLater(videoId) {
     
     // Timeout after 5 seconds
     setTimeout(() => {
+      console.log('[Vilify] Timeout waiting for response');
       document.removeEventListener('__vilify_response__', responseHandler);
       resolve(false);
     }, 5000);
