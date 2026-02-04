@@ -136,6 +136,122 @@ function interceptFetch() {
   };
 }
 
+/**
+ * Get YouTube API context from ytcfg
+ */
+function getApiContext() {
+  if (typeof ytcfg === 'undefined' || !ytcfg.get) {
+    return null;
+  }
+  
+  return {
+    client: {
+      hl: ytcfg.get('HL') || 'en',
+      gl: ytcfg.get('GL') || 'US',
+      clientName: 'WEB',
+      clientVersion: ytcfg.get('INNERTUBE_CLIENT_VERSION') || '2.20240101.00.00',
+      visitorData: ytcfg.get('VISITOR_DATA') || '',
+    }
+  };
+}
+
+/**
+ * Get authorization header for YouTube API calls
+ */
+function getAuthHeader() {
+  // YouTube uses SAPISIDHASH for auth
+  const sapisid = document.cookie.match(/SAPISID=([^;]+)/)?.[1];
+  if (!sapisid) return null;
+  
+  const timestamp = Math.floor(Date.now() / 1000);
+  const origin = 'https://www.youtube.com';
+  
+  // SAPISIDHASH = SHA1(timestamp + " " + SAPISID + " " + origin)
+  // We need to use SubtleCrypto for SHA1
+  return new Promise(async (resolve) => {
+    try {
+      const str = `${timestamp} ${sapisid} ${origin}`;
+      const encoder = new TextEncoder();
+      const data = encoder.encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      resolve(`SAPISIDHASH ${timestamp}_${hashHex}`);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Add video to Watch Later playlist via YouTube API
+ */
+async function addToWatchLater(videoId) {
+  const context = getApiContext();
+  if (!context) {
+    return { success: false, error: 'No API context' };
+  }
+  
+  const authHeader = await getAuthHeader();
+  if (!authHeader) {
+    return { success: false, error: 'Not signed in' };
+  }
+  
+  const apiKey = typeof ytcfg !== 'undefined' && ytcfg.get ? ytcfg.get('INNERTUBE_API_KEY') : null;
+  const url = `https://www.youtube.com/youtubei/v1/browse/edit_playlist${apiKey ? `?key=${apiKey}` : ''}`;
+  
+  const body = {
+    context,
+    actions: [{
+      addedVideoId: videoId,
+      action: 'ACTION_ADD_VIDEO'
+    }],
+    playlistId: 'WL'
+  };
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+        'X-Origin': 'https://www.youtube.com',
+      },
+      body: JSON.stringify(body),
+      credentials: 'include'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      // Check if the response indicates success
+      const status = data?.status;
+      if (status === 'STATUS_SUCCEEDED' || !data?.error) {
+        return { success: true };
+      }
+      return { success: false, error: data?.error?.message || 'API error' };
+    } else {
+      return { success: false, error: `HTTP ${response.status}` };
+    }
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Listen for commands from content script
+ */
+document.addEventListener('__vilify_command__', async (event) => {
+  const { command, data, requestId } = event.detail || {};
+  
+  if (command === 'addToWatchLater' && data?.videoId) {
+    const result = await addToWatchLater(data.videoId);
+    // Send result back to content script
+    document.dispatchEvent(new CustomEvent('__vilify_response__', {
+      detail: { requestId, result }
+    }));
+  }
+});
+
 // Initialize - start waiting for data
 waitForInitialData();
 waitForPlayerResponse();

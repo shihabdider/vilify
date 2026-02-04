@@ -252,6 +252,13 @@ export function getYouTubeCommands(app) {
     action: () => navigateTo('/feed/library'),
     keys: 'G L',
   });
+  commands.push({
+    type: 'command',
+    label: 'Watch Later',
+    icon: '🕐',
+    action: () => navigateTo('/playlist?list=WL'),
+    keys: 'G W',
+  });
   // --- Search/Filter ---
   commands.push({ group: 'Search' });
   commands.push({
@@ -582,6 +589,7 @@ export function getYouTubeKeySequences(app) {
     'gs': () => navigateTo('/feed/subscriptions'),
     'gy': () => navigateTo('/feed/history'),
     'gl': () => navigateTo('/feed/library'),
+    'gw': () => navigateTo('/playlist?list=WL'),
 
     // List navigation (vim-style)
     'gg': () => app?.goToTop?.(),
@@ -644,6 +652,53 @@ export function getYouTubeSingleKeyActions(app) {
   }
 
   return actions;
+}
+
+// =============================================================================
+// ADD TO WATCH LATER
+// =============================================================================
+
+/**
+ * Add a video to Watch Later via YouTube's internal API.
+ * Sends command to data-bridge running in MAIN world which has access to ytcfg.
+ * [I/O]
+ *
+ * @param {string} videoId - Video ID to add
+ * @returns {Promise<boolean>} True if successfully added
+ *
+ * @example
+ * await addToWatchLater('dQw4w9WgXcQ')  // => true if added
+ */
+export async function addToWatchLater(videoId) {
+  return new Promise((resolve) => {
+    const requestId = `wl_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    
+    // Set up response listener
+    const responseHandler = (event) => {
+      const { requestId: respId, result } = event.detail || {};
+      if (respId === requestId) {
+        document.removeEventListener('__vilify_response__', responseHandler);
+        resolve(result?.success === true);
+      }
+    };
+    
+    document.addEventListener('__vilify_response__', responseHandler);
+    
+    // Send command to data-bridge in MAIN world
+    document.dispatchEvent(new CustomEvent('__vilify_command__', {
+      detail: {
+        command: 'addToWatchLater',
+        data: { videoId },
+        requestId
+      }
+    }));
+    
+    // Timeout after 5 seconds
+    setTimeout(() => {
+      document.removeEventListener('__vilify_response__', responseHandler);
+      resolve(false);
+    }, 5000);
+  });
 }
 
 // =============================================================================

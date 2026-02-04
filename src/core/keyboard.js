@@ -253,6 +253,15 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         return;
       }
       
+      // ArrowRight adds to Watch Later
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        if (callbacks.onAddToWatchLater) {
+          callbacks.onAddToWatchLater();
+        }
+        return;
+      }
+      
       // j/k only navigate when NOT filtering (user might type those letters)
       if (!filterActive && !searchActive) {
         if (event.key === 'j') {

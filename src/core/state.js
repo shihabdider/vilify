@@ -26,7 +26,8 @@ function createUIState() {
     keySeq: '',
     sort: { field: null, direction: 'desc' },
     message: null,          // Message | null
-    boundaryFlash: null     // BoundaryFlash | null
+    boundaryFlash: null,    // BoundaryFlash | null
+    watchLaterAdded: new Set()  // Set<string> - video IDs added to Watch Later this session
   };
 }
 
@@ -466,6 +467,24 @@ export function onShowMessage(state, text) {
 export function onBoundaryHit(state, edge) {
   const boundaryFlash = { edge, timestamp: Date.now() };
   return { ...state, ui: { ...state.ui, boundaryFlash } };
+}
+
+/**
+ * Mark a video as added to Watch Later.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} videoId - Video ID that was added
+ * @returns {AppState} New state with videoId in watchLaterAdded set
+ *
+ * @example
+ * onWatchLaterAdd(state, 'abc123')
+ *   => { ui: { watchLaterAdded: Set(['abc123']) } }
+ */
+export function onWatchLaterAdd(state, videoId) {
+  const newSet = new Set(state.ui.watchLaterAdded);
+  newSet.add(videoId);
+  return { ...state, ui: { ...state.ui, watchLaterAdded: newSet } };
 }
 
 /**

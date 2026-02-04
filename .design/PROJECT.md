@@ -115,6 +115,7 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | 026 | transcript-state | Pure state transitions for transcript, pass context to onEnter hooks |
 | 027 | chapters-state | Pure state transitions for chapters, drawer reads from state |
 | 028 | pagestate-architecture | Fix HtDP violation: items stored in state.page, view reads from state |
+| 030 | watch-list | Watch Later: `gw` navigation, arrow-right to add from lists |
 
 ### In Progress
 

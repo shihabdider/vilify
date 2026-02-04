@@ -15,6 +15,7 @@ import {
   onSortChange,
   onShowMessage,
   onBoundaryHit,
+  onWatchLaterAdd,
   onClearFlash,
   onSearchToggle,
   onSearchChange,
@@ -361,6 +362,36 @@ describe('onBoundaryHit', () => {
     expect(result.ui.boundaryFlash.edge).toBe('top');
     expect(result.ui.boundaryFlash.timestamp).toBeGreaterThanOrEqual(before);
     expect(result.ui.boundaryFlash.timestamp).toBeLessThanOrEqual(after);
+  });
+});
+
+describe('onWatchLaterAdd', () => {
+  it('adds video ID to watchLaterAdded set', () => {
+    const state = createAppState();
+    expect(state.ui.watchLaterAdded.size).toBe(0);
+    
+    const result = onWatchLaterAdd(state, 'abc123');
+    
+    expect(result.ui.watchLaterAdded.has('abc123')).toBe(true);
+    expect(result.ui.watchLaterAdded.size).toBe(1);
+  });
+  
+  it('preserves existing IDs when adding new one', () => {
+    let state = createAppState();
+    state = onWatchLaterAdd(state, 'video1');
+    state = onWatchLaterAdd(state, 'video2');
+    
+    expect(state.ui.watchLaterAdded.has('video1')).toBe(true);
+    expect(state.ui.watchLaterAdded.has('video2')).toBe(true);
+    expect(state.ui.watchLaterAdded.size).toBe(2);
+  });
+  
+  it('does not duplicate existing IDs', () => {
+    let state = createAppState();
+    state = onWatchLaterAdd(state, 'abc123');
+    state = onWatchLaterAdd(state, 'abc123');
+    
+    expect(state.ui.watchLaterAdded.size).toBe(1);
   });
 });
 

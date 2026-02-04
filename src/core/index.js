@@ -21,7 +21,8 @@ import {
   onUrlChange,
   onPageUpdate,
   onListItemsUpdate,
-  onSelect
+  onSelect,
+  onWatchLaterAdd
 } from './state.js';
 import { el, clear, updateListSelection, showMessage, flashBoundary, navigateList, isInputElement } from './view.js';
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
@@ -580,6 +581,41 @@ export function createApp(config) {
     }
   }
 
+  /**
+   * Handle adding selected item to Watch Later.
+   * [I/O]
+   */
+  async function handleAddToWatchLater() {
+    const items = getPageItems(state);
+    const filtered = getVisibleItems(state, items);
+    const item = filtered[state.ui.selectedIdx];
+
+    if (!item?.data?.videoId) {
+      showMessage('No video selected');
+      return;
+    }
+
+    const videoId = item.data.videoId;
+
+    // Check if already added this session
+    if (state.ui.watchLaterAdded.has(videoId)) {
+      showMessage('Already in Watch Later');
+      return;
+    }
+
+    // Call site-specific add to watch later function
+    if (config.addToWatchLater) {
+      const success = await config.addToWatchLater(videoId);
+      if (success) {
+        state = onWatchLaterAdd(state, videoId);
+        showMessage('Added to Watch Later');
+        render();
+      } else {
+        showMessage('Failed to add to Watch Later');
+      }
+    }
+  }
+
   function handleSiteDrawerKey(key) {
     if (!state.ui.drawer) return false;
     if (state.ui.drawer === 'palette') return false;
@@ -813,6 +849,7 @@ export function createApp(config) {
         onNextCommentPage: handleNextCommentPage,
         onPrevCommentPage: handlePrevCommentPage,
         onDrawerKey: handleSiteDrawerKey,
+        onAddToWatchLater: handleAddToWatchLater,
       }, () => siteState);
 
       // Set up SPA navigation observer

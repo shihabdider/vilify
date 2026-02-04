@@ -14,6 +14,20 @@ const YOUTUBE_ITEM_CSS = `
     font-size: 12px;
     margin-top: 2px;
   }
+  
+  /* Watch Later indicator - right side badge */
+  .vilify-watch-later-badge {
+    background: var(--bg-2);
+    border: 1px solid var(--bg-3);
+    color: var(--txt-2);
+    padding: 2px 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    margin-left: auto;
+    flex-shrink: 0;
+    align-self: flex-start;
+  }
 `;
 
 // Track if styles have been injected
@@ -41,17 +55,19 @@ export function injectYouTubeItemStyles() {
 /**
  * Custom item renderer for YouTube videos.
  * Two-column layout: left has thumbnail + info (title, meta, meta2), right has subscribe button.
+ * Shows a badge on items that have been added to Watch Later.
  * [PURE]
  * 
  * @param {ContentItem} item - Video content item
  * @param {boolean} isSelected - Whether item is selected
+ * @param {Set<string>} watchLaterAdded - Set of video IDs added to Watch Later
  * @returns {HTMLElement} Rendered item element
  * 
  * @example
- * renderYouTubeItem({ title: 'Video', meta: 'Channel · 2d ago', data: { viewCount: '1M views', duration: '12:34' } }, true)
+ * renderYouTubeItem({ title: 'Video', meta: 'Channel · 2d ago', data: { viewCount: '1M views', duration: '12:34' } }, true, new Set())
  * // Returns element with two-column layout
  */
-export function renderYouTubeItem(item, isSelected) {
+export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set()) {
   // Handle group headers
   if ('group' in item && item.group) {
     return el('div', { class: 'vilify-group-header' }, [item.group]);
@@ -66,6 +82,8 @@ export function renderYouTubeItem(item, isSelected) {
 
   // ContentItem: video
   const classes = isSelected ? 'vilify-item selected' : 'vilify-item';
+  const videoId = item.data?.videoId;
+  const isInWatchLater = videoId && watchLaterAdded.has(videoId);
 
   // Build second meta row from viewCount and duration
   const meta2Parts = [];
@@ -93,5 +111,12 @@ export function renderYouTubeItem(item, isSelected) {
 
   const infoEl = el('div', { class: 'vilify-item-info' }, infoChildren);
 
-  return el('div', { class: classes }, [thumbEl, infoEl]);
+  // Build item children: thumb, info, and optionally badge on right
+  const itemChildren = [thumbEl, infoEl];
+  
+  if (isInWatchLater) {
+    itemChildren.push(el('div', { class: 'vilify-watch-later-badge' }, ['WL']));
+  }
+
+  return el('div', { class: classes }, itemChildren);
 }

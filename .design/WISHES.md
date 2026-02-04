@@ -1,10 +1,24 @@
 # Wishes
 
-Function wish list for iteration 028 (pagestate-architecture).
+Function wish list for iteration 030 (watch-list).
 
 ## Pending
 
-(none - all wishes complete for iteration 028)
+(none - all wishes complete for iteration 030)
+
+## Complete (Iteration 030)
+
+### onWatchLaterAdd
+- **Signature**: `onWatchLaterAdd : AppState × String → AppState`
+- **Purpose**: Mark a video ID as added to Watch Later (session-scoped)
+- **File**: src/core/state.js
+- **Tests**: src/core/state.test.js (3 tests)
+
+### addToWatchLater
+- **Signature**: `addToWatchLater : String → Promise<Boolean>`
+- **Purpose**: Add video to Watch Later via YouTube's triple-dot menu (I/O)
+- **File**: src/sites/youtube/commands.js
+- **Tests**: (I/O function, integration tested)
 
 ## Complete (Iteration 028)
 

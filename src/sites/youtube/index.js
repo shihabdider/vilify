@@ -3,7 +3,7 @@
 
 import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
-import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions } from './commands.js';
+import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers, setRecommendedItems } from './drawers/index.js';
@@ -96,7 +96,7 @@ function renderYouTubeListing(state, siteState, container) {
   const dp = getDataProvider();
   let items = dp.getVideos();
   
-  const { filterActive, filterQuery, sort, selectedIdx } = state.ui;
+  const { filterActive, filterQuery, sort, selectedIdx, watchLaterAdded } = state.ui;
   
   // Apply local filter if active
   if (filterActive) {
@@ -116,7 +116,10 @@ function renderYouTubeListing(state, siteState, container) {
   updateSortIndicator(getSortLabel(sort.field, sort.direction));
   updateItemCount(items.length);
   
-  renderListing(items, selectedIdx, container, renderYouTubeItem);
+  // Custom renderer that includes watch later status
+  const renderer = (item, isSelected) => renderYouTubeItem(item, isSelected, watchLaterAdded);
+  
+  renderListing(items, selectedIdx, container, renderer);
 }
 
 /** Current watch page retry timer */
@@ -369,6 +372,13 @@ export const youtubeConfig = {
    * @param {Chapter} chapter
    */
   seekToChapter,
+
+  /**
+   * Add a video to Watch Later playlist.
+   * @param {string} videoId - Video ID to add
+   * @returns {Promise<boolean>} True if added successfully
+   */
+  addToWatchLater,
 
   /**
    * Get drawer handler for site-specific drawers.
