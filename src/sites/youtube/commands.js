@@ -705,6 +705,118 @@ export async function addToWatchLater(videoId) {
   });
 }
 
+/**
+ * Get playlist item data (setVideoId and position) for removal.
+ * [I/O]
+ *
+ * @param {string} videoId - Video ID to look up
+ * @returns {Promise<{ setVideoId: string, position: number } | null>}
+ */
+export async function getPlaylistItemData(videoId) {
+  console.log('[Vilify] getPlaylistItemData called for:', videoId);
+  return new Promise((resolve) => {
+    const requestId = `pid_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    
+    const responseHandler = (event) => {
+      const { requestId: respId, result } = event.detail || {};
+      if (respId === requestId) {
+        document.removeEventListener('__vilify_response__', responseHandler);
+        resolve(result);
+      }
+    };
+    
+    document.addEventListener('__vilify_response__', responseHandler);
+    
+    document.dispatchEvent(new CustomEvent('__vilify_command__', {
+      detail: {
+        command: 'getPlaylistItemData',
+        data: { videoId },
+        requestId
+      }
+    }));
+    
+    setTimeout(() => {
+      document.removeEventListener('__vilify_response__', responseHandler);
+      resolve(null);
+    }, 3000);
+  });
+}
+
+/**
+ * Remove a video from Watch Later via YouTube's internal API.
+ * [I/O]
+ *
+ * @param {string} setVideoId - Playlist item ID (NOT the video ID)
+ * @returns {Promise<boolean>} True if successfully removed
+ */
+export async function removeFromWatchLater(setVideoId) {
+  console.log('[Vilify] removeFromWatchLater called for:', setVideoId);
+  return new Promise((resolve) => {
+    const requestId = `rm_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    
+    const responseHandler = (event) => {
+      const { requestId: respId, result } = event.detail || {};
+      if (respId === requestId) {
+        document.removeEventListener('__vilify_response__', responseHandler);
+        resolve(result?.success === true);
+      }
+    };
+    
+    document.addEventListener('__vilify_response__', responseHandler);
+    
+    document.dispatchEvent(new CustomEvent('__vilify_command__', {
+      detail: {
+        command: 'removeFromWatchLater',
+        data: { setVideoId },
+        requestId
+      }
+    }));
+    
+    setTimeout(() => {
+      document.removeEventListener('__vilify_response__', responseHandler);
+      resolve(false);
+    }, 5000);
+  });
+}
+
+/**
+ * Undo removal - re-add video to Watch Later at specific position.
+ * [I/O]
+ *
+ * @param {string} videoId - Video ID to add back
+ * @param {number} position - Position to insert at
+ * @returns {Promise<boolean>} True if successfully added back
+ */
+export async function undoRemoveFromWatchLater(videoId, position) {
+  console.log('[Vilify] undoRemoveFromWatchLater called for:', videoId, 'at position:', position);
+  return new Promise((resolve) => {
+    const requestId = `undo_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    
+    const responseHandler = (event) => {
+      const { requestId: respId, result } = event.detail || {};
+      if (respId === requestId) {
+        document.removeEventListener('__vilify_response__', responseHandler);
+        resolve(result?.success === true);
+      }
+    };
+    
+    document.addEventListener('__vilify_response__', responseHandler);
+    
+    document.dispatchEvent(new CustomEvent('__vilify_command__', {
+      detail: {
+        command: 'undoRemoveFromWatchLater',
+        data: { videoId, position },
+        requestId
+      }
+    }));
+    
+    setTimeout(() => {
+      document.removeEventListener('__vilify_response__', responseHandler);
+      resolve(false);
+    }, 5000);
+  });
+}
+
 // =============================================================================
 // LEGACY EXPORT (for backward compatibility)
 // =============================================================================

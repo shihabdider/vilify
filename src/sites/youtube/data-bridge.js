@@ -307,6 +307,178 @@ async function addToWatchLater(videoId) {
 }
 
 /**
+ * Remove video from Watch Later playlist via YouTube API
+ * @param {string} setVideoId - Playlist item ID (NOT the video ID)
+ */
+async function removeFromWatchLater(setVideoId) {
+  const context = getFullApiContext();
+  if (!context) {
+    return { success: false, error: 'No API context' };
+  }
+  
+  const authHeader = await getAuthHeader();
+  if (!authHeader) {
+    return { success: false, error: 'Not signed in' };
+  }
+  
+  const apiKey = typeof ytcfg !== 'undefined' && ytcfg.get ? ytcfg.get('INNERTUBE_API_KEY') : null;
+  const url = `https://www.youtube.com/youtubei/v1/browse/edit_playlist?prettyPrint=false${apiKey ? `&key=${apiKey}` : ''}`;
+  
+  const body = {
+    context,
+    actions: [{
+      setVideoId: setVideoId,
+      action: 'ACTION_REMOVE_VIDEO'
+    }],
+    params: 'CAFAAQ%3D%3D',  // Required param for removal
+    playlistId: 'WL'
+  };
+  
+  console.log('[Vilify Bridge] Remove from WL - Sending to API:', url);
+  console.log('[Vilify Bridge] Remove request body:', JSON.stringify(body, null, 2));
+  
+  const visitorData = context.client?.visitorData || '';
+  const authUser = typeof ytcfg !== 'undefined' && ytcfg.get 
+    ? (ytcfg.get('SESSION_INDEX') ?? '0')
+    : '0';
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+        'X-Origin': 'https://www.youtube.com',
+        'X-Goog-AuthUser': String(authUser),
+        'X-Goog-Visitor-Id': visitorData,
+        'X-Youtube-Client-Name': '1',
+        'X-Youtube-Client-Version': context.client.clientVersion,
+        'X-Youtube-Bootstrap-Logged-In': 'true',
+      },
+      body: JSON.stringify(body),
+      credentials: 'include',
+      cache: 'no-store'
+    });
+    
+    const data = await response.json();
+    console.log('[Vilify Bridge] Remove API response:', response.status, JSON.stringify(data, null, 2));
+    
+    if (response.ok && data?.status === 'STATUS_SUCCEEDED') {
+      return { success: true };
+    }
+    return { success: false, error: data?.error?.message || 'Unknown API response' };
+  } catch (e) {
+    console.error('[Vilify Bridge] Remove API error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Undo removal - re-add video to Watch Later at specific position
+ * @param {string} videoId - Video ID to add back
+ * @param {number} position - Position to insert at
+ */
+async function undoRemoveFromWatchLater(videoId, position) {
+  const context = getFullApiContext();
+  if (!context) {
+    return { success: false, error: 'No API context' };
+  }
+  
+  const authHeader = await getAuthHeader();
+  if (!authHeader) {
+    return { success: false, error: 'Not signed in' };
+  }
+  
+  const apiKey = typeof ytcfg !== 'undefined' && ytcfg.get ? ytcfg.get('INNERTUBE_API_KEY') : null;
+  const url = `https://www.youtube.com/youtubei/v1/browse/edit_playlist?prettyPrint=false${apiKey ? `&key=${apiKey}` : ''}`;
+  
+  const body = {
+    context,
+    actions: [{
+      addedVideoId: videoId,
+      action: 'ACTION_ADD_VIDEO',
+      addedVideoPosition: position
+    }],
+    params: 'IAE%3D',  // Required param for positional add
+    playlistId: 'WL'
+  };
+  
+  console.log('[Vilify Bridge] Undo remove - Sending to API:', url);
+  console.log('[Vilify Bridge] Undo request body:', JSON.stringify(body, null, 2));
+  
+  const visitorData = context.client?.visitorData || '';
+  const authUser = typeof ytcfg !== 'undefined' && ytcfg.get 
+    ? (ytcfg.get('SESSION_INDEX') ?? '0')
+    : '0';
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+        'X-Origin': 'https://www.youtube.com',
+        'X-Goog-AuthUser': String(authUser),
+        'X-Goog-Visitor-Id': visitorData,
+        'X-Youtube-Client-Name': '1',
+        'X-Youtube-Client-Version': context.client.clientVersion,
+        'X-Youtube-Bootstrap-Logged-In': 'true',
+      },
+      body: JSON.stringify(body),
+      credentials: 'include',
+      cache: 'no-store'
+    });
+    
+    const data = await response.json();
+    console.log('[Vilify Bridge] Undo API response:', response.status, JSON.stringify(data, null, 2));
+    
+    if (response.ok && data?.status === 'STATUS_SUCCEEDED') {
+      return { success: true };
+    }
+    return { success: false, error: data?.error?.message || 'Unknown API response' };
+  } catch (e) {
+    console.error('[Vilify Bridge] Undo API error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Get playlist item data (setVideoId) for a video from ytInitialData
+ * @param {string} videoId - Video ID to look up
+ * @returns {{ setVideoId: string, position: number } | null}
+ */
+function getPlaylistItemData(videoId) {
+  if (typeof ytInitialData === 'undefined' || !ytInitialData) {
+    return null;
+  }
+  
+  // Navigate to playlist contents
+  const contents = ytInitialData?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]
+    ?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]
+    ?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents;
+  
+  if (!contents) {
+    console.log('[Vilify Bridge] Could not find playlist contents in ytInitialData');
+    return null;
+  }
+  
+  // Find the video in the playlist
+  for (let i = 0; i < contents.length; i++) {
+    const renderer = contents[i]?.playlistVideoRenderer;
+    if (renderer?.videoId === videoId) {
+      const setVideoId = renderer.setVideoId;
+      if (setVideoId) {
+        console.log('[Vilify Bridge] Found setVideoId:', setVideoId, 'at position:', i);
+        return { setVideoId, position: i };
+      }
+    }
+  }
+  
+  console.log('[Vilify Bridge] Video not found in playlist data:', videoId);
+  return null;
+}
+
+/**
  * Listen for commands from content script
  */
 document.addEventListener('__vilify_command__', async (event) => {
@@ -316,7 +488,30 @@ document.addEventListener('__vilify_command__', async (event) => {
   if (command === 'addToWatchLater' && data?.videoId) {
     const result = await addToWatchLater(data.videoId);
     console.log('[Vilify Bridge] Watch Later result:', result);
-    // Send result back to content script
+    document.dispatchEvent(new CustomEvent('__vilify_response__', {
+      detail: { requestId, result }
+    }));
+  }
+  
+  if (command === 'getPlaylistItemData' && data?.videoId) {
+    const result = getPlaylistItemData(data.videoId);
+    console.log('[Vilify Bridge] Playlist item data:', result);
+    document.dispatchEvent(new CustomEvent('__vilify_response__', {
+      detail: { requestId, result }
+    }));
+  }
+  
+  if (command === 'removeFromWatchLater' && data?.setVideoId) {
+    const result = await removeFromWatchLater(data.setVideoId);
+    console.log('[Vilify Bridge] Remove result:', result);
+    document.dispatchEvent(new CustomEvent('__vilify_response__', {
+      detail: { requestId, result }
+    }));
+  }
+  
+  if (command === 'undoRemoveFromWatchLater' && data?.videoId !== undefined) {
+    const result = await undoRemoveFromWatchLater(data.videoId, data.position);
+    console.log('[Vilify Bridge] Undo result:', result);
     document.dispatchEvent(new CustomEvent('__vilify_response__', {
       detail: { requestId, result }
     }));

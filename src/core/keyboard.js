@@ -262,6 +262,24 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         return;
       }
       
+      // ArrowLeft removes from Watch Later (only on WL playlist page)
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        if (callbacks.onRemoveFromWatchLater) {
+          callbacks.onRemoveFromWatchLater();
+        }
+        return;
+      }
+      
+      // u undoes the last Watch Later removal
+      if (event.key === 'u' && !filterActive && !searchActive) {
+        event.preventDefault();
+        if (callbacks.onUndoWatchLaterRemoval) {
+          callbacks.onUndoWatchLaterRemoval();
+        }
+        return;
+      }
+      
       // j/k only navigate when NOT filtering (user might type those letters)
       if (!filterActive && !searchActive) {
         if (event.key === 'j') {

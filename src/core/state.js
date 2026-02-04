@@ -27,7 +27,9 @@ function createUIState() {
     sort: { field: null, direction: 'desc' },
     message: null,          // Message | null
     boundaryFlash: null,    // BoundaryFlash | null
-    watchLaterAdded: new Set()  // Set<string> - video IDs added to Watch Later this session
+    watchLaterAdded: new Set(),  // Set<string> - video IDs added to Watch Later this session
+    watchLaterRemoved: new Map(), // Map<videoId, { setVideoId, position }> - removed videos for undo
+    lastWatchLaterRemoval: null   // { videoId, setVideoId, position } - most recent removal for undo
   };
 }
 
@@ -485,6 +487,58 @@ export function onWatchLaterAdd(state, videoId) {
   const newSet = new Set(state.ui.watchLaterAdded);
   newSet.add(videoId);
   return { ...state, ui: { ...state.ui, watchLaterAdded: newSet } };
+}
+
+/**
+ * Mark a video as removed from Watch Later (for undo support).
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} videoId - Video ID that was removed
+ * @param {string} setVideoId - Playlist item ID (for undo API call)
+ * @param {number} position - Position in playlist (for undo restore)
+ * @returns {AppState} New state with removal tracked
+ *
+ * @example
+ * onWatchLaterRemove(state, 'abc123', 'PLAYLIST_ITEM_ID', 2)
+ *   => { ui: { watchLaterRemoved: Map([['abc123', { setVideoId, position }]]), lastWatchLaterRemoval: {...} } }
+ */
+export function onWatchLaterRemove(state, videoId, setVideoId, position) {
+  const newMap = new Map(state.ui.watchLaterRemoved);
+  newMap.set(videoId, { setVideoId, position });
+  return { 
+    ...state, 
+    ui: { 
+      ...state.ui, 
+      watchLaterRemoved: newMap,
+      lastWatchLaterRemoval: { videoId, setVideoId, position }
+    } 
+  };
+}
+
+/**
+ * Clear a video from the removed set (after undo).
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} videoId - Video ID to restore
+ * @returns {AppState} New state with video removed from watchLaterRemoved
+ *
+ * @example
+ * onWatchLaterUndoRemove(state, 'abc123')
+ *   => { ui: { watchLaterRemoved: Map([]) } }
+ */
+export function onWatchLaterUndoRemove(state, videoId) {
+  const newMap = new Map(state.ui.watchLaterRemoved);
+  newMap.delete(videoId);
+  return { 
+    ...state, 
+    ui: { 
+      ...state.ui, 
+      watchLaterRemoved: newMap,
+      lastWatchLaterRemoval: null
+    } 
+  };
 }
 
 /**

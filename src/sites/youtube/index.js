@@ -3,7 +3,7 @@
 
 import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
-import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater } from './commands.js';
+import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers, setRecommendedItems } from './drawers/index.js';
@@ -96,7 +96,7 @@ function renderYouTubeListing(state, siteState, container) {
   const dp = getDataProvider();
   let items = dp.getVideos();
   
-  const { filterActive, filterQuery, sort, selectedIdx, watchLaterAdded } = state.ui;
+  const { filterActive, filterQuery, sort, selectedIdx, watchLaterAdded, watchLaterRemoved } = state.ui;
   
   // Apply local filter if active
   if (filterActive) {
@@ -117,7 +117,7 @@ function renderYouTubeListing(state, siteState, container) {
   updateItemCount(items.length);
   
   // Custom renderer that includes watch later status
-  const renderer = (item, isSelected) => renderYouTubeItem(item, isSelected, watchLaterAdded);
+  const renderer = (item, isSelected) => renderYouTubeItem(item, isSelected, watchLaterAdded, watchLaterRemoved);
   
   renderListing(items, selectedIdx, container, renderer);
 }
@@ -379,6 +379,28 @@ export const youtubeConfig = {
    * @returns {Promise<boolean>} True if added successfully
    */
   addToWatchLater,
+
+  /**
+   * Get playlist item data for removal (setVideoId and position).
+   * @param {string} videoId - Video ID to look up
+   * @returns {Promise<{ setVideoId: string, position: number } | null>}
+   */
+  getPlaylistItemData,
+
+  /**
+   * Remove a video from Watch Later playlist.
+   * @param {string} setVideoId - Playlist item ID (NOT the video ID)
+   * @returns {Promise<boolean>} True if removed successfully
+   */
+  removeFromWatchLater,
+
+  /**
+   * Undo removal - re-add video to Watch Later at specific position.
+   * @param {string} videoId - Video ID to add back
+   * @param {number} position - Position to insert at
+   * @returns {Promise<boolean>} True if added back successfully
+   */
+  undoRemoveFromWatchLater,
 
   /**
    * Get drawer handler for site-specific drawers.

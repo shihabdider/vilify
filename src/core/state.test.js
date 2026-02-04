@@ -16,6 +16,8 @@ import {
   onShowMessage,
   onBoundaryHit,
   onWatchLaterAdd,
+  onWatchLaterRemove,
+  onWatchLaterUndoRemove,
   onClearFlash,
   onSearchToggle,
   onSearchChange,
@@ -764,5 +766,76 @@ describe('onListItemsUpdate', () => {
     
     expect(result.page.customField).toBe('test');
     expect(result.page.videos).toHaveLength(1);
+  });
+});
+
+// =============================================================================
+// WATCH LATER REMOVAL
+// =============================================================================
+
+describe('onWatchLaterRemove', () => {
+  it('adds video to removed map', () => {
+    const state = createAppState();
+    
+    const result = onWatchLaterRemove(state, 'video1', 'SET_VIDEO_ID_1', 0);
+    
+    expect(result.ui.watchLaterRemoved.has('video1')).toBe(true);
+    expect(result.ui.watchLaterRemoved.get('video1')).toEqual({
+      setVideoId: 'SET_VIDEO_ID_1',
+      position: 0
+    });
+  });
+  
+  it('sets lastWatchLaterRemoval for undo', () => {
+    const state = createAppState();
+    
+    const result = onWatchLaterRemove(state, 'video1', 'SET_VIDEO_ID_1', 2);
+    
+    expect(result.ui.lastWatchLaterRemoval).toEqual({
+      videoId: 'video1',
+      setVideoId: 'SET_VIDEO_ID_1',
+      position: 2
+    });
+  });
+  
+  it('does not mutate original state', () => {
+    const state = createAppState();
+    const originalRemoved = state.ui.watchLaterRemoved;
+    
+    onWatchLaterRemove(state, 'video1', 'SET_VIDEO_ID_1', 0);
+    
+    expect(state.ui.watchLaterRemoved).toBe(originalRemoved);
+    expect(state.ui.watchLaterRemoved.has('video1')).toBe(false);
+  });
+});
+
+describe('onWatchLaterUndoRemove', () => {
+  it('removes video from removed map', () => {
+    let state = createAppState();
+    state = onWatchLaterRemove(state, 'video1', 'SET_VIDEO_ID_1', 0);
+    
+    const result = onWatchLaterUndoRemove(state, 'video1');
+    
+    expect(result.ui.watchLaterRemoved.has('video1')).toBe(false);
+  });
+  
+  it('clears lastWatchLaterRemoval', () => {
+    let state = createAppState();
+    state = onWatchLaterRemove(state, 'video1', 'SET_VIDEO_ID_1', 0);
+    
+    const result = onWatchLaterUndoRemove(state, 'video1');
+    
+    expect(result.ui.lastWatchLaterRemoval).toBe(null);
+  });
+  
+  it('does not mutate original state', () => {
+    let state = createAppState();
+    state = onWatchLaterRemove(state, 'video1', 'SET_VIDEO_ID_1', 0);
+    const originalRemoved = state.ui.watchLaterRemoved;
+    
+    onWatchLaterUndoRemove(state, 'video1');
+    
+    expect(state.ui.watchLaterRemoved).toBe(originalRemoved);
+    expect(state.ui.watchLaterRemoved.has('video1')).toBe(true);
   });
 });

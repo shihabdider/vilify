@@ -22,7 +22,9 @@ import {
   onPageUpdate,
   onListItemsUpdate,
   onSelect,
-  onWatchLaterAdd
+  onWatchLaterAdd,
+  onWatchLaterRemove,
+  onWatchLaterUndoRemove
 } from './state.js';
 import { el, clear, updateListSelection, showMessage, flashBoundary, navigateList, isInputElement } from './view.js';
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
@@ -616,6 +618,93 @@ export function createApp(config) {
     }
   }
 
+  /**
+   * Check if we're on the Watch Later playlist page.
+   * [PURE helper]
+   */
+  function isWatchLaterPage() {
+    return location.pathname === '/playlist' && 
+           new URLSearchParams(location.search).get('list') === 'WL';
+  }
+
+  /**
+   * Handle removing selected item from Watch Later.
+   * Only works on Watch Later playlist page.
+   * [I/O]
+   */
+  async function handleRemoveFromWatchLater() {
+    // Only allow removal on Watch Later playlist page
+    if (!isWatchLaterPage()) {
+      showMessage('Only works on Watch Later page');
+      return;
+    }
+
+    const items = getPageItems(state);
+    const filtered = getVisibleItems(state, items);
+    const item = filtered[state.ui.selectedIdx];
+
+    if (!item?.data?.videoId) {
+      showMessage('No video selected');
+      return;
+    }
+
+    const videoId = item.data.videoId;
+
+    // Check if already removed this session
+    if (state.ui.watchLaterRemoved.has(videoId)) {
+      showMessage('Already removed (press u to undo)');
+      return;
+    }
+
+    // Get playlist item data (setVideoId) from data-bridge
+    if (!config.getPlaylistItemData || !config.removeFromWatchLater) {
+      showMessage('Removal not supported');
+      return;
+    }
+
+    const itemData = await config.getPlaylistItemData(videoId);
+    if (!itemData) {
+      showMessage('Could not find video data');
+      return;
+    }
+
+    const success = await config.removeFromWatchLater(itemData.setVideoId);
+    if (success) {
+      state = onWatchLaterRemove(state, videoId, itemData.setVideoId, itemData.position);
+      showMessage('Removed from Watch Later (u to undo)');
+      render();
+    } else {
+      showMessage('Failed to remove from Watch Later');
+    }
+  }
+
+  /**
+   * Handle undoing the last Watch Later removal.
+   * [I/O]
+   */
+  async function handleUndoWatchLaterRemoval() {
+    const lastRemoval = state.ui.lastWatchLaterRemoval;
+    
+    if (!lastRemoval) {
+      showMessage('Nothing to undo');
+      return;
+    }
+
+    if (!config.undoRemoveFromWatchLater) {
+      showMessage('Undo not supported');
+      return;
+    }
+
+    const success = await config.undoRemoveFromWatchLater(lastRemoval.videoId, lastRemoval.position);
+    if (success) {
+      state = onWatchLaterUndoRemove(state, lastRemoval.videoId);
+      showMessage('Restored to Watch Later');
+      render();
+    } else {
+      showMessage('Failed to restore video');
+    }
+  }
+
   function handleSiteDrawerKey(key) {
     if (!state.ui.drawer) return false;
     if (state.ui.drawer === 'palette') return false;
@@ -850,6 +939,8 @@ export function createApp(config) {
         onPrevCommentPage: handlePrevCommentPage,
         onDrawerKey: handleSiteDrawerKey,
         onAddToWatchLater: handleAddToWatchLater,
+        onRemoveFromWatchLater: handleRemoveFromWatchLater,
+        onUndoWatchLaterRemoval: handleUndoWatchLaterRemoval,
       }, () => siteState);
 
       // Set up SPA navigation observer

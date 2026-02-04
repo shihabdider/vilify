@@ -28,6 +28,25 @@ const YOUTUBE_ITEM_CSS = `
     flex-shrink: 0;
     align-self: flex-start;
   }
+  
+  /* Removed from Watch Later - grayed out */
+  .vilify-item.vilify-removed {
+    opacity: 0.4;
+  }
+  
+  .vilify-removed-badge {
+    background: var(--bg-2);
+    border: 1px solid var(--bg-3);
+    color: var(--txt-3);
+    padding: 2px 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    margin-left: auto;
+    flex-shrink: 0;
+    align-self: flex-start;
+    text-decoration: line-through;
+  }
 `;
 
 // Track if styles have been injected
@@ -56,18 +75,20 @@ export function injectYouTubeItemStyles() {
  * Custom item renderer for YouTube videos.
  * Two-column layout: left has thumbnail + info (title, meta, meta2), right has subscribe button.
  * Shows a badge on items that have been added to Watch Later.
+ * Shows grayed-out style for items removed from Watch Later.
  * [PURE]
  * 
  * @param {ContentItem} item - Video content item
  * @param {boolean} isSelected - Whether item is selected
  * @param {Set<string>} watchLaterAdded - Set of video IDs added to Watch Later
+ * @param {Map<string, object>} watchLaterRemoved - Map of video IDs removed from Watch Later
  * @returns {HTMLElement} Rendered item element
  * 
  * @example
- * renderYouTubeItem({ title: 'Video', meta: 'Channel · 2d ago', data: { viewCount: '1M views', duration: '12:34' } }, true, new Set())
+ * renderYouTubeItem({ title: 'Video', meta: 'Channel · 2d ago', data: { viewCount: '1M views', duration: '12:34' } }, true, new Set(), new Map())
  * // Returns element with two-column layout
  */
-export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set()) {
+export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set(), watchLaterRemoved = new Map()) {
   // Handle group headers
   if ('group' in item && item.group) {
     return el('div', { class: 'vilify-group-header' }, [item.group]);
@@ -81,9 +102,15 @@ export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set())
   }
 
   // ContentItem: video
-  const classes = isSelected ? 'vilify-item selected' : 'vilify-item';
   const videoId = item.data?.videoId;
   const isInWatchLater = videoId && watchLaterAdded.has(videoId);
+  const isRemoved = videoId && watchLaterRemoved.has(videoId);
+  
+  // Build class list
+  let classes = isSelected ? 'vilify-item selected' : 'vilify-item';
+  if (isRemoved) {
+    classes += ' vilify-removed';
+  }
 
   // Build second meta row from viewCount and duration
   const meta2Parts = [];
@@ -114,7 +141,9 @@ export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set())
   // Build item children: thumb, info, and optionally badge on right
   const itemChildren = [thumbEl, infoEl];
   
-  if (isInWatchLater) {
+  if (isRemoved) {
+    itemChildren.push(el('div', { class: 'vilify-removed-badge' }, ['WL']));
+  } else if (isInWatchLater) {
     itemChildren.push(el('div', { class: 'vilify-watch-later-badge' }, ['WL']));
   }
 
