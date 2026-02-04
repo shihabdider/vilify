@@ -4,12 +4,50 @@
 
 import { initSite } from './core/index.js';
 import { youtubeConfig } from './sites/youtube/index.js';
+import { googleConfig } from './sites/google/index.js';
+
+/**
+ * Detect current site and return appropriate config.
+ * 
+ * Signature: getSiteConfig : () → SiteConfig | null
+ * Purpose: Detect current site and return appropriate config
+ * 
+ * Examples:
+ *   // On youtube.com
+ *   getSiteConfig() => youtubeConfig
+ *   // On google.com
+ *   getSiteConfig() => googleConfig
+ *   // On other site
+ *   getSiteConfig() => null
+ * 
+ * @returns {SiteConfig|null} Site config or null if unsupported site
+ */
+function getSiteConfig() {
+  const hostname = location.hostname;
+  
+  if (hostname === 'www.youtube.com' || hostname === 'youtube.com') {
+    return youtubeConfig;
+  }
+  
+  // TODO: Re-enable once Google support is complete
+  // if (hostname === 'www.google.com' || hostname === 'google.com') {
+  //   return googleConfig;
+  // }
+  
+  return null;
+}
 
 console.log('[Vilify] Content script loaded');
 
 // Initialize UI when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => initSite(youtubeConfig));
+const config = getSiteConfig();
+
+if (config) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initSite(config));
+  } else {
+    initSite(config);
+  }
 } else {
-  initSite(youtubeConfig);
+  console.log('[Vilify] No supported site detected');
 }

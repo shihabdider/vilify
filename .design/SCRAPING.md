@@ -427,3 +427,131 @@ function getPageType() {
    - Relative: "3 days ago", "2 weeks ago"
    - Absolute: "Jan 25, 2026"
    - Streamed: "Streamed 3 days ago"
+
+---
+
+# Google Search DOM Scraping Reference
+
+**Last verified:** February 1, 2026
+**Source:** Crawlee blog (Dec 2024) + manual verification
+
+Google's DOM uses heavily minified class names that change frequently. Use stable IDs, data attributes, and semantic HTML only.
+
+---
+
+## Search Results Page
+
+### Container Structure
+
+```
+div#main
+  └── div#center_col (role="main")
+        └── div#search
+              └── div#rso                          ← Main results container (STABLE)
+                    └── div[data-hveid][lang]      ← Individual result blocks
+```
+
+### Result Block Structure
+
+```
+div[data-hveid][lang]
+  ├── a (href="https://example.com/...")         ← Result link
+  │     └── h3                                   ← Title (SEMANTIC)
+  │           └── [text content]
+  ├── cite                                       ← Display URL (SEMANTIC)  
+  │     └── [text content] "example.com › path"
+  └── div[style*="line"]                         ← Description (has -webkit-line-clamp)
+        └── span
+              └── [text content]
+```
+
+### Stable Selectors
+
+| Element | Selector | Stability | Notes |
+|---------|----------|-----------|-------|
+| Results container | `#rso` | ✓✓✓ | Classic Google ID, very stable |
+| Result block | `#rso div[data-hveid][lang]` | ✓✓ | data-hveid marks results |
+| Title | `h3` | ✓✓✓ | Semantic HTML |
+| Link | `a[href]` (first in block) | ✓✓✓ | Semantic HTML |
+| URL display | `cite` | ✓✓✓ | Semantic HTML |
+| Description | `div[style*="line"]` | ✓✓ | Targets -webkit-line-clamp |
+
+### Scraping Code
+
+```javascript
+function scrapeSearchResults() {
+  const rso = document.getElementById('rso');
+  if (!rso) return [];
+  
+  const results = [];
+  const blocks = rso.querySelectorAll('div[data-hveid][lang]');
+  
+  blocks.forEach((block, index) => {
+    // Get first anchor with href (skip internal google links)
+    const anchor = block.querySelector('a[href]');
+    const href = anchor?.href;
+    if (!href || href.includes('google.com/search')) return;
+    
+    // Title from h3
+    const title = block.querySelector('h3')?.textContent?.trim();
+    if (!title) return;
+    
+    // URL display from cite
+    const displayUrl = block.querySelector('cite')?.textContent?.trim();
+    
+    // Description from div with line-clamp style
+    const descEl = block.querySelector('div[style*="line"]');
+    const description = descEl?.textContent?.trim() || '';
+    
+    results.push({
+      id: href,
+      title,
+      url: href,
+      meta: displayUrl || new URL(href).hostname,
+      description,
+    });
+  });
+  
+  return results;
+}
+```
+
+### Elements to Skip
+
+- Results with `href` containing `google.com/search` (internal navigation)
+- "People also ask" sections (expandable accordions)
+- Knowledge panels (right sidebar)
+- Video carousels
+- Image packs
+- Shopping results
+
+### Page Detection
+
+```javascript
+function getGooglePageType() {
+  const path = location.pathname;
+  const params = new URLSearchParams(location.search);
+  
+  // Main search results
+  if (path === '/search' && !params.has('tbm') && !params.has('udm')) {
+    return 'search';
+  }
+  
+  // Future: images (udm=2), videos (udm=7), news (tbm=nws)
+  return 'other';
+}
+```
+
+## Notes & Gotchas
+
+1. **Avoid minified classes** - Classes like `LC20lb`, `VwiC3b`, `MjjYud` change frequently. Never rely on them.
+
+2. **data-hveid is stable** - Google uses this for tracking/analytics, unlikely to remove it.
+
+3. **lang attribute** - Result blocks have `lang="en"` (or user's language). Useful for filtering.
+
+4. **Description fallback** - If `div[style*="line"]` fails, try finding longest text span that's not title/URL.
+
+5. **Pagination** - Google search uses "infinite scroll" with lazy loading. Initial page has ~10 results.
+
+6. **Rate limiting** - Google aggressively blocks automated scraping. Content script in browser context avoids this.

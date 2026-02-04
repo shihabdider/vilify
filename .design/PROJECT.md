@@ -33,7 +33,7 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 |--------|----------------|------------|
 | `src/core/` | Site-agnostic primitives (keyboard engine, drawer, state, layout, sort) | - |
 | `src/sites/youtube/` | YouTube scraping, commands, keymaps, watch page layout, drawers | core |
-| `src/sites/[future]/` | Future site implementations | core |
+| `src/sites/google/` | Google Search scraping (planned - iteration 031) | core |
 
 ### Dependency Rules
 
@@ -71,6 +71,8 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 | `src/sites/youtube/data/fetch-intercept.js` | Fetch interception for API data |
 | `src/sites/youtube/data/extractors.js` | Data extraction from API responses |
 | `src/sites/youtube/data/dom-fallback.js` | DOM scraping fallback |
+| `src/sites/google/index.js` | Google SiteConfig (planned) |
+| `src/sites/google/scraper.js` | Google DOM scraping (planned) |
 
 ### Supporting Design Docs
 
@@ -119,7 +121,9 @@ Vilify provides deep, site-specific integrations where each site gets carefully 
 
 ### In Progress
 
-(none)
+| # | Name | Summary |
+|---|------|---------|
+| 031 | google-search | Add Google.com search results page support |
 
 ## Current Issues
 

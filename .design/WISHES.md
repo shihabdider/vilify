@@ -1,10 +1,38 @@
 # Wishes
 
-Function wish list for iteration 030 (watch-list).
+Function wish list for iteration 031 (google-search).
 
-## Pending
+## Pending (Iteration 031)
 
-(none - all wishes complete for iteration 030)
+(none)
+
+## Complete (Iteration 031)
+
+### getGooglePageType
+- **Signature**: `getGooglePageType : () → GooglePageType`
+- **Purpose**: Detect current Google page type from URL ('search' | 'other')
+- **File**: src/sites/google/scraper.js
+- **Tests**: (I/O function, integration tested)
+
+### scrapeSearchResults
+- **Signature**: `scrapeSearchResults : () → Array<ContentItem>`
+- **Purpose**: Extract search results from Google DOM using stable selectors
+- **File**: src/sites/google/scraper.js
+- **Selectors**: `#rso div[data-hveid][lang]` → `h3`, `a`, `div[style*="line"]`, `cite`
+- **Tests**: (I/O function, integration tested)
+
+### googleConfig
+- **Signature**: `googleConfig : SiteConfig`
+- **Purpose**: Google site configuration (theme, pages, scraper)
+- **File**: src/sites/google/index.js
+
+### getSiteConfig
+- **Signature**: `getSiteConfig : () → SiteConfig | null`
+- **Purpose**: Detect current site and return appropriate config
+- **File**: src/content.js
+- **Logic**: Check hostname for youtube.com vs google.com
+
+## Complete (Iteration 030)
 
 ## Complete (Iteration 030)
 

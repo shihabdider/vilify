@@ -209,14 +209,29 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
     const isWatchPage = pageType === 'watch';
     const isListingPage = !isWatchPage;
 
-    // Handle Ctrl+f/b for comment pagination (watch page only)
+    // Handle Ctrl+f/b for pagination
+    // - On watch page: comment pagination (YouTube-specific)
+    // - On listing page: site page navigation (Google search pages, etc.)
     if (event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
-      if ((event.key === 'f' || event.key === 'b') && isWatchPage) {
+      if (event.key === 'f' || event.key === 'b') {
         event.preventDefault();
-        if (event.key === 'f' && callbacks.onNextCommentPage) {
-          callbacks.onNextCommentPage();
-        } else if (event.key === 'b' && callbacks.onPrevCommentPage) {
-          callbacks.onPrevCommentPage();
+        
+        if (isWatchPage) {
+          // Watch page: comment pagination
+          if (event.key === 'f' && callbacks.onNextCommentPage) {
+            callbacks.onNextCommentPage();
+          } else if (event.key === 'b' && callbacks.onPrevCommentPage) {
+            callbacks.onPrevCommentPage();
+          }
+        } else {
+          // Listing page: check for site-specific pagination via getSingleKeyActions
+          // Uppercase key indicates Ctrl modifier (e.g., 'F' for Ctrl+f)
+          // Note: passing null for app callbacks since pagination doesn't need them
+          const siteActions = config.getSingleKeyActions ? config.getSingleKeyActions(null) : {};
+          const ctrlKey = event.key.toUpperCase();
+          if (siteActions[ctrlKey]) {
+            siteActions[ctrlKey]();
+          }
         }
         return;
       }
