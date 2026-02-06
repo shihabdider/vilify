@@ -18,7 +18,9 @@ import {
 } from './state.js';
 import { renderYouTubeItem, injectYouTubeItemStyles } from './items.js';
 import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout.js';
-import { sortItems, getSortLabel } from '../../core/sort.js';
+import { getSortLabel } from '../../core/sort.js';
+import { getVisibleItems } from '../../core/state.js';
+import { getPageItems } from '../../core/view-tree.js';
 
 // =============================================================================
 // THEME
@@ -93,24 +95,14 @@ const WATCH_RETRY_DELAY = 500;
 function renderYouTubeListing(state, siteState, container) {
   injectYouTubeItemStyles();
   
-  const dp = getDataProvider();
-  let items = dp.getVideos();
+  // Use state.page.videos (same source as handleSelect) so sort/filter
+  // produces identical ordering for both visual display and item selection.
+  // Previously this called dp.getVideos() directly, which could diverge from
+  // state.page.videos when continuation data arrived between content polls.
+  const allItems = getPageItems(state);
+  const items = getVisibleItems(state, allItems);
   
-  const { filterActive, filterQuery, sort, selectedIdx, watchLaterAdded, watchLaterRemoved } = state.ui;
-  
-  // Apply local filter if active
-  if (filterActive) {
-    const q = filterQuery.toLowerCase();
-    items = items.filter(i => 
-      i.title?.toLowerCase().includes(q) || 
-      i.meta?.toLowerCase().includes(q)
-    );
-  }
-  
-  // Apply sorting if active
-  if (sort.field) {
-    items = sortItems(items, sort.field, sort.direction);
-  }
+  const { sort, selectedIdx, watchLaterAdded, watchLaterRemoved } = state.ui;
   
   // Update sort indicator and count in status bar
   updateSortIndicator(getSortLabel(sort.field, sort.direction));
