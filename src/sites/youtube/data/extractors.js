@@ -440,6 +440,7 @@ export function extractVideoContext(initialData, playerResponse) {
   
   return {
     videoId: videoDetails.videoId,
+    cleanUrl: `https://www.youtube.com/watch?v=${videoDetails.videoId}`,
     title: videoDetails.title || null,
     channelName: videoDetails.author || null,
     channel: videoDetails.author || null, // Alias for compatibility

@@ -25,6 +25,7 @@ export function scrapeDOMVideoContext() {
   
   return {
     videoId: ctx.videoId,
+    cleanUrl: ctx.cleanUrl || `https://www.youtube.com/watch?v=${ctx.videoId}`,
     title: ctx.title,
     channelName: ctx.channelName,  // Watch page uses channelName
     channel: ctx.channelName,       // Alias for compatibility
