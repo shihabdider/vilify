@@ -644,6 +644,16 @@ export function createApp(config) {
       if (success) {
         state = onWatchLaterAdd(state, videoId);
         showMessage('Added to Watch Later');
+        // Direct DOM update for watch page hint (same pattern as updateSubscribeButton)
+        const wlHint = document.getElementById('vilify-wl-action');
+        if (wlHint) {
+          wlHint.className = 'vilify-action-hint vilify-wl-added';
+          wlHint.innerHTML = '';
+          const kbd = document.createElement('kbd');
+          kbd.textContent = 'mw';
+          wlHint.appendChild(kbd);
+          wlHint.appendChild(document.createTextNode('added'));
+        }
         render();
       } else {
         showMessage('Failed to add to Watch Later');
