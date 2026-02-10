@@ -78,12 +78,11 @@ describe('renderVideoInfoBox - action hint grid', () => {
     };
   }
 
-  it('renders 6 children in vilify-watch-actions (2x3 grid)', () => {
+  it('renders 5 children when no transcript (ms, mw, empty, f, zo)', () => {
     renderVideoInfo(makeCtx(), container);
     const actionsRow = container.querySelector('.vilify-watch-actions');
     expect(actionsRow).not.toBeNull();
-    // 6 cells: ms, mw, empty, f, t, zo
-    expect(actionsRow.children.length).toBe(6);
+    expect(actionsRow.children.length).toBe(5);
   });
 
   it('row 1: ms then mw then empty cell', () => {
@@ -95,12 +94,11 @@ describe('renderVideoInfoBox - action hint grid', () => {
     expect(cells[2].textContent.trim()).toBe('');
   });
 
-  it('row 2: f then t then zo', () => {
+  it('row 2 without transcript: f then zo (slides left)', () => {
     renderVideoInfo(makeCtx(), container);
     const cells = container.querySelector('.vilify-watch-actions').children;
     expect(cells[3].querySelector('kbd').textContent).toBe('f');
-    expect(cells[4].querySelector('kbd').textContent).toBe('t');
-    expect(cells[5].querySelector('kbd').textContent).toBe('zo');
+    expect(cells[4].querySelector('kbd').textContent).toBe('zo');
   });
 
   it('preserves vilify-sub-action id on ms hint', () => {

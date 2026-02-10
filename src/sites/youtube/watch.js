@@ -298,20 +298,28 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
     ]),
     // Empty cell to complete row 1
     el('span', {}, []),
-    // Row 2
+    // Row 2: f (always), t (conditional), zo (always)
     el('span', { class: 'vilify-action-hint' }, [
       el('kbd', {}, ['f']),
       'ch'
     ]),
-    el('span', { class: 'vilify-action-hint' }, [
-      el('kbd', {}, ['t']),
-      'transcript'
-    ]),
+  ];
+  
+  if (siteState?.transcript?.status === 'loaded') {
+    actionChildren.push(
+      el('span', { class: 'vilify-action-hint' }, [
+        el('kbd', {}, ['t']),
+        'transcript'
+      ])
+    );
+  }
+  
+  actionChildren.push(
     el('span', { class: 'vilify-action-hint' }, [
       el('kbd', {}, ['zo']),
       'desc'
-    ]),
-  ];
+    ])
+  );
   
   const actionsRow = el('div', { class: 'vilify-watch-actions' }, actionChildren);
   
