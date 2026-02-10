@@ -1,6 +1,6 @@
 # Iteration
 
-anchor: a89e5fc8579d9966d266d729980ce7a292ecbec6
+anchor: 33a66182bd8e1fc4abc852c5ccb51c5ad5cdb170
 started: 2026-02-10T13:59:37-05:00
 mode: data-definition-driven
 language: JavaScript
@@ -8,13 +8,19 @@ transparent: true
 
 ## Problem
 
-Vilify's manifest.json matches `*://www.google.com/*` which causes the extension to load on ALL google.com services (Maps, Docs, etc.). It should only activate on Google Search results pages (`/search`).
+Change two YouTube keyboard shortcuts:
+1. ArrowLeft (dismiss/remove from watch later) → `dd`
+2. ArrowRight (add to watch later) → `mw`
 
 ## Data Definition Plan
 
-No data definition changes needed. This is a configuration/URL-matching restriction:
-1. Narrow manifest.json match patterns to `/search*` paths only
-2. Add pathname guard in `getSiteConfig()` in content.js
-3. Update `matches` array in googleConfig
-4. Add tests for URL filtering
-5. Version bump
+No data definition changes. This is a keybinding remapping:
+1. Remove hardcoded ArrowLeft/ArrowRight handlers from `src/core/keyboard.js`
+2. Add `dd` and `mw` key sequences to `getYouTubeKeySequences()` in `src/sites/youtube/commands.js`
+3. Update display keys in `getYouTubeCommands()` from `←` to `D D`, add `M W` for watch later
+4. Version bump in manifest.json
+
+## Abbreviated Workflow
+
+Skipping Phase 1 (stubber) and Phase 3 (abstractor) — no type/data changes, no new functions.
+Dispatching implementer directly.

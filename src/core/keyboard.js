@@ -268,23 +268,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         return;
       }
       
-      // ArrowRight adds to Watch Later
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        if (callbacks.onAddToWatchLater) {
-          callbacks.onAddToWatchLater();
-        }
-        return;
-      }
-      
-      // ArrowLeft: on WL page removes from Watch Later, on other pages dismisses ("Not interested")
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        if (callbacks.onRemoveFromWatchLater) {
-          callbacks.onRemoveFromWatchLater();
-        }
-        return;
-      }
+
       
       // u undoes the last removal/dismissal
       if (event.key === 'u' && !filterActive && !searchActive) {
@@ -394,6 +378,16 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       dismissVideo: () => {
         if (callbacks.onDismissVideo) {
           callbacks.onDismissVideo();
+        }
+      },
+      addToWatchLater: () => {
+        if (callbacks.onAddToWatchLater) {
+          callbacks.onAddToWatchLater();
+        }
+      },
+      removeFromWatchLater: () => {
+        if (callbacks.onRemoveFromWatchLater) {
+          callbacks.onRemoveFromWatchLater();
         }
       },
       exitFocusMode: () => {

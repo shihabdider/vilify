@@ -327,7 +327,7 @@ export function getYouTubeCommands(app) {
       label: 'Not interested',
       icon: '🚫',
       action: () => app?.dismissVideo?.(),
-      keys: '←',
+      keys: 'D D',
     });
   }
   commands.push({
@@ -604,7 +604,11 @@ export function getYouTubeKeySequences(app) {
     'gg': () => app?.goToTop?.(),
   };
 
-  // Listing-page-only sequences (dismiss is now on ArrowLeft, handled in keyboard.js)
+  // Listing-page-only sequences
+  if (pageType !== 'watch') {
+    sequences['dd'] = () => app?.removeFromWatchLater?.();
+    sequences['mw'] = () => app?.addToWatchLater?.();
+  }
 
   // Video-specific sequences (watch page only)
   if (ctx) {
