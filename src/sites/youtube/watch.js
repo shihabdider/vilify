@@ -101,16 +101,16 @@ const WATCH_CSS = `
   .vilify-sub-status { color: var(--txt-3); flex: 0 0 auto; white-space: nowrap; margin-left: 4px; }
   .vilify-sub-status.not-subscribed { color: var(--accent); }
   
-  /* Action row with keyboard hints */
+  /* Action rows with keyboard hints — groups stack vertically */
   .vilify-watch-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
+    flex-direction: column;
+    gap: 6px;
     margin-top: 12px;
     font-size: 11px;
   }
 
-  /* Action group — clusters related hints */
+  /* Action group — clusters related hints on one line */
   .vilify-action-group {
     display: flex;
     gap: 10px;
