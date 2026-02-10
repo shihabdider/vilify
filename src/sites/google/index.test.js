@@ -93,6 +93,21 @@ describe('getGoogleSingleKeyActions (via googleConfig.getSingleKeyActions)', () 
   });
 });
 
+describe('googleConfig.matches', () => {
+  it('only contains search-specific patterns, not wildcard /*', () => {
+    for (const pattern of googleConfig.matches) {
+      expect(pattern).toMatch(/\/search\*/);
+      expect(pattern).not.toMatch(/\/\*$/);
+    }
+  });
+
+  it('has exactly two patterns (www and non-www)', () => {
+    expect(googleConfig.matches).toHaveLength(2);
+    expect(googleConfig.matches).toContain('*://www.google.com/search*');
+    expect(googleConfig.matches).toContain('*://google.com/search*');
+  });
+});
+
 describe('googleConfig search fields', () => {
   it('has searchUrl that returns correct Google search URL', () => {
     expect(googleConfig.searchUrl).toBeDefined();

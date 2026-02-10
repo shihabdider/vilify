@@ -221,7 +221,7 @@ const otherPageConfig = {
  */
 export const googleConfig = {
   name: 'google',
-  matches: ['*://www.google.com/*', '*://google.com/*'],
+  matches: ['*://www.google.com/search*', '*://google.com/search*'],
   theme: googleTheme,
   logo: null,
   searchUrl: (query) => '/search?q=' + encodeURIComponent(query),

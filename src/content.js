@@ -22,7 +22,7 @@ import { googleConfig } from './sites/google/index.js';
  * 
  * @returns {SiteConfig|null} Site config or null if unsupported site
  */
-function getSiteConfig() {
+export function getSiteConfig() {
   const hostname = location.hostname;
   
   if (hostname === 'www.youtube.com' || hostname === 'youtube.com') {
@@ -30,7 +30,10 @@ function getSiteConfig() {
   }
   
   if (hostname === 'www.google.com' || hostname === 'google.com') {
-    return googleConfig;
+    if (location.pathname.startsWith('/search')) {
+      return googleConfig;
+    }
+    return null;
   }
   
   return null;
