@@ -47,6 +47,28 @@ import { applyView, applyStatusBar, applyContent, applyDrawer, resetViewState } 
 
 const POLL_INTERVAL_MS = 200;
 
+/**
+ * Build the search navigation URL from config and query.
+ * Uses config.searchUrl if defined, otherwise falls back to YouTube-style URL.
+ * [PURE]
+ *
+ * @param {SiteConfig} config - Site configuration (may have searchUrl)
+ * @param {string} query - Search query (already trimmed)
+ * @returns {string} URL to navigate to
+ *
+ * @example
+ * buildSearchUrl({}, 'hello')
+ * // => '/results?search_query=hello'
+ *
+ * buildSearchUrl({ searchUrl: q => '/search?q=' + encodeURIComponent(q) }, 'hello')
+ * // => '/search?q=hello'
+ */
+export function buildSearchUrl(config, query) {
+  return config.searchUrl
+    ? config.searchUrl(query)
+    : '/results?search_query=' + encodeURIComponent(query);
+}
+
 // =============================================================================
 // CREATE APP
 // =============================================================================
@@ -392,7 +414,9 @@ export function createApp(config) {
 
   function handleSearchSubmit(value) {
     if (value.trim()) {
-      navigateTo('/results?search_query=' + encodeURIComponent(value.trim()));
+      const query = value.trim();
+      const url = buildSearchUrl(config, query);
+      navigateTo(url);
     }
   }
 
