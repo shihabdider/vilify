@@ -157,6 +157,12 @@ function getGoogleKeySequences(app) {
     '/': () => {
       app?.openLocalFilter?.();
     },
+    // Search: i opens search mode
+    'i': () => app?.openSearch?.(),
+    // Command palette
+    ':': () => app?.openPalette?.('command'),
+    // Go to top
+    'gg': () => app?.goToTop?.(),
   };
 }
 
@@ -172,6 +178,8 @@ function getGoogleSingleKeyActions(app) {
     'F': () => nextPage(),
     // Ctrl+B: previous page (back)
     'B': () => prevPage(),
+    // Shift+G: go to bottom
+    'G': () => app?.goToBottom?.(),
   };
 }
 
@@ -215,6 +223,8 @@ export const googleConfig = {
   matches: ['*://www.google.com/*', '*://google.com/*'],
   theme: googleTheme,
   logo: null,
+  searchUrl: (query) => '/search?q=' + encodeURIComponent(query),
+  searchPlaceholder: 'Search Google...',
 
   /**
    * Get current page type from URL.
