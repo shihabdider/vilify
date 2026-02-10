@@ -644,8 +644,11 @@ export function createApp(config) {
       if (success) {
         state = onWatchLaterAdd(state, videoId);
         showMessage('Added to Watch Later');
-        // Direct DOM update for watch page hint (same pattern as updateSubscribeButton)
+        console.log('[Vilify] WL add success, videoId:', videoId, 'watchLaterAdded:', [...state.ui.watchLaterAdded]);
+        render();
+        // Direct DOM update AFTER render (same pattern as updateSubscribeButton)
         const wlHint = document.getElementById('vilify-wl-action');
+        console.log('[Vilify] WL hint element after render:', wlHint, 'text:', wlHint?.textContent);
         if (wlHint) {
           wlHint.className = 'vilify-action-hint vilify-wl-added';
           wlHint.innerHTML = '';
@@ -653,8 +656,10 @@ export function createApp(config) {
           kbd.textContent = 'mw';
           wlHint.appendChild(kbd);
           wlHint.appendChild(document.createTextNode('added'));
+          console.log('[Vilify] WL hint updated to:', wlHint.textContent);
+        } else {
+          console.log('[Vilify] WL hint element NOT FOUND after render');
         }
-        render();
       } else {
         showMessage('Failed to add to Watch Later');
       }
