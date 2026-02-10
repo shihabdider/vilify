@@ -320,6 +320,15 @@ export function getYouTubeCommands(app) {
       action: () => app?.executeSort?.(null),
       keys: ':sort',
     });
+    // --- Dismiss ---
+    commands.push({ group: 'Dismiss' });
+    commands.push({
+      type: 'command',
+      label: 'Not interested',
+      icon: '🚫',
+      action: () => app?.dismissVideo?.(),
+      keys: 'D D',
+    });
   }
   commands.push({
     type: 'command',
@@ -595,6 +604,12 @@ export function getYouTubeKeySequences(app) {
     'gg': () => app?.goToTop?.(),
   };
 
+  // Listing-page-only sequences
+  if (pageType !== 'watch') {
+    // Dismiss video ("Not interested")
+    sequences['dd'] = () => app?.dismissVideo?.();
+  }
+
   // Video-specific sequences (watch page only)
   if (ctx) {
     // Channel navigation - go directly to videos page
@@ -815,6 +830,196 @@ export async function undoRemoveFromWatchLater(videoId, position) {
       resolve(false);
     }, 5000);
   });
+}
+
+// =============================================================================
+// DISMISS VIDEO ("Not interested")
+// =============================================================================
+
+/**
+ * Find the YouTube DOM element containing a specific video.
+ * Searches through various renderer types used by YouTube.
+ * [I/O - reads DOM]
+ *
+ * @param {string} videoId - Video ID to find
+ * @returns {HTMLElement|null} Container element or null
+ */
+function findVideoElement(videoId) {
+  const selectors = [
+    'ytd-rich-item-renderer',
+    'ytd-video-renderer',
+    'ytd-compact-video-renderer',
+    'ytd-grid-video-renderer',
+    'ytd-playlist-video-renderer',
+  ];
+  
+  for (const selector of selectors) {
+    for (const el of document.querySelectorAll(selector)) {
+      const link = el.querySelector(`a[href*="/watch?v=${videoId}"]`);
+      if (link) return el;
+    }
+  }
+
+  // New layout: yt-lockup-view-model (wrapped in ytd-rich-item-renderer or standalone)
+  for (const el of document.querySelectorAll('yt-lockup-view-model')) {
+    const link = el.querySelector(`a[href*="/watch?v=${videoId}"]`);
+    if (link) {
+      // Prefer the parent rich-item-renderer if it exists
+      return el.closest('ytd-rich-item-renderer') || el;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Find the three-dot menu button within a YouTube video element.
+ * [I/O - reads DOM]
+ *
+ * @param {HTMLElement} videoElement - Video container element
+ * @returns {HTMLElement|null} Menu button or null
+ */
+function findMenuButton(videoElement) {
+  const selectors = [
+    'button[aria-label="Action menu"]',
+    'ytd-menu-renderer button.yt-icon-button',
+    'ytd-menu-renderer #button',
+    '#menu button',
+    'yt-icon-button#button',
+    'button.yt-icon-button',
+  ];
+  
+  for (const selector of selectors) {
+    const btn = videoElement.querySelector(selector);
+    if (btn) return btn;
+  }
+  
+  return null;
+}
+
+/**
+ * Wait for a DOM element matching a selector to appear.
+ * [I/O]
+ *
+ * @param {string} selector - CSS selector
+ * @param {number} timeout - Max wait in ms
+ * @returns {Promise<HTMLElement|null>}
+ */
+function waitForElement(selector, timeout = 2000) {
+  return new Promise((resolve) => {
+    const el = document.querySelector(selector);
+    if (el) { resolve(el); return; }
+    
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(selector);
+      if (el) {
+        observer.disconnect();
+        resolve(el);
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    setTimeout(() => {
+      observer.disconnect();
+      resolve(null);
+    }, timeout);
+  });
+}
+
+/**
+ * Click "Not interested" inside an open YouTube dropdown.
+ * [I/O]
+ *
+ * @param {HTMLElement} dropdown - The tp-yt-iron-dropdown element
+ * @returns {boolean} True if found and clicked
+ */
+function clickNotInterested(dropdown) {
+  // Search for menu items containing "Not interested" text
+  const items = dropdown.querySelectorAll(
+    'yt-list-item-view-model, ytd-menu-service-item-renderer, tp-yt-paper-item'
+  );
+  for (const item of items) {
+    const text = item.textContent?.trim();
+    if (text?.includes('Not interested')) {
+      const button = item.querySelector('button') || item;
+      button.click();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Dismiss a video via YouTube's "Not interested" dropdown action.
+ * Temporarily makes hidden native elements visible for the interaction,
+ * then cleans up. Falls back to just tracking dismissal in state if
+ * the DOM interaction fails.
+ * [I/O]
+ *
+ * @param {string} videoId - Video ID to dismiss
+ * @returns {Promise<boolean>} True if YouTube's "Not interested" was triggered
+ *
+ * @example
+ * await dismissVideo('dQw4w9WgXcQ')  // => true if YouTube menu clicked
+ */
+export async function dismissVideo(videoId) {
+  console.log('[Vilify] dismissVideo called for:', videoId);
+  
+  const videoElement = findVideoElement(videoId);
+  if (!videoElement) {
+    console.log('[Vilify] Could not find video element for:', videoId);
+    return false;
+  }
+  
+  // Temporarily make the video element visible (focus mode hides ytd-app)
+  videoElement.style.setProperty('visibility', 'visible', 'important');
+  
+  const menuButton = findMenuButton(videoElement);
+  if (!menuButton) {
+    console.log('[Vilify] Could not find menu button for:', videoId);
+    videoElement.style.removeProperty('visibility');
+    return false;
+  }
+  
+  // Click the three-dot menu
+  menuButton.click();
+  
+  // Wait for dropdown to appear
+  const dropdown = await waitForElement(
+    'tp-yt-iron-dropdown:not([aria-hidden="true"]), ytd-popup-container tp-yt-iron-dropdown',
+    2000
+  );
+  
+  if (!dropdown) {
+    console.log('[Vilify] Dropdown did not appear for:', videoId);
+    videoElement.style.removeProperty('visibility');
+    return false;
+  }
+  
+  // Make dropdown visible too
+  dropdown.style.setProperty('visibility', 'visible', 'important');
+  
+  // Small delay for dropdown content to render
+  await new Promise(r => setTimeout(r, 200));
+  
+  const clicked = clickNotInterested(dropdown);
+  console.log('[Vilify] Not interested clicked:', clicked);
+  
+  // Clean up visibility overrides
+  videoElement.style.removeProperty('visibility');
+  dropdown.style.removeProperty('visibility');
+  
+  // Close any lingering dropdown after a short delay
+  setTimeout(() => {
+    const openDropdown = document.querySelector('tp-yt-iron-dropdown:not([aria-hidden="true"])');
+    if (openDropdown) {
+      // Try to close it gracefully
+      openDropdown.setAttribute('aria-hidden', 'true');
+      openDropdown.style.display = 'none';
+    }
+  }, 300);
+  
+  return clicked;
 }
 
 // =============================================================================

@@ -391,6 +391,11 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         // Open drawer
         setState(updateUI({ drawer: 'transcript' }));
       },
+      dismissVideo: () => {
+        if (callbacks.onDismissVideo) {
+          callbacks.onDismissVideo();
+        }
+      },
       exitFocusMode: () => {
         const currentState = getState();
         setState({ ...currentState, core: { ...currentState.core, focusModeActive: false } });

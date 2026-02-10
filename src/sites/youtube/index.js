@@ -3,7 +3,7 @@
 
 import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
-import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater } from './commands.js';
+import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers, setRecommendedItems } from './drawers/index.js';
@@ -393,6 +393,13 @@ export const youtubeConfig = {
    * @returns {Promise<boolean>} True if added back successfully
    */
   undoRemoveFromWatchLater,
+
+  /**
+   * Dismiss a video via YouTube's "Not interested" dropdown action.
+   * @param {string} videoId - Video ID to dismiss
+   * @returns {Promise<boolean>} True if YouTube's native action was triggered
+   */
+  dismissVideo,
 
   /**
    * Get drawer handler for site-specific drawers.

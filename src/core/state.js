@@ -29,7 +29,8 @@ function createUIState() {
     boundaryFlash: null,    // BoundaryFlash | null
     watchLaterAdded: new Set(),  // Set<string> - video IDs added to Watch Later this session
     watchLaterRemoved: new Map(), // Map<videoId, { setVideoId, position }> - removed videos for undo
-    lastWatchLaterRemoval: null   // { videoId, setVideoId, position } - most recent removal for undo
+    lastWatchLaterRemoval: null,  // { videoId, setVideoId, position } - most recent removal for undo
+    dismissedVideos: new Set()    // Set<string> - video IDs dismissed via "Not interested"
   };
 }
 
@@ -156,6 +157,15 @@ export function getVisibleItems(state, items) {
   const { filterActive, filterQuery, sort } = state.ui;
   
   let result = items;
+  
+  // Filter out dismissed videos
+  const { dismissedVideos } = state.ui;
+  if (dismissedVideos && dismissedVideos.size > 0) {
+    result = result.filter(item => {
+      const videoId = item.id || item.data?.videoId;
+      return !videoId || !dismissedVideos.has(videoId);
+    });
+  }
   
   // Apply filter if active
   if (filterActive && filterQuery) {
@@ -539,6 +549,25 @@ export function onWatchLaterUndoRemove(state, videoId) {
       lastWatchLaterRemoval: null
     } 
   };
+}
+
+/**
+ * Mark a video as dismissed ("Not interested").
+ * Dismissed videos are filtered out of visible items.
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} videoId - Video ID to dismiss
+ * @returns {AppState} New state with videoId in dismissedVideos set
+ *
+ * @example
+ * onDismissVideo(state, 'abc123')
+ *   => { ui: { dismissedVideos: Set(['abc123']) } }
+ */
+export function onDismissVideo(state, videoId) {
+  const newSet = new Set(state.ui.dismissedVideos);
+  newSet.add(videoId);
+  return { ...state, ui: { ...state.ui, dismissedVideos: newSet } };
 }
 
 /**

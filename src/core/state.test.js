@@ -18,6 +18,7 @@ import {
   onWatchLaterAdd,
   onWatchLaterRemove,
   onWatchLaterUndoRemove,
+  onDismissVideo,
   onClearFlash,
   onSearchToggle,
   onSearchChange,
@@ -837,5 +838,99 @@ describe('onWatchLaterUndoRemove', () => {
     
     expect(state.ui.watchLaterRemoved).toBe(originalRemoved);
     expect(state.ui.watchLaterRemoved.has('video1')).toBe(true);
+  });
+});
+
+// =============================================================================
+// DISMISS VIDEO ("Not interested")
+// =============================================================================
+
+describe('onDismissVideo', () => {
+  it('adds video ID to dismissedVideos set', () => {
+    const state = createAppState();
+    expect(state.ui.dismissedVideos.size).toBe(0);
+    
+    const result = onDismissVideo(state, 'abc123');
+    
+    expect(result.ui.dismissedVideos.has('abc123')).toBe(true);
+    expect(result.ui.dismissedVideos.size).toBe(1);
+  });
+  
+  it('preserves existing dismissed IDs when adding new one', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, 'video1');
+    state = onDismissVideo(state, 'video2');
+    
+    expect(state.ui.dismissedVideos.has('video1')).toBe(true);
+    expect(state.ui.dismissedVideos.has('video2')).toBe(true);
+    expect(state.ui.dismissedVideos.size).toBe(2);
+  });
+  
+  it('does not duplicate existing IDs', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, 'abc123');
+    state = onDismissVideo(state, 'abc123');
+    
+    expect(state.ui.dismissedVideos.size).toBe(1);
+  });
+  
+  it('does not mutate original state', () => {
+    const state = createAppState();
+    const originalSet = state.ui.dismissedVideos;
+    
+    onDismissVideo(state, 'abc123');
+    
+    expect(state.ui.dismissedVideos).toBe(originalSet);
+    expect(state.ui.dismissedVideos.has('abc123')).toBe(false);
+  });
+});
+
+describe('getVisibleItems - dismissed filtering', () => {
+  const items = [
+    { id: '1', title: 'Video 1', meta: 'Channel A', data: { videoId: '1' } },
+    { id: '2', title: 'Video 2', meta: 'Channel B', data: { videoId: '2' } },
+    { id: '3', title: 'Video 3', meta: 'Channel C', data: { videoId: '3' } },
+  ];
+
+  it('filters out dismissed videos', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, '2');
+    
+    const result = getVisibleItems(state, items);
+    
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe('1');
+    expect(result[1].id).toBe('3');
+  });
+  
+  it('filters multiple dismissed videos', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, '1');
+    state = onDismissVideo(state, '3');
+    
+    const result = getVisibleItems(state, items);
+    
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('2');
+  });
+  
+  it('combines dismissed filter with text filter', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, '1');
+    state.ui.filterActive = true;
+    state.ui.filterQuery = 'Channel';
+    
+    const result = getVisibleItems(state, items);
+    
+    expect(result).toHaveLength(2);
+    expect(result.find(i => i.id === '1')).toBeUndefined();
+  });
+  
+  it('returns all items when no dismissed videos', () => {
+    const state = createAppState();
+    
+    const result = getVisibleItems(state, items);
+    
+    expect(result).toHaveLength(3);
   });
 });

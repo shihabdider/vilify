@@ -24,7 +24,8 @@ import {
   onSelect,
   onWatchLaterAdd,
   onWatchLaterRemove,
-  onWatchLaterUndoRemove
+  onWatchLaterUndoRemove,
+  onDismissVideo
 } from './state.js';
 import { el, clear, updateListSelection, showMessage, flashBoundary, navigateList, isInputElement } from './view.js';
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
@@ -705,6 +706,52 @@ export function createApp(config) {
     }
   }
 
+  /**
+   * Handle dismissing selected video ("Not interested").
+   * Triggers YouTube's native "Not interested" via DOM, then hides from list.
+   * [I/O]
+   */
+  async function handleDismissVideo() {
+    const items = getPageItems(state);
+    const filtered = getVisibleItems(state, items);
+    const item = filtered[state.ui.selectedIdx];
+
+    if (!item?.data?.videoId) {
+      showMessage('No video selected');
+      return;
+    }
+
+    const videoId = item.data.videoId;
+
+    // Check if already dismissed this session
+    if (state.ui.dismissedVideos.has(videoId)) {
+      showMessage('Already dismissed');
+      return;
+    }
+
+    // Try to trigger YouTube's native "Not interested" via DOM
+    let ytDismissed = false;
+    if (config.dismissVideo) {
+      ytDismissed = await config.dismissVideo(videoId);
+    }
+
+    // Always track dismissal in our state (hides from list)
+    state = onDismissVideo(state, videoId);
+
+    // Clamp selectedIdx if we're now past the end of the list
+    const newFiltered = getVisibleItems(state, items);
+    if (state.ui.selectedIdx >= newFiltered.length && newFiltered.length > 0) {
+      state = { ...state, ui: { ...state.ui, selectedIdx: newFiltered.length - 1 } };
+    }
+
+    if (ytDismissed) {
+      showMessage('Not interested — dismissed');
+    } else {
+      showMessage('Dismissed from list');
+    }
+    render();
+  }
+
   function handleSiteDrawerKey(key) {
     if (!state.ui.drawer) return false;
     if (state.ui.drawer === 'palette') return false;
@@ -941,6 +988,7 @@ export function createApp(config) {
         onAddToWatchLater: handleAddToWatchLater,
         onRemoveFromWatchLater: handleRemoveFromWatchLater,
         onUndoWatchLaterRemoval: handleUndoWatchLaterRemoval,
+        onDismissVideo: handleDismissVideo,
       }, () => siteState);
 
       // Set up SPA navigation observer
