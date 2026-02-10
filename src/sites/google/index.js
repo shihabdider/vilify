@@ -6,6 +6,7 @@ import { renderGoogleItem, injectGoogleItemStyles } from './items.js';
 import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout.js';
 import { sortItems, getSortLabel } from '../../core/sort.js';
 import { showMessage } from '../../core/view.js';
+import { getCachedPage, setCachedPage } from './page-cache.js';
 
 // =============================================================================
 // THEME
@@ -82,7 +83,7 @@ function renderGoogleListing(state, siteState, container) {
   // Inject Google-specific item styles
   injectGoogleItemStyles();
   
-  let items = scrapeSearchResults();
+  let items = state.page?.videos || [];
   
   const { filterActive, filterQuery, sort, selectedIdx } = state.ui;
   
@@ -225,6 +226,9 @@ export const googleConfig = {
   logo: null,
   searchUrl: (query) => '/search?q=' + encodeURIComponent(query),
   searchPlaceholder: 'Search Google...',
+
+  getPageCache: (url) => getCachedPage(url),
+  setPageCache: (url, items) => setCachedPage(url, items),
 
   /**
    * Get current page type from URL.

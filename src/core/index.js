@@ -869,7 +869,6 @@ export function createApp(config) {
       oldPageConfig.onLeave();
     }
     
-    showLoadingScreen(config);
     stopContentPolling();
 
     state = onUrlChange(state, newUrl, config);
@@ -884,42 +883,82 @@ export function createApp(config) {
 
     document.body.classList.remove('vilify-watch-page');
 
-    waitForContent(config).then(async () => {
-      // Populate state.page with initial data (HtDP: state drives view)
-      if (config.createPageState) {
-        const pageState = config.createPageState();
-        state = onPageUpdate(state, pageState);
-      }
-      
+    // Check cache for instant render
+    const cachedItems = config.getPageCache?.(newUrl) || [];
+    if (cachedItems.length > 0) {
+      // Cache hit: render immediately from cache, no loading screen
+      state = onPageUpdate(state, { type: 'list', videos: cachedItems });
       render();
-      hideLoadingScreen();
-      
-      // Get new page type and call onEnter
-      const newPageType = config.getPageType ? config.getPageType() : 'other';
-      const newPageConfig = getPageConfig(newPageType);
-      
-      if (newPageConfig?.onEnter) {
-        // Pass context with state management functions
-        const ctx = {
-          getSiteState: () => siteState,
-          updateSiteState: (fn) => {
-            siteState = fn(siteState);
-            state = { ...state, site: siteState };
-          },
-          render
-        };
-        await newPageConfig.onEnter(ctx);
-      }
-      
-      // Legacy support for onContentReady
-      if (config.onContentReady) {
-        config.onContentReady();
-      }
-      
-      if (newPageType !== 'watch') {
-        startContentPolling();
-      }
-    });
+
+      // Background refresh from DOM
+      waitForContent(config).then(async () => {
+        if (config.createPageState) {
+          const pageState = config.createPageState();
+          state = onPageUpdate(state, pageState);
+          config.setPageCache?.(newUrl, pageState.videos || []);
+        }
+        render();
+
+        const newPageType = config.getPageType ? config.getPageType() : 'other';
+        if (newPageType !== 'watch') {
+          startContentPolling();
+        }
+
+        const newPageConfig = getPageConfig(newPageType);
+        if (newPageConfig?.onEnter) {
+          const ctx = {
+            getSiteState: () => siteState,
+            updateSiteState: (fn) => {
+              siteState = fn(siteState);
+              state = { ...state, site: siteState };
+            },
+            render
+          };
+          await newPageConfig.onEnter(ctx);
+        }
+
+        if (config.onContentReady) {
+          config.onContentReady();
+        }
+      });
+    } else {
+      // Cache miss: show loading screen, wait for content
+      showLoadingScreen(config);
+
+      waitForContent(config).then(async () => {
+        if (config.createPageState) {
+          const pageState = config.createPageState();
+          state = onPageUpdate(state, pageState);
+          config.setPageCache?.(newUrl, pageState.videos || []);
+        }
+        
+        render();
+        hideLoadingScreen();
+        
+        const newPageType = config.getPageType ? config.getPageType() : 'other';
+        const newPageConfig = getPageConfig(newPageType);
+        
+        if (newPageConfig?.onEnter) {
+          const ctx = {
+            getSiteState: () => siteState,
+            updateSiteState: (fn) => {
+              siteState = fn(siteState);
+              state = { ...state, site: siteState };
+            },
+            render
+          };
+          await newPageConfig.onEnter(ctx);
+        }
+        
+        if (config.onContentReady) {
+          config.onContentReady();
+        }
+        
+        if (newPageType !== 'watch') {
+          startContentPolling();
+        }
+      });
+    }
   }
 
   function handleNextCommentPage() {
@@ -1001,24 +1040,12 @@ export function createApp(config) {
       injectPaletteStyles();
       injectDrawerStyles();
 
-      // Show loading screen
-      showLoadingScreen(config);
-
-      // Wait for content
-      await waitForContent(config);
-
-      // Create initial state
+      // Create initial state (doesn't need DOM)
       state = createAppState(config);
       state.core.focusModeActive = true;
       state.core.lastUrl = location.href;
 
       siteState = state.site;
-      
-      // Populate state.page with initial data (HtDP: state drives view)
-      if (config.createPageState) {
-        const pageState = config.createPageState();
-        state = onPageUpdate(state, pageState);
-      }
 
       // Apply site theme
       if (config.theme) {
@@ -1062,36 +1089,87 @@ export function createApp(config) {
       // Add focus mode class
       document.body.classList.add('vilify-focus-mode');
 
-      // Initial render
-      render();
+      // Check cache for instant render
+      const cachedItems = config.getPageCache?.(location.href) || [];
+      if (cachedItems.length > 0) {
+        // Cache hit: render immediately from cache, no loading screen
+        state = onPageUpdate(state, { type: 'list', videos: cachedItems });
+        render();
 
-      // Hide loading screen
-      hideLoadingScreen();
+        // Background refresh from DOM
+        waitForContent(config).then(async () => {
+          if (config.createPageState) {
+            const pageState = config.createPageState();
+            state = onPageUpdate(state, pageState);
+            config.setPageCache?.(location.href, pageState.videos || []);
+          }
+          render();
 
-      // Start content polling for listing pages
-      const pageType = config.getPageType ? config.getPageType() : 'other';
-      if (pageType !== 'watch') {
-        startContentPolling();
-      }
+          const pageType = config.getPageType ? config.getPageType() : 'other';
+          if (pageType !== 'watch') {
+            startContentPolling();
+          }
 
-      // Call page-specific onEnter hook
-      const pageConfig = getPageConfig(pageType);
-      if (pageConfig?.onEnter) {
-        // Pass context with state management functions
-        const ctx = {
-          getSiteState: () => siteState,
-          updateSiteState: (fn) => {
-            siteState = fn(siteState);
-            state = { ...state, site: siteState };
-          },
-          render
-        };
-        await pageConfig.onEnter(ctx);
-      }
+          const pageConfig = getPageConfig(pageType);
+          if (pageConfig?.onEnter) {
+            const ctx = {
+              getSiteState: () => siteState,
+              updateSiteState: (fn) => {
+                siteState = fn(siteState);
+                state = { ...state, site: siteState };
+              },
+              render
+            };
+            await pageConfig.onEnter(ctx);
+          }
 
-      // Legacy: Call site's onContentReady hook
-      if (config.onContentReady) {
-        config.onContentReady();
+          if (config.onContentReady) {
+            config.onContentReady();
+          }
+        });
+      } else {
+        // Cache miss: show loading screen, wait for content
+        showLoadingScreen(config);
+
+        await waitForContent(config);
+
+        // Populate state.page with initial data (HtDP: state drives view)
+        if (config.createPageState) {
+          const pageState = config.createPageState();
+          state = onPageUpdate(state, pageState);
+          config.setPageCache?.(location.href, pageState.videos || []);
+        }
+
+        // Initial render
+        render();
+
+        // Hide loading screen
+        hideLoadingScreen();
+
+        // Start content polling for listing pages
+        const pageType = config.getPageType ? config.getPageType() : 'other';
+        if (pageType !== 'watch') {
+          startContentPolling();
+        }
+
+        // Call page-specific onEnter hook
+        const pageConfig = getPageConfig(pageType);
+        if (pageConfig?.onEnter) {
+          const ctx = {
+            getSiteState: () => siteState,
+            updateSiteState: (fn) => {
+              siteState = fn(siteState);
+              state = { ...state, site: siteState };
+            },
+            render
+          };
+          await pageConfig.onEnter(ctx);
+        }
+
+        // Legacy: Call site's onContentReady hook
+        if (config.onContentReady) {
+          config.onContentReady();
+        }
       }
     },
 
