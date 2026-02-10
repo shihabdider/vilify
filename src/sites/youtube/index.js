@@ -159,7 +159,8 @@ function renderWatchWithRetry(state, siteState, container, retryCount = 0) {
   clearWatchRetry();
   
   // Render the watch page (will show "Untitled"/"Unknown" if still no data after retries)
-  renderWatchPage(ctx, siteState, container);
+  const watchLaterAdded = state?.ui?.watchLaterAdded || null;
+  renderWatchPage(ctx, siteState, container, watchLaterAdded);
 }
 
 // =============================================================================

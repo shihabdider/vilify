@@ -1,21 +1,18 @@
 # Wishes
 
-## Layer 0 (leaves — no dependencies)
+## Layer 0 (leaves)
 
-1. **`getYouTubeKeySequences` in `src/sites/youtube/commands.js`**
-   Purpose: Add `mw` key sequence for watch pages (currently gated behind `pageType !== 'watch'`). On watch page, `mw` should call `app?.addToWatchLater?.()`.
+1. **`handleKeyEvent` in `src/core/keyboard.js`** — Add prefix disambiguation: return `pendingAction` when exact match + longer prefix exists
+2. **`handleKeyEvent` tests in `src/core/keyboard.test.js`** — New file with tests for pendingAction behavior
 
-2. **`getYouTubeCommands` in `src/sites/youtube/commands.js`**
-   Purpose: Add 'Add to Watch Later' command entry in the watch page section with keys 'M W'.
+## Layer 1 (depends on Layer 0)
 
-3. **`handleAddToWatchLater` in `src/core/index.js`**
-   Purpose: When no selected list item has a videoId (watch page), fall back to extracting videoId from `location.href` using URL pattern `/watch?v=ID`.
-
-4. **`renderVideoInfoBox` in `src/sites/youtube/watch.js`**
-   Purpose: Add 'mw' key hint to the actions row (alongside M/zo/f/t hints).
-
-5. **Tests in `src/sites/youtube/commands.test.js`**
-   Purpose: Update test "does not have mw on watch page" → expect mw IS present on watch page. Add test that mw calls addToWatchLater on watch page.
-
-6. **Version bump: `manifest.json` and `package.json`**
-   Purpose: Increment version to 0.5.72 / 0.5.70.
+3. **`setupKeyboardHandler` in `src/core/keyboard.js`** — Handle `pendingAction`: store it, fire on timeout or when sequence breaks; update subscribe kbd from 'M' to 'ms'
+4. **`getYouTubeKeySequences` in `src/sites/youtube/commands.js`** — Add `ms` → subscribe sequence on watch page
+5. **`getYouTubeSingleKeyActions` in `src/sites/youtube/commands.js`** — Remove `M` for subscribe
+6. **`getYouTubeCommands` in `src/sites/youtube/commands.js`** — Update subscribe display key from `⇧M` to `M S`
+7. **`renderVideoInfoBox` in `src/sites/youtube/watch.js`** — Subscribe hint `M` → `ms`; add `watchLaterAdded` param; show "added" + dim class
+8. **`renderWatchPage` / render chain** — Thread `watchLaterAdded` from app state to renderVideoInfoBox
+9. **`updateSubscribeButton` in `src/sites/youtube/watch.js`** — kbd 'M' → 'ms'
+10. **Tests in `src/sites/youtube/commands.test.js`** — Add ms sequence tests
+11. **Version bump** — 0.5.72 → 0.5.73 (manifest), 0.5.70 → 0.5.71 (package)

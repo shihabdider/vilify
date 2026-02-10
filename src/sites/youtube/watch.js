@@ -121,6 +121,9 @@ const WATCH_CSS = `
     margin-right: 4px;
     color: var(--txt-3);
   }
+  .vilify-action-hint.vilify-wl-added {
+    opacity: 0.4;
+  }
   
   /* Comments list - NO scrolling, pagination handles overflow */
   .vilify-comments-list { 
@@ -196,7 +199,7 @@ export function injectWatchStyles() {
  * renderWatchPage(videoContext, youtubeState, container)
  * // Renders video info box and comments box
  */
-export function renderWatchPage(ctx, state, container) {
+export function renderWatchPage(ctx, state, container, watchLaterAdded = null) {
   // Template: Compound - access ctx fields, I/O for DOM
   // Inventory: ctx (VideoContext|null), state (YouTubeState), container (HTMLElement)
   
@@ -217,7 +220,7 @@ export function renderWatchPage(ctx, state, container) {
   }
   
   // Render video info section
-  const infoBox = renderVideoInfoBox(ctx, state);
+  const infoBox = renderVideoInfoBox(ctx, state, watchLaterAdded);
   container.appendChild(infoBox);
   
   // Trigger comment loading (YouTube lazy loads comments)
@@ -251,7 +254,7 @@ export function renderWatchPage(ctx, state, container) {
  * @param {YouTubeState} siteState - YouTube-specific state (optional)
  * @returns {HTMLElement} Video info box
  */
-function renderVideoInfoBox(ctx, siteState = null) {
+function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
   // Template: Compound - access all fields from ctx
   // Inventory: ctx.title, ctx.channelName, ctx.isSubscribed, ctx.uploadDate
   
@@ -280,16 +283,20 @@ function renderVideoInfoBox(ctx, siteState = null) {
   const subText = ctx.isSubscribed ? 'unsub' : 'sub';
   actionChildren.push(
     el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
-      el('kbd', {}, ['M']),
+      el('kbd', {}, ['ms']),
       subText
     ])
   );
   
-  // Watch Later action (always shown)
+  // Watch Later action
+  const videoId = ctx.videoId;
+  const isInWatchLater = videoId && watchLaterAdded?.has(videoId);
+  const wlClass = isInWatchLater ? 'vilify-action-hint vilify-wl-added' : 'vilify-action-hint';
+  const wlText = isInWatchLater ? 'added' : 'watch later';
   actionChildren.push(
-    el('span', { class: 'vilify-action-hint' }, [
+    el('span', { class: wlClass, id: 'vilify-wl-action' }, [
       el('kbd', {}, ['mw']),
-      'watch later'
+      wlText
     ])
   );
 
@@ -858,7 +865,7 @@ export function updateSubscribeButton(isSubscribed) {
   if (actionEl) {
     // Update text (preserve kbd)
     actionEl.innerHTML = '';
-    actionEl.appendChild(el('kbd', {}, ['M']));
+    actionEl.appendChild(el('kbd', {}, ['ms']));
     actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
   }
 }

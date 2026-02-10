@@ -51,7 +51,7 @@ export function handleKeyEvent(event, keySeq, sequences, timeout) {
   // Ignore modifier keys (they don't contribute to sequences)
   const modifierKeys = ['Shift', 'Control', 'Alt', 'Meta'];
   if (modifierKeys.includes(event.key)) {
-    return { action: null, newSeq: keySeq, shouldPrevent: false };
+    return { action: null, pendingAction: null, newSeq: keySeq, shouldPrevent: false };
   }
 
   // Build key from event.key (lowercase if single char)
@@ -60,19 +60,28 @@ export function handleKeyEvent(event, keySeq, sequences, timeout) {
   // Append to current sequence
   const newSeq = keySeq + key;
 
-  // Check if newSeq matches any sequence exactly
-  if (sequences[newSeq]) {
-    return { action: sequences[newSeq], newSeq: '', shouldPrevent: true };
+  const exactMatch = sequences[newSeq] || null;
+  const hasLongerMatch = Object.keys(sequences).some(
+    seq => seq.length > newSeq.length && seq.startsWith(newSeq)
+  );
+
+  // Unambiguous exact match — fire immediately
+  if (exactMatch && !hasLongerMatch) {
+    return { action: exactMatch, pendingAction: null, newSeq: '', shouldPrevent: true };
   }
 
-  // Check if partial match exists (some sequence starts with newSeq)
-  const hasPrefix = Object.keys(sequences).some(seq => seq.startsWith(newSeq));
-  if (hasPrefix) {
-    return { action: null, newSeq, shouldPrevent: false };
+  // Ambiguous: exact match AND longer prefix exists — defer to timeout
+  if (exactMatch && hasLongerMatch) {
+    return { action: null, pendingAction: exactMatch, newSeq, shouldPrevent: true };
   }
 
-  // No match possible - reset sequence
-  return { action: null, newSeq: '', shouldPrevent: false };
+  // No exact match but prefix exists — keep building
+  if (hasLongerMatch) {
+    return { action: null, pendingAction: null, newSeq, shouldPrevent: false };
+  }
+
+  // No match at all — reset
+  return { action: null, pendingAction: null, newSeq: '', shouldPrevent: false };
 }
 
 /**
@@ -97,6 +106,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
   // Keyboard state (mutable, managed locally)
   let keySeq = '';
   let keyTimer = null;
+  let pendingAction = null;
   
   const KEY_SEQ_TIMEOUT_MS = 500;
 
@@ -412,7 +422,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         const actionEl = document.getElementById('vilify-sub-action');
         if (actionEl) {
           const kbd = document.createElement('kbd');
-          kbd.textContent = 'M';
+          kbd.textContent = 'ms';
           actionEl.innerHTML = '';
           actionEl.appendChild(kbd);
           actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
@@ -483,15 +493,33 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       event.preventDefault();
     }
 
-    // Execute action if matched
+    // Unambiguous match — execute immediately
     if (result.action) {
+      pendingAction = null;
       result.action();
       return;
     }
 
-    // Set timeout to clear sequence if no match and sequence is building
+    // Ambiguous match — store pending action for timeout
+    if (result.pendingAction) {
+      pendingAction = result.pendingAction;
+    }
+
+    // Sequence broke (reset to '') with no new action — fire stored pending
+    if (result.newSeq === '' && pendingAction) {
+      const fn = pendingAction;
+      pendingAction = null;
+      fn();
+      return;
+    }
+
+    // Set timeout to fire pending action or clear sequence
     if (keySeq) {
       keyTimer = setTimeout(() => {
+        if (pendingAction) {
+          pendingAction();
+          pendingAction = null;
+        }
         keySeq = '';
         keyTimer = null;
       }, KEY_SEQ_TIMEOUT_MS);
@@ -508,5 +536,6 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       clearTimeout(keyTimer);
       keyTimer = null;
     }
+    pendingAction = null;
   };
 }

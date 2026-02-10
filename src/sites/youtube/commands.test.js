@@ -5,8 +5,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('./player.js', () => ({
   toggleMute: vi.fn(),
   toggleCaptions: vi.fn(),
+  togglePlayPause: vi.fn(),
+  toggleFullscreen: vi.fn(),
+  toggleTheaterMode: vi.fn(),
   seekRelative: vi.fn(),
+  seekToChapter: vi.fn(),
+  seekToPercent: vi.fn(),
   setPlaybackRate: vi.fn(),
+  getVideo: vi.fn(),
+  applyDefaultVideoSettings: vi.fn(),
+  playerControls: {},
 }));
 
 vi.mock('./scraper.js', () => ({
@@ -23,8 +31,9 @@ vi.mock('../../core/view.js', () => ({
   showMessage: vi.fn(),
 }));
 
-import { getYouTubeKeySequences, getYouTubeCommands } from './commands.js';
+import { getYouTubeKeySequences, getYouTubeCommands, getYouTubeSingleKeyActions } from './commands.js';
 import { getYouTubePageType } from './scraper.js';
+import { getDataProvider } from './data/index.js';
 
 describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
   let app;
@@ -113,6 +122,32 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
     const sequences = getYouTubeKeySequences(null);
     expect(() => sequences['mw']()).not.toThrow();
   });
+
+  it('has ms sequence on watch page with video context', () => {
+    getYouTubePageType.mockReturnValue('watch');
+    getDataProvider.mockReturnValue({
+      getVideoContext: () => ({ videoId: 'abc', channelUrl: '/c/test', channelName: 'Test', isSubscribed: false }),
+    });
+    const sequences = getYouTubeKeySequences(app);
+    expect(sequences).toHaveProperty('ms');
+    // Restore default mock
+    getDataProvider.mockReturnValue({
+      getVideoContext: () => null,
+    });
+  });
+
+  it('does not have M single-key action on watch page', () => {
+    getYouTubePageType.mockReturnValue('watch');
+    getDataProvider.mockReturnValue({
+      getVideoContext: () => ({ videoId: 'abc', channelUrl: '/c/test', channelName: 'Test', isSubscribed: false }),
+    });
+    const actions = getYouTubeSingleKeyActions(app);
+    expect(actions).not.toHaveProperty('M');
+    // Restore default mock
+    getDataProvider.mockReturnValue({
+      getVideoContext: () => null,
+    });
+  });
 });
 
 describe('getYouTubeCommands - Not interested display key', () => {
@@ -133,5 +168,20 @@ describe('getYouTubeCommands - Not interested display key', () => {
     const notInterested = commands.find(c => c.label === 'Not interested');
     expect(notInterested).toBeDefined();
     expect(notInterested.keys).toBe('D D');
+  });
+
+  it('shows M S as key for Subscribe on watch page', () => {
+    getYouTubePageType.mockReturnValue('watch');
+    getDataProvider.mockReturnValue({
+      getVideoContext: () => ({ videoId: 'abc', channelUrl: '/c/test', channelName: 'Test', isSubscribed: false }),
+    });
+    const commands = getYouTubeCommands(app);
+    const sub = commands.find(c => c.label === 'Subscribe');
+    expect(sub).toBeDefined();
+    expect(sub.keys).toBe('M S');
+    // Restore default mock
+    getDataProvider.mockReturnValue({
+      getVideoContext: () => null,
+    });
   });
 });

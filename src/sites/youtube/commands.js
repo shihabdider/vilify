@@ -554,7 +554,7 @@ export function getYouTubeCommands(app) {
         label: ctx.isSubscribed ? 'Unsubscribe' : 'Subscribe',
         icon: ctx.isSubscribed ? '✓' : '⊕',
         action: () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app)),
-        keys: '⇧M',
+        keys: 'M S',
       });
       commands.push({
         type: 'command',
@@ -645,6 +645,9 @@ export function getYouTubeKeySequences(app) {
     // Chapter drawer
     sequences['f'] = () => app?.openDrawer?.('chapters');
 
+    // Subscribe/unsubscribe
+    sequences['ms'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
+
     // Player controls (single keys on watch page)
     sequences['m'] = player.toggleMute;
     sequences['c'] = player.toggleCaptions;
@@ -674,8 +677,7 @@ export function getYouTubeSingleKeyActions(app) {
   if (ctx) {
     // Shift+Y = copy URL at time
     actions['Y'] = () => copyVideoUrlAtTime(ctx);
-    // Shift+M = toggle subscribe
-    actions['M'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
+
   }
 
   return actions;
