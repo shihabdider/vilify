@@ -40,6 +40,7 @@ import { copyToClipboard, navigateTo, openInNewTab } from './actions.js';
 import { injectDrawerStyles, renderDrawer, handleDrawerKey, closeDrawer } from './drawer.js';
 import { toView, toStatusBarView, toContentView, toDrawerView, getPageItems } from './view-tree.js';
 import { applyView, applyStatusBar, applyContent, applyDrawer, resetViewState } from './apply-view.js';
+import { pollPageContent } from './poll-content.js';
 
 // =============================================================================
 // CONSTANTS
@@ -946,6 +947,7 @@ export function createApp(config) {
   async function waitForContent(cfg, timeout = 5000) {
     const start = Date.now();
     
+    // YouTube data bridge special case (unchanged)
     if (cfg.name === 'youtube') {
       try {
         const { getDataProvider } = await import('../sites/youtube/data/index.js');
@@ -958,6 +960,11 @@ export function createApp(config) {
       }
     }
     
+    // Use page config's waitForContent predicate when available
+    const handled = await pollPageContent(cfg, timeout);
+    if (handled) return;
+    
+    // Legacy YouTube-specific DOM selector fallback
     const pageType = cfg.getPageType ? cfg.getPageType() : 'other';
     if (pageType === 'watch') {
       while (!document.querySelector('video.html5-main-video') && Date.now() - start < timeout) {

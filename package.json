@@ -1,6 +1,6 @@
 {
   "name": "vilify",
-  "version": "0.5.66",
+  "version": "0.5.67",
   "description": "Vim-style focus mode for websites",
   "scripts": {
     "build": "node build.js",
