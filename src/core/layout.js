@@ -502,7 +502,7 @@ function createStatusBar(state) {
  * @param {boolean} focusInput - Whether to focus the input
  * @param {string|null} drawerPlaceholder - Placeholder for site-specific drawers
  */
-export function updateStatusBar(state, focusInput = false, drawerPlaceholder = null) {
+export function updateStatusBar(state, focusInput = false, drawerPlaceholder = null, searchPlaceholder = null) {
   const mode = getMode(state);
   
   // Update mode badge
@@ -531,7 +531,7 @@ export function updateStatusBar(state, focusInput = false, drawerPlaceholder = n
       if (focusInput) input.focus();
     } else if (mode === 'SEARCH') {
       input.classList.add('visible');
-      input.placeholder = 'Search YouTube...';
+      input.placeholder = searchPlaceholder || 'Search...';
       input.value = searchQuery;
       if (focusInput) input.focus();
     } else if (mode === 'COMMAND') {

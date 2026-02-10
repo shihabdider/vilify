@@ -6,7 +6,7 @@ commit and push after each change.
 
 ```bash
 bun run build    # esbuild bundler
-bun test         # vitest run
+bun run test     # vitest run (NOT `bun test` — that uses bun's native runner)
 ```
 
 htdp.transparent: true

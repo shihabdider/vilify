@@ -90,7 +90,7 @@ describe('toStatusBarView', () => {
     expect(view.mode).toBe('SEARCH');
     expect(view.inputVisible).toBe(true);
     expect(view.inputValue).toBe('test');
-    expect(view.inputPlaceholder).toBe('Search YouTube...');
+    expect(view.inputPlaceholder).toBe('Search...');
   });
 
   it('returns drawer name as mode for site drawers', () => {

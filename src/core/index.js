@@ -243,7 +243,7 @@ export function createApp(config) {
     const shouldFocusInput = state.ui.drawer === 'palette' || 
                              state.ui.filterActive ||
                              isSiteDrawer;
-    updateStatusBar(state, shouldFocusInput, statusBarView.inputPlaceholder);
+    updateStatusBar(state, shouldFocusInput, statusBarView.inputPlaceholder, config.searchPlaceholder);
 
     // Apply content view
     updateSortIndicator(statusBarView.sortLabel);

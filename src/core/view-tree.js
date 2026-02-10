@@ -59,7 +59,7 @@ export function toStatusBarView(state, drawerPlaceholder = null) {
   } else if (mode === 'SEARCH') {
     inputVisible = true;
     inputValue = searchQuery;
-    inputPlaceholder = 'Search YouTube...';
+    inputPlaceholder = 'Search...';
     inputFocus = true;
   } else if (mode === 'COMMAND') {
     inputVisible = true;
