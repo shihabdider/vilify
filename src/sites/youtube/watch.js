@@ -285,6 +285,14 @@ function renderVideoInfoBox(ctx, siteState = null) {
     ])
   );
   
+  // Watch Later action (always shown)
+  actionChildren.push(
+    el('span', { class: 'vilify-action-hint' }, [
+      el('kbd', {}, ['mw']),
+      'watch later'
+    ])
+  );
+
   // Description action (always shown)
   actionChildren.push(
     el('span', { class: 'vilify-action-hint' }, [

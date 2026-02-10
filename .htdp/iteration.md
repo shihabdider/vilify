@@ -1,24 +1,24 @@
 # Iteration
 
-anchor: 33a66182bd8e1fc4abc852c5ccb51c5ad5cdb170
-started: 2026-02-10T13:59:37-05:00
+anchor: 7817704ea5fd3bc50d436fe16319b6b348c68615
+started: 2026-02-10T14:00:00-05:00
 mode: data-definition-driven
 language: JavaScript
 transparent: true
 
 ## Problem
 
-Change two YouTube keyboard shortcuts:
-1. ArrowLeft (dismiss/remove from watch later) → `dd`
-2. ArrowRight (add to watch later) → `mw`
+Make "add to watch list" (mw key) work on YouTube watch pages. Currently `mw` is only available on listing pages. On the watch page, the videoId should come from the URL/video context instead of the selected list item. Also show 'mw' key hint in the watch page metadata container row.
 
 ## Data Definition Plan
 
-No data definition changes. This is a keybinding remapping:
-1. Remove hardcoded ArrowLeft/ArrowRight handlers from `src/core/keyboard.js`
-2. Add `dd` and `mw` key sequences to `getYouTubeKeySequences()` in `src/sites/youtube/commands.js`
-3. Update display keys in `getYouTubeCommands()` from `←` to `D D`, add `M W` for watch later
-4. Version bump in manifest.json
+No data definition changes. Behavioral changes only:
+1. Enable `mw` key sequence on watch page (commands.js)
+2. Add `mw` command to getYouTubeCommands() watch section (commands.js)
+3. Modify handleAddToWatchLater to fall back to URL videoId on watch page (core/index.js)
+4. Add 'mw' hint to renderVideoInfoBox actions row (watch.js)
+5. Update tests for mw on watch page (commands.test.js)
+6. Version bump (manifest.json, package.json)
 
 ## Abbreviated Workflow
 

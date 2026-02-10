@@ -615,16 +615,22 @@ export function createApp(config) {
    * [I/O]
    */
   async function handleAddToWatchLater() {
+    // Try to get videoId from selected list item first
     const items = getPageItems(state);
     const filtered = getVisibleItems(state, items);
     const item = filtered[state.ui.selectedIdx];
+    let videoId = item?.data?.videoId;
 
-    if (!item?.data?.videoId) {
+    // Fallback: on watch page, get videoId from URL
+    if (!videoId) {
+      const match = location.href.match(/\/watch\?v=([^&]+)/);
+      videoId = match ? match[1] : null;
+    }
+
+    if (!videoId) {
       showMessage('No video selected');
       return;
     }
-
-    const videoId = item.data.videoId;
 
     // Check if already added this session
     if (state.ui.watchLaterAdded.has(videoId)) {

@@ -504,6 +504,16 @@ export function getYouTubeCommands(app) {
       keys: 'Ctrl+B',
     });
 
+    // Watch Later
+    commands.push({ group: 'Watch Later' });
+    commands.push({
+      type: 'command',
+      label: 'Add to Watch Later',
+      icon: '🕐',
+      action: () => app?.addToWatchLater?.(),
+      keys: 'M W',
+    });
+
     // Copy
     commands.push({ group: 'Copy' });
     commands.push({
@@ -607,8 +617,10 @@ export function getYouTubeKeySequences(app) {
   // Listing-page-only sequences
   if (pageType !== 'watch') {
     sequences['dd'] = () => app?.removeFromWatchLater?.();
-    sequences['mw'] = () => app?.addToWatchLater?.();
   }
+
+  // Watch later - available on all pages
+  sequences['mw'] = () => app?.addToWatchLater?.();
 
   // Video-specific sequences (watch page only)
   if (ctx) {

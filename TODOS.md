@@ -4,4 +4,4 @@
 
 2. **Show page number** — Display the current Google search results page number in the status bar (e.g., "Page 2"). Google's URL contains `&start=10` for page 2, etc.
 
-3. ~~**Loading performance**~~ — DONE (v0.5.69): Fixed `waitForContent` to use page config predicates (was waiting 5s for YouTube selectors on Google). Added sessionStorage page cache for instant render on revisit.
+3. [youtube] add to watch list works in watch page (show 'mw' key hint in the metadata container row

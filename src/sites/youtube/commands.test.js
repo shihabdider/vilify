@@ -73,10 +73,17 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
     expect(sequences).not.toHaveProperty('dd');
   });
 
-  it('does not have mw on watch page', () => {
+  it('has mw on watch page', () => {
     getYouTubePageType.mockReturnValue('watch');
     const sequences = getYouTubeKeySequences(app);
-    expect(sequences).not.toHaveProperty('mw');
+    expect(sequences).toHaveProperty('mw');
+  });
+
+  it('mw calls addToWatchLater on watch page', () => {
+    getYouTubePageType.mockReturnValue('watch');
+    const sequences = getYouTubeKeySequences(app);
+    sequences['mw']();
+    expect(app.addToWatchLater).toHaveBeenCalled();
   });
 
   it('dd works on subscriptions page', () => {
