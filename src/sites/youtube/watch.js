@@ -293,7 +293,6 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
   const isInWatchLater = videoId && watchLaterAdded?.has(videoId);
   const wlClass = isInWatchLater ? 'vilify-action-hint vilify-wl-added' : 'vilify-action-hint';
   const wlText = isInWatchLater ? 'added' : 'watch later';
-  console.log('[Vilify] renderVideoInfoBox WL:', { videoId, watchLaterAdded: watchLaterAdded ? [...watchLaterAdded] : null, isInWatchLater, wlText });
   actionChildren.push(
     el('span', { class: wlClass, id: 'vilify-wl-action' }, [
       el('kbd', {}, ['mw']),
