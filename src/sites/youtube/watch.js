@@ -101,19 +101,14 @@ const WATCH_CSS = `
   .vilify-sub-status { color: var(--txt-3); flex: 0 0 auto; white-space: nowrap; margin-left: 4px; }
   .vilify-sub-status.not-subscribed { color: var(--accent); }
   
-  /* Action rows with keyboard hints — groups stack vertically */
+  /* Action hints — 3-column grid, rows fill left-to-right */
   .vilify-watch-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 6px 10px;
+    justify-content: start;
     margin-top: 12px;
     font-size: 11px;
-  }
-
-  /* Action group — clusters related hints on one line */
-  .vilify-action-group {
-    display: flex;
-    gap: 10px;
   }
   
   /* Individual action hint */
@@ -282,16 +277,17 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
     ? el('div', { class: 'vilify-watch-stats' }, [statsText])
     : null;
   
-  // Action row with keyboard hints grouped semantically
-  
-  // Group 1: subscribe/unsub + watch later
+  // Action grid — 3 columns, 2 rows
+  // Row 1: ms, mw, (empty)
+  // Row 2: f, t, zo
   const subText = ctx.isSubscribed ? 'unsub' : 'sub';
   const videoId = ctx.videoId;
   const isInWatchLater = videoId && watchLaterAdded?.has(videoId);
   const wlClass = isInWatchLater ? 'vilify-action-hint vilify-wl-added' : 'vilify-action-hint';
   const wlText = isInWatchLater ? 'added' : 'watch later';
   
-  const group1 = el('div', { class: 'vilify-action-group' }, [
+  const actionChildren = [
+    // Row 1
     el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
       el('kbd', {}, ['ms']),
       subText
@@ -300,39 +296,24 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
       el('kbd', {}, ['mw']),
       wlText
     ]),
-  ]);
-  
-  // Group 2: chapters (conditional), transcript (conditional), description (always)
-  const group2Children = [];
-  
-  if (ctx.chapters && ctx.chapters.length > 0) {
-    group2Children.push(
-      el('span', { class: 'vilify-action-hint' }, [
-        el('kbd', {}, ['f']),
-        'ch'
-      ])
-    );
-  }
-  
-  if (siteState?.transcript?.status === 'loaded') {
-    group2Children.push(
-      el('span', { class: 'vilify-action-hint' }, [
-        el('kbd', {}, ['t']),
-        'transcript'
-      ])
-    );
-  }
-  
-  group2Children.push(
+    // Empty cell to complete row 1
+    el('span', {}, []),
+    // Row 2
+    el('span', { class: 'vilify-action-hint' }, [
+      el('kbd', {}, ['f']),
+      'ch'
+    ]),
+    el('span', { class: 'vilify-action-hint' }, [
+      el('kbd', {}, ['t']),
+      'transcript'
+    ]),
     el('span', { class: 'vilify-action-hint' }, [
       el('kbd', {}, ['zo']),
       'desc'
-    ])
-  );
+    ]),
+  ];
   
-  const group2 = el('div', { class: 'vilify-action-group' }, group2Children);
-  
-  const actionsRow = el('div', { class: 'vilify-watch-actions' }, [group1, group2]);
+  const actionsRow = el('div', { class: 'vilify-watch-actions' }, actionChildren);
   
   // Build info box with TUI pattern
   const children = [

@@ -43,17 +43,13 @@ import { renderVideoInfo, WATCH_CSS } from './watch.js';
 // CSS TESTS
 // =============================================================================
 
-describe('WATCH_CSS - action group styles', () => {
-  it('contains .vilify-action-group class', () => {
-    expect(WATCH_CSS).toContain('.vilify-action-group');
+describe('WATCH_CSS - action grid styles', () => {
+  it('vilify-watch-actions uses CSS grid', () => {
+    expect(WATCH_CSS).toMatch(/\.vilify-watch-actions\s*\{[^}]*display:\s*grid/);
   });
 
-  it('vilify-action-group is a flex container', () => {
-    expect(WATCH_CSS).toMatch(/\.vilify-action-group\s*\{[^}]*display:\s*flex/);
-  });
-
-  it('vilify-watch-actions still exists as outer container', () => {
-    expect(WATCH_CSS).toContain('.vilify-watch-actions');
+  it('vilify-watch-actions has 3 columns', () => {
+    expect(WATCH_CSS).toMatch(/grid-template-columns:\s*repeat\(3/);
   });
 });
 
@@ -61,7 +57,7 @@ describe('WATCH_CSS - action group styles', () => {
 // DOM STRUCTURE TESTS
 // =============================================================================
 
-describe('renderVideoInfoBox - action hint grouping', () => {
+describe('renderVideoInfoBox - action hint grid', () => {
   let container;
 
   beforeEach(() => {
@@ -82,86 +78,48 @@ describe('renderVideoInfoBox - action hint grouping', () => {
     };
   }
 
-  it('renders two action groups inside vilify-watch-actions', () => {
+  it('renders 6 children in vilify-watch-actions (2x3 grid)', () => {
     renderVideoInfo(makeCtx(), container);
     const actionsRow = container.querySelector('.vilify-watch-actions');
     expect(actionsRow).not.toBeNull();
-    const groups = actionsRow.querySelectorAll('.vilify-action-group');
-    expect(groups.length).toBe(2);
+    // 6 cells: ms, mw, empty, f, t, zo
+    expect(actionsRow.children.length).toBe(6);
   });
 
-  it('group 1 contains ms and mw hints', () => {
+  it('row 1: ms then mw then empty cell', () => {
     renderVideoInfo(makeCtx(), container);
-    const groups = container.querySelectorAll('.vilify-action-group');
-    const group1 = groups[0];
-    const hints = group1.querySelectorAll('.vilify-action-hint');
-    expect(hints.length).toBe(2);
-
-    // First hint: ms (sub)
-    const kbds1 = hints[0].querySelectorAll('kbd');
-    expect(kbds1[0].textContent).toBe('ms');
-
-    // Second hint: mw (watch later)
-    const kbds2 = hints[1].querySelectorAll('kbd');
-    expect(kbds2[0].textContent).toBe('mw');
+    const cells = container.querySelector('.vilify-watch-actions').children;
+    expect(cells[0].querySelector('kbd').textContent).toBe('ms');
+    expect(cells[1].querySelector('kbd').textContent).toBe('mw');
+    // Third cell is empty spacer
+    expect(cells[2].textContent.trim()).toBe('');
   });
 
-  it('group 2 contains zo hint when no chapters or transcript', () => {
+  it('row 2: f then t then zo', () => {
     renderVideoInfo(makeCtx(), container);
-    const groups = container.querySelectorAll('.vilify-action-group');
-    const group2 = groups[1];
-    const hints = group2.querySelectorAll('.vilify-action-hint');
-    // Only zo (desc) — no chapters, no transcript via renderVideoInfo (no siteState)
-    expect(hints.length).toBe(1);
-    const kbd = hints[0].querySelector('kbd');
-    expect(kbd.textContent).toBe('zo');
+    const cells = container.querySelector('.vilify-watch-actions').children;
+    expect(cells[3].querySelector('kbd').textContent).toBe('f');
+    expect(cells[4].querySelector('kbd').textContent).toBe('t');
+    expect(cells[5].querySelector('kbd').textContent).toBe('zo');
   });
 
-  it('group 2 contains f hint when chapters exist', () => {
-    const ctx = makeCtx({ chapters: [{ title: 'Ch1', time: 0 }] });
-    renderVideoInfo(ctx, container);
-    const groups = container.querySelectorAll('.vilify-action-group');
-    const group2 = groups[1];
-    const hints = group2.querySelectorAll('.vilify-action-hint');
-    // f (chapters) and zo (desc)
-    expect(hints.length).toBe(2);
-    const kbdTexts = Array.from(hints).map(h => h.querySelector('kbd').textContent);
-    expect(kbdTexts).toContain('f');
-    expect(kbdTexts).toContain('zo');
-  });
-
-  it('group 2 order is f, t, zo when all present (via renderWatchPage)', async () => {
-    // renderVideoInfo doesn't pass siteState, so transcript won't show.
-    // We verify the order with chapters only: f before zo
-    const ctx = makeCtx({ chapters: [{ title: 'Ch1', time: 0 }] });
-    renderVideoInfo(ctx, container);
-    const groups = container.querySelectorAll('.vilify-action-group');
-    const group2 = groups[1];
-    const kbdTexts = Array.from(group2.querySelectorAll('.vilify-action-hint'))
-      .map(h => h.querySelector('kbd').textContent);
-    expect(kbdTexts[0]).toBe('f');
-    expect(kbdTexts[kbdTexts.length - 1]).toBe('zo');
-  });
-
-  it('preserves vilify-sub-action id on subscribe hint', () => {
+  it('preserves vilify-sub-action id on ms hint', () => {
     renderVideoInfo(makeCtx(), container);
     const subAction = container.querySelector('#vilify-sub-action');
     expect(subAction).not.toBeNull();
     expect(subAction.querySelector('kbd').textContent).toBe('ms');
   });
 
-  it('preserves vilify-wl-action id on watch later hint', () => {
+  it('preserves vilify-wl-action id on mw hint', () => {
     renderVideoInfo(makeCtx(), container);
     const wlAction = container.querySelector('#vilify-wl-action');
     expect(wlAction).not.toBeNull();
     expect(wlAction.querySelector('kbd').textContent).toBe('mw');
   });
 
-  it('preserves vilify-wl-added class when video is in watch later', () => {
-    // renderVideoInfo doesn't pass watchLaterAdded, so this tests the default case
+  it('vilify-wl-added class not set by default', () => {
     renderVideoInfo(makeCtx(), container);
     const wlAction = container.querySelector('#vilify-wl-action');
-    expect(wlAction).not.toBeNull();
     expect(wlAction.classList.contains('vilify-wl-added')).toBe(false);
   });
 
