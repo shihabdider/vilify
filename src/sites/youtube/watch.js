@@ -109,6 +109,12 @@ const WATCH_CSS = `
     margin-top: 12px;
     font-size: 11px;
   }
+
+  /* Action group — clusters related hints */
+  .vilify-action-group {
+    display: flex;
+    gap: 10px;
+  }
   
   /* Individual action hint */
   .vilify-action-hint {
@@ -276,41 +282,31 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
     ? el('div', { class: 'vilify-watch-stats' }, [statsText])
     : null;
   
-  // Action row with all keyboard hints
-  const actionChildren = [];
+  // Action row with keyboard hints grouped semantically
   
-  // Subscribe/unsub action (always muted, just shows action)
+  // Group 1: subscribe/unsub + watch later
   const subText = ctx.isSubscribed ? 'unsub' : 'sub';
-  actionChildren.push(
-    el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
-      el('kbd', {}, ['ms']),
-      subText
-    ])
-  );
-  
-  // Watch Later action
   const videoId = ctx.videoId;
   const isInWatchLater = videoId && watchLaterAdded?.has(videoId);
   const wlClass = isInWatchLater ? 'vilify-action-hint vilify-wl-added' : 'vilify-action-hint';
   const wlText = isInWatchLater ? 'added' : 'watch later';
-  actionChildren.push(
+  
+  const group1 = el('div', { class: 'vilify-action-group' }, [
+    el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
+      el('kbd', {}, ['ms']),
+      subText
+    ]),
     el('span', { class: wlClass, id: 'vilify-wl-action' }, [
       el('kbd', {}, ['mw']),
       wlText
-    ])
-  );
-
-  // Description action (always shown)
-  actionChildren.push(
-    el('span', { class: 'vilify-action-hint' }, [
-      el('kbd', {}, ['zo']),
-      'desc'
-    ])
-  );
+    ]),
+  ]);
   
-  // Chapters action (conditional)
+  // Group 2: chapters (conditional), transcript (conditional), description (always)
+  const group2Children = [];
+  
   if (ctx.chapters && ctx.chapters.length > 0) {
-    actionChildren.push(
+    group2Children.push(
       el('span', { class: 'vilify-action-hint' }, [
         el('kbd', {}, ['f']),
         'ch'
@@ -318,9 +314,8 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
     );
   }
   
-  // Transcript action (conditional)
   if (siteState?.transcript?.status === 'loaded') {
-    actionChildren.push(
+    group2Children.push(
       el('span', { class: 'vilify-action-hint' }, [
         el('kbd', {}, ['t']),
         'transcript'
@@ -328,7 +323,16 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
     );
   }
   
-  const actionsRow = el('div', { class: 'vilify-watch-actions' }, actionChildren);
+  group2Children.push(
+    el('span', { class: 'vilify-action-hint' }, [
+      el('kbd', {}, ['zo']),
+      'desc'
+    ])
+  );
+  
+  const group2 = el('div', { class: 'vilify-action-group' }, group2Children);
+  
+  const actionsRow = el('div', { class: 'vilify-watch-actions' }, [group1, group2]);
   
   // Build info box with TUI pattern
   const children = [
