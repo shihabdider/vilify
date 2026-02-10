@@ -30,7 +30,8 @@ function createUIState() {
     watchLaterAdded: new Set(),  // Set<string> - video IDs added to Watch Later this session
     watchLaterRemoved: new Map(), // Map<videoId, { setVideoId, position }> - removed videos for undo
     lastWatchLaterRemoval: null,  // { videoId, setVideoId, position } - most recent removal for undo
-    dismissedVideos: new Set()    // Set<string> - video IDs dismissed via "Not interested"
+    dismissedVideos: new Set(),   // Set<string> - video IDs dismissed via "Not interested"
+    lastDismissal: null           // { videoId } | null - most recent dismissal for undo
   };
 }
 
@@ -158,14 +159,8 @@ export function getVisibleItems(state, items) {
   
   let result = items;
   
-  // Filter out dismissed videos
-  const { dismissedVideos } = state.ui;
-  if (dismissedVideos && dismissedVideos.size > 0) {
-    result = result.filter(item => {
-      const videoId = item.id || item.data?.videoId;
-      return !videoId || !dismissedVideos.has(videoId);
-    });
-  }
+  // Note: dismissed videos are NOT filtered out — they remain visible but 
+  // rendered grayed out (like watch-later-removed items). Undo with 'u'.
   
   // Apply filter if active
   if (filterActive && filterQuery) {
@@ -553,21 +548,40 @@ export function onWatchLaterUndoRemove(state, videoId) {
 
 /**
  * Mark a video as dismissed ("Not interested").
- * Dismissed videos are filtered out of visible items.
+ * Dismissed videos remain visible but rendered grayed out.
+ * Tracks last dismissal for undo support.
  * [PURE]
  *
  * @param {AppState} state - Current state
  * @param {string} videoId - Video ID to dismiss
- * @returns {AppState} New state with videoId in dismissedVideos set
+ * @returns {AppState} New state with videoId in dismissedVideos set and lastDismissal set
  *
  * @example
  * onDismissVideo(state, 'abc123')
- *   => { ui: { dismissedVideos: Set(['abc123']) } }
+ *   => { ui: { dismissedVideos: Set(['abc123']), lastDismissal: { videoId: 'abc123' } } }
  */
 export function onDismissVideo(state, videoId) {
   const newSet = new Set(state.ui.dismissedVideos);
   newSet.add(videoId);
-  return { ...state, ui: { ...state.ui, dismissedVideos: newSet } };
+  return { ...state, ui: { ...state.ui, dismissedVideos: newSet, lastDismissal: { videoId } } };
+}
+
+/**
+ * Clear a video from the dismissed set (after undo).
+ * [PURE]
+ *
+ * @param {AppState} state - Current state
+ * @param {string} videoId - Video ID to restore
+ * @returns {AppState} New state with video removed from dismissedVideos
+ *
+ * @example
+ * onUndoDismissVideo(state, 'abc123')
+ *   => { ui: { dismissedVideos: Set([]), lastDismissal: null } }
+ */
+export function onUndoDismissVideo(state, videoId) {
+  const newSet = new Set(state.ui.dismissedVideos);
+  newSet.delete(videoId);
+  return { ...state, ui: { ...state.ui, dismissedVideos: newSet, lastDismissal: null } };
 }
 
 /**

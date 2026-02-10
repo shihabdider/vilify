@@ -277,7 +277,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         return;
       }
       
-      // ArrowLeft removes from Watch Later (only on WL playlist page)
+      // ArrowLeft: on WL page removes from Watch Later, on other pages dismisses ("Not interested")
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
         if (callbacks.onRemoveFromWatchLater) {
@@ -286,7 +286,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         return;
       }
       
-      // u undoes the last Watch Later removal
+      // u undoes the last removal/dismissal
       if (event.key === 'u' && !filterActive && !searchActive) {
         event.preventDefault();
         if (callbacks.onUndoWatchLaterRemoval) {

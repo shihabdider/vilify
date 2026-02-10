@@ -25,7 +25,8 @@ import {
   onWatchLaterAdd,
   onWatchLaterRemove,
   onWatchLaterUndoRemove,
-  onDismissVideo
+  onDismissVideo,
+  onUndoDismissVideo
 } from './state.js';
 import { el, clear, updateListSelection, showMessage, flashBoundary, navigateList, isInputElement } from './view.js';
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
@@ -630,13 +631,14 @@ export function createApp(config) {
 
   /**
    * Handle removing selected item from Watch Later.
-   * Only works on Watch Later playlist page.
+   * On Watch Later page: removes from playlist (with undo).
+   * On other listing pages: delegates to dismiss ("Not interested").
    * [I/O]
    */
   async function handleRemoveFromWatchLater() {
-    // Only allow removal on Watch Later playlist page
+    // On non-WL pages, ArrowLeft triggers dismiss instead
     if (!isWatchLaterPage()) {
-      showMessage('Only works on Watch Later page');
+      await handleDismissVideo();
       return;
     }
 
@@ -680,35 +682,73 @@ export function createApp(config) {
   }
 
   /**
-   * Handle undoing the last Watch Later removal.
+   * Handle undoing the last Watch Later removal or dismiss.
+   * On WL page: undoes WL removal. On other pages: undoes dismiss.
    * [I/O]
    */
   async function handleUndoWatchLaterRemoval() {
-    const lastRemoval = state.ui.lastWatchLaterRemoval;
-    
-    if (!lastRemoval) {
-      showMessage('Nothing to undo');
-      return;
-    }
+    if (isWatchLaterPage()) {
+      // Undo Watch Later removal
+      const lastRemoval = state.ui.lastWatchLaterRemoval;
+      
+      if (!lastRemoval) {
+        showMessage('Nothing to undo');
+        return;
+      }
 
-    if (!config.undoRemoveFromWatchLater) {
-      showMessage('Undo not supported');
-      return;
-    }
+      if (!config.undoRemoveFromWatchLater) {
+        showMessage('Undo not supported');
+        return;
+      }
 
-    const success = await config.undoRemoveFromWatchLater(lastRemoval.videoId, lastRemoval.position);
-    if (success) {
-      state = onWatchLaterUndoRemove(state, lastRemoval.videoId);
-      showMessage('Restored to Watch Later');
-      render();
+      const success = await config.undoRemoveFromWatchLater(lastRemoval.videoId, lastRemoval.position);
+      if (success) {
+        state = onWatchLaterUndoRemove(state, lastRemoval.videoId);
+        showMessage('Restored to Watch Later');
+        render();
+      } else {
+        showMessage('Failed to restore video');
+      }
     } else {
-      showMessage('Failed to restore video');
+      // Undo dismiss ("Not interested")
+      await handleUndoDismissVideo();
     }
   }
 
   /**
+   * Handle undoing the last "Not interested" dismissal.
+   * Clicks YouTube's native Undo button and restores the item.
+   * [I/O]
+   */
+  async function handleUndoDismissVideo() {
+    const lastDismissal = state.ui.lastDismissal;
+    
+    if (!lastDismissal) {
+      showMessage('Nothing to undo');
+      return;
+    }
+
+    // Click YouTube's native Undo button
+    let ytUndone = false;
+    if (config.clickUndoDismiss) {
+      ytUndone = await config.clickUndoDismiss();
+    }
+
+    // Always restore in our state
+    state = onUndoDismissVideo(state, lastDismissal.videoId);
+
+    if (ytUndone) {
+      showMessage('Undo — restored');
+    } else {
+      showMessage('Restored (YouTube undo may have expired)');
+    }
+    render();
+  }
+
+  /**
    * Handle dismissing selected video ("Not interested").
-   * Triggers YouTube's native "Not interested" via DOM, then hides from list.
+   * Triggers YouTube's native "Not interested" via DOM, then grays out in list.
+   * Can be undone with 'u'.
    * [I/O]
    */
   async function handleDismissVideo() {
@@ -725,7 +765,7 @@ export function createApp(config) {
 
     // Check if already dismissed this session
     if (state.ui.dismissedVideos.has(videoId)) {
-      showMessage('Already dismissed');
+      showMessage('Already dismissed (u to undo)');
       return;
     }
 
@@ -735,19 +775,13 @@ export function createApp(config) {
       ytDismissed = await config.dismissVideo(videoId);
     }
 
-    // Always track dismissal in our state (hides from list)
+    // Track dismissal in state (item stays visible but grayed out)
     state = onDismissVideo(state, videoId);
 
-    // Clamp selectedIdx if we're now past the end of the list
-    const newFiltered = getVisibleItems(state, items);
-    if (state.ui.selectedIdx >= newFiltered.length && newFiltered.length > 0) {
-      state = { ...state, ui: { ...state.ui, selectedIdx: newFiltered.length - 1 } };
-    }
-
     if (ytDismissed) {
-      showMessage('Not interested — dismissed');
+      showMessage('Not interested (u to undo)');
     } else {
-      showMessage('Dismissed from list');
+      showMessage('Dismissed (u to undo)');
     }
     render();
   }

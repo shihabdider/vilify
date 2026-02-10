@@ -3,7 +3,7 @@
 
 import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
-import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo } from './commands.js';
+import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo, clickUndoDismiss } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers, setRecommendedItems } from './drawers/index.js';
@@ -102,14 +102,14 @@ function renderYouTubeListing(state, siteState, container) {
   const allItems = getPageItems(state);
   const items = getVisibleItems(state, allItems);
   
-  const { sort, selectedIdx, watchLaterAdded, watchLaterRemoved } = state.ui;
+  const { sort, selectedIdx, watchLaterAdded, watchLaterRemoved, dismissedVideos } = state.ui;
   
   // Update sort indicator and count in status bar
   updateSortIndicator(getSortLabel(sort.field, sort.direction));
   updateItemCount(items.length);
   
-  // Custom renderer that includes watch later status
-  const renderer = (item, isSelected) => renderYouTubeItem(item, isSelected, watchLaterAdded, watchLaterRemoved);
+  // Custom renderer that includes watch later status and dismissed status
+  const renderer = (item, isSelected) => renderYouTubeItem(item, isSelected, watchLaterAdded, watchLaterRemoved, dismissedVideos);
   
   renderListing(items, selectedIdx, container, renderer);
 }
@@ -400,6 +400,12 @@ export const youtubeConfig = {
    * @returns {Promise<boolean>} True if YouTube's native action was triggered
    */
   dismissVideo,
+
+  /**
+   * Click YouTube's native "Undo" button after a "Not interested" dismissal.
+   * @returns {Promise<boolean>} True if Undo button was found and clicked
+   */
+  clickUndoDismiss,
 
   /**
    * Get drawer handler for site-specific drawers.

@@ -19,6 +19,7 @@ import {
   onWatchLaterRemove,
   onWatchLaterUndoRemove,
   onDismissVideo,
+  onUndoDismissVideo,
   onClearFlash,
   onSearchToggle,
   onSearchChange,
@@ -856,6 +857,14 @@ describe('onDismissVideo', () => {
     expect(result.ui.dismissedVideos.size).toBe(1);
   });
   
+  it('sets lastDismissal for undo', () => {
+    const state = createAppState();
+    
+    const result = onDismissVideo(state, 'abc123');
+    
+    expect(result.ui.lastDismissal).toEqual({ videoId: 'abc123' });
+  });
+  
   it('preserves existing dismissed IDs when adding new one', () => {
     let state = createAppState();
     state = onDismissVideo(state, 'video1');
@@ -864,6 +873,14 @@ describe('onDismissVideo', () => {
     expect(state.ui.dismissedVideos.has('video1')).toBe(true);
     expect(state.ui.dismissedVideos.has('video2')).toBe(true);
     expect(state.ui.dismissedVideos.size).toBe(2);
+  });
+  
+  it('updates lastDismissal to most recent', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, 'video1');
+    state = onDismissVideo(state, 'video2');
+    
+    expect(state.ui.lastDismissal).toEqual({ videoId: 'video2' });
   });
   
   it('does not duplicate existing IDs', () => {
@@ -885,36 +902,77 @@ describe('onDismissVideo', () => {
   });
 });
 
-describe('getVisibleItems - dismissed filtering', () => {
+describe('onUndoDismissVideo', () => {
+  it('removes video from dismissed set', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, 'video1');
+    
+    const result = onUndoDismissVideo(state, 'video1');
+    
+    expect(result.ui.dismissedVideos.has('video1')).toBe(false);
+  });
+  
+  it('clears lastDismissal', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, 'video1');
+    
+    const result = onUndoDismissVideo(state, 'video1');
+    
+    expect(result.ui.lastDismissal).toBe(null);
+  });
+  
+  it('does not mutate original state', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, 'video1');
+    const originalSet = state.ui.dismissedVideos;
+    
+    onUndoDismissVideo(state, 'video1');
+    
+    expect(state.ui.dismissedVideos).toBe(originalSet);
+    expect(state.ui.dismissedVideos.has('video1')).toBe(true);
+  });
+  
+  it('preserves other dismissed videos', () => {
+    let state = createAppState();
+    state = onDismissVideo(state, 'video1');
+    state = onDismissVideo(state, 'video2');
+    
+    const result = onUndoDismissVideo(state, 'video1');
+    
+    expect(result.ui.dismissedVideos.has('video1')).toBe(false);
+    expect(result.ui.dismissedVideos.has('video2')).toBe(true);
+  });
+});
+
+describe('getVisibleItems - dismissed videos stay visible', () => {
   const items = [
     { id: '1', title: 'Video 1', meta: 'Channel A', data: { videoId: '1' } },
     { id: '2', title: 'Video 2', meta: 'Channel B', data: { videoId: '2' } },
     { id: '3', title: 'Video 3', meta: 'Channel C', data: { videoId: '3' } },
   ];
 
-  it('filters out dismissed videos', () => {
+  it('dismissed videos remain in visible items (grayed out in renderer)', () => {
     let state = createAppState();
     state = onDismissVideo(state, '2');
     
     const result = getVisibleItems(state, items);
     
-    expect(result).toHaveLength(2);
-    expect(result[0].id).toBe('1');
-    expect(result[1].id).toBe('3');
+    // Dismissed videos are NOT filtered out — they stay visible but grayed out
+    expect(result).toHaveLength(3);
+    expect(result[1].id).toBe('2');
   });
   
-  it('filters multiple dismissed videos', () => {
+  it('multiple dismissed videos remain visible', () => {
     let state = createAppState();
     state = onDismissVideo(state, '1');
     state = onDismissVideo(state, '3');
     
     const result = getVisibleItems(state, items);
     
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('2');
+    expect(result).toHaveLength(3);
   });
   
-  it('combines dismissed filter with text filter', () => {
+  it('dismissed + text filter still applies text filter', () => {
     let state = createAppState();
     state = onDismissVideo(state, '1');
     state.ui.filterActive = true;
@@ -922,8 +980,8 @@ describe('getVisibleItems - dismissed filtering', () => {
     
     const result = getVisibleItems(state, items);
     
-    expect(result).toHaveLength(2);
-    expect(result.find(i => i.id === '1')).toBeUndefined();
+    // Text filter applies, but dismissed status doesn't filter
+    expect(result).toHaveLength(3);
   });
   
   it('returns all items when no dismissed videos', () => {

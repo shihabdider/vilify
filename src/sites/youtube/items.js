@@ -75,20 +75,21 @@ export function injectYouTubeItemStyles() {
  * Custom item renderer for YouTube videos.
  * Two-column layout: left has thumbnail + info (title, meta, meta2), right has subscribe button.
  * Shows a badge on items that have been added to Watch Later.
- * Shows grayed-out style for items removed from Watch Later.
+ * Shows grayed-out style for items removed from Watch Later or dismissed.
  * [PURE]
  * 
  * @param {ContentItem} item - Video content item
  * @param {boolean} isSelected - Whether item is selected
  * @param {Set<string>} watchLaterAdded - Set of video IDs added to Watch Later
  * @param {Map<string, object>} watchLaterRemoved - Map of video IDs removed from Watch Later
+ * @param {Set<string>} dismissedVideos - Set of video IDs dismissed via "Not interested"
  * @returns {HTMLElement} Rendered item element
  * 
  * @example
- * renderYouTubeItem({ title: 'Video', meta: 'Channel · 2d ago', data: { viewCount: '1M views', duration: '12:34' } }, true, new Set(), new Map())
+ * renderYouTubeItem({ title: 'Video', meta: 'Channel · 2d ago', data: { viewCount: '1M views', duration: '12:34' } }, true, new Set(), new Map(), new Set())
  * // Returns element with two-column layout
  */
-export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set(), watchLaterRemoved = new Map()) {
+export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set(), watchLaterRemoved = new Map(), dismissedVideos = new Set()) {
   // Handle group headers
   if ('group' in item && item.group) {
     return el('div', { class: 'vilify-group-header' }, [item.group]);
@@ -105,10 +106,11 @@ export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set(),
   const videoId = item.data?.videoId;
   const isInWatchLater = videoId && watchLaterAdded.has(videoId);
   const isRemoved = videoId && watchLaterRemoved.has(videoId);
+  const isDismissed = videoId && dismissedVideos.has(videoId);
   
   // Build class list
   let classes = isSelected ? 'vilify-item selected' : 'vilify-item';
-  if (isRemoved) {
+  if (isRemoved || isDismissed) {
     classes += ' vilify-removed';
   }
 
@@ -143,6 +145,8 @@ export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set(),
   
   if (isRemoved) {
     itemChildren.push(el('div', { class: 'vilify-removed-badge' }, ['WL']));
+  } else if (isDismissed) {
+    itemChildren.push(el('div', { class: 'vilify-removed-badge' }, ['✕']));
   } else if (isInWatchLater) {
     itemChildren.push(el('div', { class: 'vilify-watch-later-badge' }, ['WL']));
   }

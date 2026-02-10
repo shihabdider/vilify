@@ -327,7 +327,7 @@ export function getYouTubeCommands(app) {
       label: 'Not interested',
       icon: '🚫',
       action: () => app?.dismissVideo?.(),
-      keys: 'D D',
+      keys: '←',
     });
   }
   commands.push({
@@ -604,11 +604,7 @@ export function getYouTubeKeySequences(app) {
     'gg': () => app?.goToTop?.(),
   };
 
-  // Listing-page-only sequences
-  if (pageType !== 'watch') {
-    // Dismiss video ("Not interested")
-    sequences['dd'] = () => app?.dismissVideo?.();
-  }
+  // Listing-page-only sequences (dismiss is now on ArrowLeft, handled in keyboard.js)
 
   // Video-specific sequences (watch page only)
   if (ctx) {
@@ -1020,6 +1016,42 @@ export async function dismissVideo(videoId) {
   }, 300);
   
   return clicked;
+}
+
+// =============================================================================
+// UNDO DISMISS ("Not interested" undo)
+// =============================================================================
+
+/**
+ * Click YouTube's native "Undo" button that appears after "Not interested".
+ * Searches for the undo notification toast and clicks its Undo button.
+ * [I/O - reads/modifies DOM]
+ *
+ * @returns {Promise<boolean>} True if Undo button was found and clicked
+ *
+ * @example
+ * await clickUndoDismiss()  // => true if YouTube's Undo was clicked
+ */
+export async function clickUndoDismiss() {
+  // YouTube shows a notification with "Undo" button after "Not interested"
+  // The button is inside .ytNotificationMultiActionRendererButtonContainer
+  const containers = document.querySelectorAll(
+    '.ytNotificationMultiActionRendererButtonContainer, ' +
+    'ytd-notification-multi-action-renderer'
+  );
+  
+  for (const container of containers) {
+    const buttons = container.querySelectorAll('button');
+    for (const btn of buttons) {
+      const text = btn.textContent?.trim();
+      if (text === 'Undo') {
+        btn.click();
+        return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 // =============================================================================
