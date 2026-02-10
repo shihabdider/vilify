@@ -1,18 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Vilify",
-  "version": "0.5.62",
+  "version": "0.5.63",
   "description": "Vim-style focus mode for websites",
   "permissions": ["clipboardWrite"],
   "content_scripts": [
     {
-      "matches": ["*://www.youtube.com/*", "*://youtube.com/*"],
+      "matches": ["*://www.youtube.com/*", "*://youtube.com/*", "*://www.google.com/*", "*://google.com/*"],
       "js": ["dist/data-bridge.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["*://www.youtube.com/*", "*://youtube.com/*"],
+      "matches": ["*://www.youtube.com/*", "*://youtube.com/*", "*://www.google.com/*", "*://google.com/*"],
       "js": ["dist/content.js"],
       "run_at": "document_start"
     }

@@ -29,10 +29,9 @@ function getSiteConfig() {
     return youtubeConfig;
   }
   
-  // TODO: Re-enable once Google support is complete
-  // if (hostname === 'www.google.com' || hostname === 'google.com') {
-  //   return googleConfig;
-  // }
+  if (hostname === 'www.google.com' || hostname === 'google.com') {
+    return googleConfig;
+  }
   
   return null;
 }
