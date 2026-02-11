@@ -682,6 +682,22 @@ describe('getVisibleItems', () => {
     expect(result[0].title).toBe('Code Tutorial');
   });
 
+  it('filters by description', () => {
+    const itemsWithDesc = [
+      { id: '1', title: 'Result A', meta: 'example.com', description: 'Learn about music theory' },
+      { id: '2', title: 'Result B', meta: 'test.org', description: 'Cooking recipes' },
+      { id: '3', title: 'Result C', meta: 'demo.net', description: 'Advanced music production' },
+    ];
+    const state = createAppState();
+    state.ui.filterActive = true;
+    state.ui.filterQuery = 'music';
+    const result = getVisibleItems(state, itemsWithDesc);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe('1');
+    expect(result[1].id).toBe('3');
+  });
+
   it('filter is case insensitive', () => {
     const state = createAppState();
     state.ui.filterActive = true;

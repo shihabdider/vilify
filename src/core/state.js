@@ -168,7 +168,8 @@ export function getVisibleItems(state, items) {
     result = result.filter(item => {
       const titleMatch = item.title?.toLowerCase().includes(query);
       const metaMatch = item.meta?.toLowerCase().includes(query);
-      return titleMatch || metaMatch;
+      const descMatch = item.description?.toLowerCase().includes(query);
+      return titleMatch || metaMatch || descMatch;
     });
   }
   

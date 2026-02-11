@@ -3,7 +3,9 @@
 
 import { el, clear } from '../../core/view.js';
 import { updateSortIndicator, updateItemCount } from '../../core/layout.js';
-import { sortItems, getSortLabel } from '../../core/sort.js';
+import { getSortLabel } from '../../core/sort.js';
+import { getVisibleItems } from '../../core/state.js';
+import { getPageItems } from '../../core/view-tree.js';
 
 /**
  * Number of columns in the image grid.
@@ -175,24 +177,10 @@ export function renderGoogleImageGrid(state, siteState, container) {
   // Inject Google grid-specific styles
   injectGoogleGridStyles();
 
-  let items = state.page?.videos || [];
+  const allItems = getPageItems(state);
+  const items = getVisibleItems(state, allItems);
 
-  const { filterActive, filterQuery, sort, selectedIdx } = state.ui;
-
-  // Apply local filter if active
-  if (filterActive) {
-    const q = filterQuery.toLowerCase();
-    items = items.filter(i =>
-      i.title?.toLowerCase().includes(q) ||
-      i.meta?.toLowerCase().includes(q) ||
-      i.description?.toLowerCase().includes(q)
-    );
-  }
-
-  // Apply sorting if active
-  if (sort.field) {
-    items = sortItems(items, sort.field, sort.direction);
-  }
+  const { sort, selectedIdx } = state.ui;
 
   // Update sort indicator and count in status bar
   updateSortIndicator(getSortLabel(sort.field, sort.direction));

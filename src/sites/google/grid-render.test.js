@@ -29,7 +29,7 @@ function makeItem(id, title = 'img', meta = 'example.com') {
 /** Helper: create state with given items and ui overrides */
 function makeState(items, uiOverrides = {}) {
   return {
-    page: { videos: items },
+    page: { type: 'list', videos: items },
     ui: {
       filterActive: false,
       filterQuery: '',
