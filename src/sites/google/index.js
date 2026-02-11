@@ -165,7 +165,50 @@ function navigateToSearch(extraParams = '') {
  * @returns {Object<string, Function>} Key sequence map
  */
 function getGoogleKeySequences(app, context) {
-  throw new Error("not implemented: getGoogleKeySequences");
+  const pageType = context?.pageType;
+
+  // (1) Always-available bindings
+  const sequences = {
+    '/': () => app?.openLocalFilter?.(),
+    'i': () => {
+      const q = new URLSearchParams(location.search).get('q') || '';
+      app?.openSearch?.(q);
+    },
+    ':': () => app?.openPalette?.('command'),
+    'gg': () => app?.goToTop?.(),
+    'go': () => navigateToSearch(),
+    'gi': () => navigateToSearch('&udm=2'),
+    'yy': () => {
+      const item = app?.getSelectedItem?.();
+      if (!item) {
+        showMessage('No item selected');
+        return;
+      }
+      if (pageType === 'images' && (item.imageUrl || item.thumbnail)) {
+        copyImageToClipboard(item.imageUrl || item.thumbnail);
+      } else if (item.url) {
+        copyToClipboard(item.url);
+      }
+    },
+  };
+
+  // (2) Absorbed from old getSingleKeyActions (modifier combos)
+  sequences['C-f'] = () => nextPage();
+  sequences['C-b'] = () => prevPage();
+  sequences['G'] = () => app?.goToBottom?.();
+
+  // (3) Listing-page navigation (always on listing pages)
+  sequences['ArrowDown'] = () => app?.navigate?.('down');
+  sequences['ArrowUp'] = () => app?.navigate?.('up');
+  sequences['Enter'] = () => app?.select?.(false);
+
+  // (4) Listing + !filterActive + !searchActive: j/k navigate
+  if (!context?.filterActive && !context?.searchActive) {
+    sequences['j'] = () => app?.navigate?.('down');
+    sequences['k'] = () => app?.navigate?.('up');
+  }
+
+  return sequences;
 }
 
 /**

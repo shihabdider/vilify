@@ -169,30 +169,94 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
   });
 });
 
-describe('getGoogleSingleKeyActions (via googleConfig.getSingleKeyActions)', () => {
-  it('returns "F" for next page', () => {
-    const app = {};
-    const actions = googleConfig.getSingleKeyActions(app);
-    expect(actions).toHaveProperty('F');
+describe('merged keys (C-f, C-b, G) in getKeySequences', () => {
+  const defaultCtx = makeContext({ pageType: 'search' });
+
+  it('returns "C-f" for next page', () => {
+    const seqs = googleConfig.getKeySequences({}, defaultCtx);
+    expect(seqs).toHaveProperty('C-f');
   });
 
-  it('returns "B" for previous page', () => {
-    const app = {};
-    const actions = googleConfig.getSingleKeyActions(app);
-    expect(actions).toHaveProperty('B');
+  it('returns "C-b" for previous page', () => {
+    const seqs = googleConfig.getKeySequences({}, defaultCtx);
+    expect(seqs).toHaveProperty('C-b');
   });
 
   it('returns "G" for go to bottom', () => {
     const app = { goToBottom: vi.fn() };
-    const actions = googleConfig.getSingleKeyActions(app);
-    expect(actions).toHaveProperty('G');
-    actions['G']();
+    const seqs = googleConfig.getKeySequences(app, defaultCtx);
+    expect(seqs).toHaveProperty('G');
+    seqs['G']();
     expect(app.goToBottom).toHaveBeenCalled();
   });
 
   it('handles null app gracefully for "G"', () => {
-    const actions = googleConfig.getSingleKeyActions(null);
-    expect(() => actions['G']()).not.toThrow();
+    const seqs = googleConfig.getKeySequences(null, defaultCtx);
+    expect(() => seqs['G']()).not.toThrow();
+  });
+});
+
+describe('listing page navigation keys in getKeySequences', () => {
+  const listingCtx = makeContext({ pageType: 'search', filterActive: false, searchActive: false });
+
+  it('includes ArrowDown, ArrowUp, Enter on listing pages', () => {
+    const app = { navigate: vi.fn(), select: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    expect(seqs).toHaveProperty('ArrowDown');
+    expect(seqs).toHaveProperty('ArrowUp');
+    expect(seqs).toHaveProperty('Enter');
+  });
+
+  it('ArrowDown calls app.navigate("down")', () => {
+    const app = { navigate: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    seqs['ArrowDown']();
+    expect(app.navigate).toHaveBeenCalledWith('down');
+  });
+
+  it('ArrowUp calls app.navigate("up")', () => {
+    const app = { navigate: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    seqs['ArrowUp']();
+    expect(app.navigate).toHaveBeenCalledWith('up');
+  });
+
+  it('Enter calls app.select(false)', () => {
+    const app = { select: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    seqs['Enter']();
+    expect(app.select).toHaveBeenCalledWith(false);
+  });
+
+  it('includes j and k when !filterActive and !searchActive', () => {
+    const app = { navigate: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    expect(seqs).toHaveProperty('j');
+    expect(seqs).toHaveProperty('k');
+    seqs['j']();
+    expect(app.navigate).toHaveBeenCalledWith('down');
+    seqs['k']();
+    expect(app.navigate).toHaveBeenCalledWith('up');
+  });
+
+  it('excludes j and k when filterActive is true', () => {
+    const ctx = makeContext({ pageType: 'search', filterActive: true, searchActive: false });
+    const seqs = googleConfig.getKeySequences({}, ctx);
+    expect(seqs).not.toHaveProperty('j');
+    expect(seqs).not.toHaveProperty('k');
+  });
+
+  it('excludes j and k when searchActive is true', () => {
+    const ctx = makeContext({ pageType: 'search', filterActive: false, searchActive: true });
+    const seqs = googleConfig.getKeySequences({}, ctx);
+    expect(seqs).not.toHaveProperty('j');
+    expect(seqs).not.toHaveProperty('k');
+  });
+
+  it('does NOT include h or l (no grid navigation for Google search)', () => {
+    const seqs = googleConfig.getKeySequences({}, listingCtx);
+    expect(seqs).not.toHaveProperty('h');
+    expect(seqs).not.toHaveProperty('l');
   });
 });
 
