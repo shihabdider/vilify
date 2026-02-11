@@ -14,6 +14,85 @@ export const GRID_COLUMNS = 5;
 // STYLES
 // =============================================================================
 
+const GOOGLE_GRID_CSS = `
+  /* Google Images grid container */
+  .vilify-google-grid {
+    display: grid;
+    grid-template-columns: repeat(${GRID_COLUMNS}, 1fr);
+    gap: 8px;
+    padding: 8px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+
+  /* Individual grid cell */
+  .vilify-google-grid-cell {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    background: var(--bg-2);
+  }
+
+  .vilify-google-grid-cell:hover {
+    background: var(--bg-3);
+  }
+
+  .vilify-google-grid-cell.selected {
+    border-color: var(--accent);
+  }
+
+  /* Thumbnail image */
+  .vilify-google-grid-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Title overlay at bottom of cell */
+  .vilify-google-grid-cell-title {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--txt-1);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Source domain below title */
+  .vilify-google-grid-cell-meta {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2px 6px 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--txt-3);
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* When both title and meta exist, stack them */
+  .vilify-google-grid-cell-title + .vilify-google-grid-cell-meta {
+    bottom: 0;
+  }
+  .vilify-google-grid-cell-title:has(+ .vilify-google-grid-cell-meta) {
+    bottom: 16px;
+  }
+`;
+
+let stylesInjected = false;
+
 /**
  * Inject CSS grid styles for Google Images layout.
  * Idempotent — only injects once.
@@ -23,7 +102,12 @@ export const GRID_COLUMNS = 5;
  * Purpose: Inject CSS for image grid layout (grid container, cells, selection highlight, thumbnail sizing)
  */
 export function injectGoogleGridStyles() {
-  throw new Error('not implemented: injectGoogleGridStyles');
+  if (stylesInjected) return;
+
+  const style = document.createElement('style');
+  style.textContent = GOOGLE_GRID_CSS;
+  document.head.appendChild(style);
+  stylesInjected = true;
 }
 
 // =============================================================================
