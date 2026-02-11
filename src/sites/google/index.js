@@ -153,9 +153,7 @@ function navigateToSearch(extraParams = '') {
  * Get ALL key sequence bindings for Google, including navigation keys,
  * modifier combos, and multi-key sequences. Context-conditional.
  *
- * Replaces the old split between getKeySequences + getSingleKeyActions.
- * Now includes: 'C-f' (next page), 'C-b' (prev page), 'G' (go to bottom),
- * plus all the existing sequences.
+ * Provides ALL key bindings for Google — navigation, modifiers, multi-key sequences.
  *
  * On listing pages (!filterActive, !searchActive): 'j', 'k' navigate,
  * 'ArrowDown', 'ArrowUp', 'Enter' always available on listing pages.
@@ -192,7 +190,7 @@ function getGoogleKeySequences(app, context) {
     },
   };
 
-  // (2) Absorbed from old getSingleKeyActions (modifier combos)
+  // (2) Modifier combos + Shift keys
   sequences['C-f'] = () => nextPage();
   sequences['C-b'] = () => prevPage();
   sequences['G'] = () => app?.goToBottom?.();
@@ -209,24 +207,6 @@ function getGoogleKeySequences(app, context) {
   }
 
   return sequences;
-}
-
-/**
- * @deprecated Merged into getGoogleKeySequences — will be removed.
- * Get single-key actions for Google (with modifiers).
- * 
- * @param {Object} app - App callbacks
- * @returns {Object<string, Function>} Single key action map
- */
-function getGoogleSingleKeyActions(app) {
-  return {
-    // Ctrl+F: next page (forward)
-    'F': () => nextPage(),
-    // Ctrl+B: previous page (back)
-    'B': () => prevPage(),
-    // Shift+G: go to bottom
-    'G': () => app?.goToBottom?.(),
-  };
 }
 
 // =============================================================================

@@ -578,8 +578,7 @@ export function getYouTubeCommands(app) {
  * modifier combos, and multi-key sequences. Context-conditional: checks
  * context.pageType, context.filterActive etc. to decide which bindings to include.
  *
- * Replaces the old split between getKeySequences + getSingleKeyActions + hardcoded
- * navigation keys in the core engine. Sites now provide ALL bindings here.
+ * Provides ALL key bindings for YouTube — navigation, modifiers, multi-key sequences.
  *
  * @param {Object} app - App instance for callbacks (navigate, select, openPalette, etc.)
  * @param {KeyContext} context - Current keyboard context { pageType, filterActive, searchActive, drawer }
@@ -700,31 +699,6 @@ export function getYouTubeBlockedNativeKeys(context) {
     return ['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h'];
   }
   return [];
-}
-
-/**
- * @deprecated Merged into getYouTubeKeySequences — will be removed.
- * Get single-key actions (including Shift modifiers)
- * @param {Object} app - App instance
- * @returns {Object} Map of key to action
- * 
- * Examples:
- *   getYouTubeSingleKeyActions(app) => { 'Y': [Function], 'M': [Function], ... }
- */
-export function getYouTubeSingleKeyActions(app) {
-  const ctx = getVideoContext();
-  const actions = {};
-
-  // Shift+G = go to bottom of list (available on all pages)
-  actions['G'] = () => app?.goToBottom?.();
-
-  if (ctx) {
-    // Shift+Y = copy URL at time
-    actions['Y'] = () => copyVideoUrlAtTime(ctx);
-
-  }
-
-  return actions;
 }
 
 // =============================================================================

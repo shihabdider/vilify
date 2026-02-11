@@ -31,7 +31,7 @@ vi.mock('../../core/view.js', () => ({
   showMessage: vi.fn(),
 }));
 
-import { getYouTubeKeySequences, getYouTubeCommands, getYouTubeSingleKeyActions, getYouTubeBlockedNativeKeys } from './commands.js';
+import { getYouTubeKeySequences, getYouTubeCommands, getYouTubeBlockedNativeKeys } from './commands.js';
 import { getYouTubePageType } from './scraper.js';
 import { getDataProvider } from './data/index.js';
 import * as player from './player.js';
