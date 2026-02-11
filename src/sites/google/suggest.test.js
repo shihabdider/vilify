@@ -2,7 +2,7 @@
 // Tests fetchGoogleSuggestions and createSuggestDrawer behavior
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchGoogleSuggestions, createSuggestDrawer } from './suggest.js';
+import { fetchGoogleSuggestions, createSuggestDrawer, getSuggestDrawer, resetSuggestDrawer } from './suggest.js';
 
 // =============================================================================
 // fetchGoogleSuggestions tests
@@ -175,5 +175,70 @@ describe('createSuggestDrawer', () => {
     handler.render(container);
     // Should not throw
     expect(() => handler.cleanup()).not.toThrow();
+  });
+});
+
+// =============================================================================
+// getSuggestDrawer caching tests
+// =============================================================================
+
+describe('getSuggestDrawer', () => {
+  const config = {
+    searchUrl: (q) => '/search?q=' + encodeURIComponent(q),
+    placeholder: 'Search...',
+    initialQuery: '',
+  };
+
+  beforeEach(() => {
+    vi.stubGlobal('document', {
+      createElement: vi.fn((tag) => ({
+        tagName: tag.toUpperCase(),
+        className: '',
+        classList: { add: vi.fn(), contains: vi.fn(() => false), remove: vi.fn() },
+        setAttribute: vi.fn(),
+        appendChild: vi.fn(),
+        removeChild: vi.fn(),
+        remove: vi.fn(),
+        children: [],
+        childNodes: [],
+        style: {},
+        dataset: {},
+        textContent: '',
+        innerHTML: '',
+        id: '',
+        scrollIntoView: vi.fn(),
+        querySelectorAll: vi.fn(() => []),
+        querySelector: vi.fn(() => null),
+      })),
+      head: { appendChild: vi.fn() },
+      getElementById: vi.fn(() => null),
+      body: { appendChild: vi.fn() },
+    });
+    resetSuggestDrawer();
+  });
+
+  afterEach(() => {
+    resetSuggestDrawer();
+    vi.restoreAllMocks();
+  });
+
+  it('returns the same instance on repeated calls', () => {
+    const a = getSuggestDrawer(config);
+    const b = getSuggestDrawer(config);
+    expect(a).toBe(b);
+  });
+
+  it('returns a fresh instance after cleanup clears cache', () => {
+    const a = getSuggestDrawer(config);
+    a.cleanup();
+    const b = getSuggestDrawer(config);
+    expect(b).not.toBe(a);
+  });
+
+  it('returns a fresh instance after resetSuggestDrawer', () => {
+    const a = getSuggestDrawer(config);
+    resetSuggestDrawer();
+    const b = getSuggestDrawer(config);
+    expect(b).not.toBe(a);
   });
 });

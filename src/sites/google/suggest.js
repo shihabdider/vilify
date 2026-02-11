@@ -214,3 +214,43 @@ export function createSuggestDrawer(config) {
     },
   };
 }
+
+// =============================================================================
+// CACHED SINGLETON (same pattern as YouTube's getChapterDrawer/resetChapterDrawer)
+// =============================================================================
+
+/** @type {DrawerHandler|null} Cached drawer instance */
+let cachedDrawer = null;
+
+/**
+ * Get or create the suggest drawer handler (cached singleton).
+ * Returns the same instance for all calls while the drawer is open.
+ * Cleanup auto-clears the cache so the next open creates a fresh instance.
+ * [PURE factory]
+ *
+ * @param {SuggestDrawerConfig} config - { searchUrl, placeholder, initialQuery }
+ * @returns {DrawerHandler}
+ */
+export function getSuggestDrawer(config) {
+  if (!cachedDrawer) {
+    const drawer = createSuggestDrawer(config);
+    // Wrap cleanup to also clear module cache
+    const originalCleanup = drawer.cleanup;
+    drawer.cleanup = () => {
+      originalCleanup();
+      cachedDrawer = null;
+    };
+    cachedDrawer = drawer;
+  }
+  return cachedDrawer;
+}
+
+/**
+ * Reset the cached suggest drawer (call on navigation away).
+ */
+export function resetSuggestDrawer() {
+  if (cachedDrawer?.cleanup) {
+    cachedDrawer.cleanup();
+  }
+  cachedDrawer = null;
+}
