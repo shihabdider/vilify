@@ -11,7 +11,8 @@
 
 /**
  * GooglePageType is one of:
- * - 'search' : search results page (/search?q=...)
+ * - 'search' : web search results page (/search?q=... without udm=2)
+ * - 'images' : image search results page (/search?q=...&udm=2)
  * - 'other'  : any other Google page
  * 
  * Classification: Enumeration
@@ -19,17 +20,21 @@
  * Examples:
  *   // URL: google.com/search?q=test
  *   getGooglePageType() => 'search'
+ *   // URL: google.com/search?q=test&udm=2
+ *   getGooglePageType() => 'images'
  *   // URL: google.com/
  *   getGooglePageType() => 'other'
  *   // URL: google.com/maps
  *   getGooglePageType() => 'other'
  */
 export function getGooglePageType() {
-  // Template: Enumeration - check pathname
-  const path = location.pathname;
-  
-  if (path === '/search') return 'search';
-  
+  if (location.pathname === '/search') {
+    const params = new URLSearchParams(location.search);
+    if (params.get('udm') === '2') {
+      return 'images';
+    }
+    return 'search';
+  }
   return 'other';
 }
 

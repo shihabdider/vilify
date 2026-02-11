@@ -164,6 +164,10 @@ function getGoogleKeySequences(app) {
     ':': () => app?.openPalette?.('command'),
     // Go to top
     'gg': () => app?.goToTop?.(),
+    // Go to web search results
+    'go': () => { throw new Error('not implemented: go sequence (navigate to /search?q=<current query>)'); },
+    // Go to image search results
+    'gi': () => { throw new Error('not implemented: gi sequence (navigate to /search?q=<current query>&udm=2)'); },
   };
 }
 
@@ -224,7 +228,7 @@ export const googleConfig = {
   matches: ['*://www.google.com/search*', '*://google.com/search*'],
   theme: googleTheme,
   logo: null,
-  searchUrl: (query) => '/search?q=' + encodeURIComponent(query),
+  searchUrl: (query) => { throw new Error('not implemented: searchUrl (type-aware: should append &udm=2 on images page)'); },
   searchPlaceholder: 'Search Google...',
 
   getPageCache: (url) => getCachedPage(url),
@@ -254,6 +258,11 @@ export const googleConfig = {
     if (pageType === 'search') {
       const results = scrapeSearchResults();
       return createGoogleListPageState(results);
+    }
+    
+    if (pageType === 'images') {
+      // Stub: return empty list state for images (to be implemented with proper scraping)
+      return createGoogleListPageState([]);
     }
     
     // Non-search pages get empty state
@@ -296,6 +305,7 @@ export const googleConfig = {
    */
   pages: {
     search: searchPageConfig,
+    images: searchPageConfig,  // Stub: reuse search config (proper image grid later)
     other: otherPageConfig,
   },
 
