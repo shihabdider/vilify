@@ -74,6 +74,18 @@ export function createSuggestDrawer(config) {
   let drawerEl = null;
   let listEl = null;
 
+  /** Cancel any pending debounce timer and in-flight fetch */
+  const cancelPending = () => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+  };
+
   /** Render the suggestion list into listEl */
   const renderList = () => {
     if (!listEl) return;
@@ -110,14 +122,7 @@ export function createSuggestDrawer(config) {
 
   /** Cancel pending fetch and debounce, then schedule a new fetch for q */
   const debounceFetch = (q) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-      debounceTimer = null;
-    }
-    if (abortController) {
-      abortController.abort();
-      abortController = null;
-    }
+    cancelPending();
 
     if (!q) {
       suggestions = [];
@@ -200,14 +205,7 @@ export function createSuggestDrawer(config) {
     },
 
     cleanup: () => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-        debounceTimer = null;
-      }
-      if (abortController) {
-        abortController.abort();
-        abortController = null;
-      }
+      cancelPending();
       if (drawerEl) {
         drawerEl.remove();
         drawerEl = null;
