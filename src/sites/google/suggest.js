@@ -41,7 +41,18 @@ import { el, clear, updateListSelection } from '../../core/view.js';
  * @returns {Promise<string[]>} Array of suggestion strings
  */
 export async function fetchGoogleSuggestions(query, signal) {
-  throw new Error('not implemented: fetchGoogleSuggestions');
+  if (!query) return [];
+  try {
+    const response = await fetch(
+      `/complete/search?client=firefox&q=${encodeURIComponent(query)}`,
+      { signal }
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data[1] || [];
+  } catch {
+    return [];
+  }
 }
 
 /**
