@@ -147,6 +147,18 @@ function prevPage() {
 // =============================================================================
 
 /**
+ * Navigate to a Google search page, preserving the current query.
+ * [I/O - reads location, navigates]
+ * 
+ * @param {string} extraParams - Additional URL params to append (e.g. '&udm=2')
+ */
+function navigateToSearch(extraParams = '') {
+  const query = new URLSearchParams(location.search).get('q');
+  if (!query) { showMessage('No search query'); return; }
+  location.href = '/search?q=' + encodeURIComponent(query) + extraParams;
+}
+
+/**
  * Get key sequence bindings for Google.
  * 
  * @param {Object} app - App callbacks (openLocalFilter, etc.)
@@ -165,17 +177,9 @@ function getGoogleKeySequences(app) {
     // Go to top
     'gg': () => app?.goToTop?.(),
     // Go to web search results
-    'go': () => {
-      const query = new URLSearchParams(location.search).get('q');
-      if (!query) { showMessage('No search query'); return; }
-      location.href = '/search?q=' + encodeURIComponent(query);
-    },
+    'go': () => navigateToSearch(),
     // Go to image search results
-    'gi': () => {
-      const query = new URLSearchParams(location.search).get('q');
-      if (!query) { showMessage('No search query'); return; }
-      location.href = '/search?q=' + encodeURIComponent(query) + '&udm=2';
-    },
+    'gi': () => navigateToSearch('&udm=2'),
   };
 }
 
@@ -266,12 +270,7 @@ export const googleConfig = {
   createPageState: () => {
     const pageType = getGooglePageType();
     
-    if (pageType === 'search') {
-      const results = scrapeSearchResults();
-      return createGoogleListPageState(results);
-    }
-    
-    if (pageType === 'images') {
+    if (pageType === 'search' || pageType === 'images') {
       const results = scrapeSearchResults();
       return createGoogleListPageState(results);
     }
