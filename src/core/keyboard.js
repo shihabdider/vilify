@@ -76,7 +76,20 @@ export function normalizeKey(event) {
  *   => { action: null, newSeq: '', shouldPrevent: false }
  */
 export function handleKeyEvent(key, keySeq, sequences, timeout) {
-  throw new Error("not implemented: handleKeyEvent");
+  const newSeq = keySeq + key;
+  const exactMatch = sequences[newSeq] || null;
+  const longerPrefix = Object.keys(sequences).some(s => s.startsWith(newSeq) && s.length > newSeq.length);
+
+  if (exactMatch && !longerPrefix) {
+    return { action: exactMatch, pendingAction: null, newSeq: '', shouldPrevent: true };
+  }
+  if (exactMatch && longerPrefix) {
+    return { action: null, pendingAction: exactMatch, newSeq, shouldPrevent: true };
+  }
+  if (longerPrefix) {
+    return { action: null, pendingAction: null, newSeq, shouldPrevent: false };
+  }
+  return { action: null, pendingAction: null, newSeq: '', shouldPrevent: false };
 }
 
 /**
