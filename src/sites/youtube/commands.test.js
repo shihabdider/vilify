@@ -31,9 +31,14 @@ vi.mock('../../core/view.js', () => ({
   showMessage: vi.fn(),
 }));
 
-import { getYouTubeKeySequences, getYouTubeCommands, getYouTubeSingleKeyActions } from './commands.js';
+import { getYouTubeKeySequences, getYouTubeCommands, getYouTubeSingleKeyActions, getYouTubeBlockedNativeKeys } from './commands.js';
 import { getYouTubePageType } from './scraper.js';
 import { getDataProvider } from './data/index.js';
+
+// Helper to create a KeyContext for tests
+function makeContext(overrides = {}) {
+  return { pageType: null, filterActive: false, searchActive: false, drawer: null, ...overrides };
+}
 
 describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
   let app;
@@ -47,57 +52,60 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
       openSearch: vi.fn(),
       goToTop: vi.fn(),
       goToBottom: vi.fn(),
+      navigate: vi.fn(),
+      select: vi.fn(),
+      undoWatchLaterRemoval: vi.fn(),
     };
   });
 
   it('has dd sequence on listing pages', () => {
     getYouTubePageType.mockReturnValue('home');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
     expect(sequences).toHaveProperty('dd');
   });
 
   it('has mw sequence on listing pages', () => {
     getYouTubePageType.mockReturnValue('home');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
     expect(sequences).toHaveProperty('mw');
   });
 
   it('dd calls removeFromWatchLater', () => {
     getYouTubePageType.mockReturnValue('home');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
     sequences['dd']();
     expect(app.removeFromWatchLater).toHaveBeenCalled();
   });
 
   it('mw calls addToWatchLater', () => {
     getYouTubePageType.mockReturnValue('home');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
     sequences['mw']();
     expect(app.addToWatchLater).toHaveBeenCalled();
   });
 
   it('does not have dd on watch page', () => {
     getYouTubePageType.mockReturnValue('watch');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
     expect(sequences).not.toHaveProperty('dd');
   });
 
   it('has mw on watch page', () => {
     getYouTubePageType.mockReturnValue('watch');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
     expect(sequences).toHaveProperty('mw');
   });
 
   it('mw calls addToWatchLater on watch page', () => {
     getYouTubePageType.mockReturnValue('watch');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
     sequences['mw']();
     expect(app.addToWatchLater).toHaveBeenCalled();
   });
 
   it('dd works on subscriptions page', () => {
     getYouTubePageType.mockReturnValue('subscriptions');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'subscriptions' }));
     expect(sequences).toHaveProperty('dd');
     sequences['dd']();
     expect(app.removeFromWatchLater).toHaveBeenCalled();
@@ -105,7 +113,7 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
 
   it('mw works on subscriptions page', () => {
     getYouTubePageType.mockReturnValue('subscriptions');
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'subscriptions' }));
     expect(sequences).toHaveProperty('mw');
     sequences['mw']();
     expect(app.addToWatchLater).toHaveBeenCalled();
@@ -113,13 +121,13 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
 
   it('handles null app gracefully for dd', () => {
     getYouTubePageType.mockReturnValue('home');
-    const sequences = getYouTubeKeySequences(null);
+    const sequences = getYouTubeKeySequences(null, makeContext({ pageType: 'home' }));
     expect(() => sequences['dd']()).not.toThrow();
   });
 
   it('handles null app gracefully for mw', () => {
     getYouTubePageType.mockReturnValue('home');
-    const sequences = getYouTubeKeySequences(null);
+    const sequences = getYouTubeKeySequences(null, makeContext({ pageType: 'home' }));
     expect(() => sequences['mw']()).not.toThrow();
   });
 
@@ -128,7 +136,7 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
     getDataProvider.mockReturnValue({
       getVideoContext: () => ({ videoId: 'abc', channelUrl: '/c/test', channelName: 'Test', isSubscribed: false }),
     });
-    const sequences = getYouTubeKeySequences(app);
+    const sequences = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
     expect(sequences).toHaveProperty('ms');
     // Restore default mock
     getDataProvider.mockReturnValue({
@@ -136,7 +144,7 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
     });
   });
 
-  it('does not have M single-key action on watch page', () => {
+  it('does not have M single-key action on watch page (merged into sequences as Y)', () => {
     getYouTubePageType.mockReturnValue('watch');
     getDataProvider.mockReturnValue({
       getVideoContext: () => ({ videoId: 'abc', channelUrl: '/c/test', channelName: 'Test', isSubscribed: false }),

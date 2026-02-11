@@ -31,7 +31,7 @@ import {
 import { el, clear, updateListSelection, showMessage, flashBoundary, navigateList, isInputElement } from './view.js';
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading.js';
 import { setupNavigationObserver } from './navigation.js';
-import { setupKeyboardHandler } from './keyboard.js';
+import { setupKeyboardEngine } from './keyboard.js';
 import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, updateSortIndicator, updateItemCount, removeFocusMode } from './layout.js';
 import { parseSortCommand, getSortLabel, getDefaultDirection, toggleDirection, SORT_FIELDS } from './sort.js';
 import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette.js';
@@ -1106,25 +1106,40 @@ export function createApp(config) {
         onEscape: handleInputEscape,
       });
 
-      // Set up keyboard handling (returns cleanup function)
-      cleanupKeyboard = setupKeyboardHandler(config, getState, setState, {
-        onNavigate: handleListNavigation,
-        onSelect: handleSelect,
-        onEscape: handleEscape,
-        onRender: render,
-        onNextCommentPage: handleNextCommentPage,
-        onPrevCommentPage: handlePrevCommentPage,
+      // Construct appCallbacks — the full set of callbacks that key sequences can invoke.
+      // Previously built inside keyboard.js; now constructed here and passed in.
+      // TODO: implement — move appCallbacks construction from old keyboard.js setupKeyboardHandler
+      const appCallbacks = {
+        navigate: handleListNavigation,
+        select: handleSelect,
+        render: render,
         onDrawerKey: handleSiteDrawerKey,
-        onAddToWatchLater: handleAddToWatchLater,
-        onRemoveFromWatchLater: handleRemoveFromWatchLater,
-        onUndoWatchLaterRemoval: handleUndoWatchLaterRemoval,
-        onDismissVideo: handleDismissVideo,
+        openPalette: (mode) => { throw new Error("not implemented: appCallbacks.openPalette"); },
+        openRecommended: () => { throw new Error("not implemented: appCallbacks.openRecommended"); },
+        openLocalFilter: () => { throw new Error("not implemented: appCallbacks.openLocalFilter"); },
+        openSearch: (initialQuery) => { throw new Error("not implemented: appCallbacks.openSearch"); },
+        openDrawer: (drawerId) => { throw new Error("not implemented: appCallbacks.openDrawer"); },
+        closeDrawer: () => { throw new Error("not implemented: appCallbacks.closeDrawer"); },
+        goToTop: () => { throw new Error("not implemented: appCallbacks.goToTop"); },
+        goToBottom: () => { throw new Error("not implemented: appCallbacks.goToBottom"); },
+        openTranscriptDrawer: () => { throw new Error("not implemented: appCallbacks.openTranscriptDrawer"); },
+        dismissVideo: handleDismissVideo,
+        addToWatchLater: handleAddToWatchLater,
+        removeFromWatchLater: handleRemoveFromWatchLater,
+        exitFocusMode: () => { throw new Error("not implemented: appCallbacks.exitFocusMode"); },
+        updateSubscribeButton: (isSubscribed) => { throw new Error("not implemented: appCallbacks.updateSubscribeButton"); },
         getSelectedItem: () => {
           const items = getPageItems(state);
           const filtered = getVisibleItems(state, items);
           return filtered[state.ui.selectedIdx] || null;
         },
-      }, () => siteState);
+        undoWatchLaterRemoval: handleUndoWatchLaterRemoval,
+        nextCommentPage: handleNextCommentPage,
+        prevCommentPage: handlePrevCommentPage,
+      };
+
+      // Set up keyboard handling (returns cleanup function)
+      cleanupKeyboard = setupKeyboardEngine(config, getState, setState, appCallbacks, () => siteState);
 
       // Set up SPA navigation observer
       navigationObserver = setupNavigationObserver(handleNavigation);

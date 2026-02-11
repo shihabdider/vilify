@@ -150,49 +150,26 @@ function navigateToSearch(extraParams = '') {
 }
 
 /**
- * Get key sequence bindings for Google.
- * 
- * @param {Object} app - App callbacks (openLocalFilter, etc.)
+ * Get ALL key sequence bindings for Google, including navigation keys,
+ * modifier combos, and multi-key sequences. Context-conditional.
+ *
+ * Replaces the old split between getKeySequences + getSingleKeyActions.
+ * Now includes: 'C-f' (next page), 'C-b' (prev page), 'G' (go to bottom),
+ * plus all the existing sequences.
+ *
+ * On listing pages (!filterActive, !searchActive): 'j', 'k' navigate,
+ * 'ArrowDown', 'ArrowUp', 'Enter' always available on listing pages.
+ *
+ * @param {Object} app - App callbacks (openLocalFilter, goToBottom, navigate, etc.)
+ * @param {KeyContext} context - Current keyboard context { pageType, filterActive, searchActive, drawer }
  * @returns {Object<string, Function>} Key sequence map
  */
-function getGoogleKeySequences(app) {
-  const pageType = getGooglePageType();
-
-  return {
-    // Filter: / opens local filter
-    '/': () => {
-      app?.openLocalFilter?.();
-    },
-    // Search: i opens search mode
-    'i': () => {
-      const q = new URLSearchParams(location.search).get('q') || '';
-      app?.openSearch?.(q);
-    },
-    // Command palette
-    ':': () => app?.openPalette?.('command'),
-    // Go to top
-    'gg': () => app?.goToTop?.(),
-    // Go to web search results
-    'go': () => navigateToSearch(),
-    // Go to image search results
-    'gi': () => navigateToSearch('&udm=2'),
-    // yy: copy (page-type-aware)
-    'yy': () => {
-      const item = app?.getSelectedItem?.();
-      if (!item) {
-        showMessage('No item selected');
-        return;
-      }
-      if (pageType === 'images' && (item.imageUrl || item.thumbnail)) {
-        copyImageToClipboard(item.imageUrl || item.thumbnail);
-      } else if (item.url) {
-        copyToClipboard(item.url);
-      }
-    },
-  };
+function getGoogleKeySequences(app, context) {
+  throw new Error("not implemented: getGoogleKeySequences");
 }
 
 /**
+ * @deprecated Merged into getGoogleKeySequences — will be removed.
  * Get single-key actions for Google (with modifiers).
  * 
  * @param {Object} app - App callbacks
@@ -302,13 +279,34 @@ export const googleConfig = {
   getCommands: () => [],
 
   /**
-   * Get key sequence bindings.
-   * @param {Object} app - App callbacks (openLocalFilter, etc.)
+   * Get ALL key sequence bindings (including navigation, modifiers, multi-key).
+   * @param {Object} app - App callbacks (openLocalFilter, navigate, etc.)
+   * @param {KeyContext} context - Current keyboard context
    * @returns {Object<string, Function>}
    */
   getKeySequences: getGoogleKeySequences,
 
   /**
+   * Get keys to block on Google pages.
+   * Google doesn't have native keyboard shortcuts that conflict,
+   * so this returns an empty array.
+   * @param {KeyContext} context - Current keyboard context
+   * @returns {string[]}
+   */
+  getBlockedNativeKeys: (context) => [],
+
+  /**
+   * Check if a DOM target is Google's native search input.
+   * Used by the keyboard engine for Escape-to-blur behavior.
+   * @param {HTMLElement} target - Event target element
+   * @returns {boolean}
+   */
+  isNativeSearchInput: (target) => {
+    throw new Error("not implemented: isNativeSearchInput");
+  },
+
+  /**
+   * @deprecated Merged into getKeySequences — will be removed.
    * Get single-key actions (Ctrl+F/B for pagination).
    * @param {Object} app - App callbacks
    * @returns {Object<string, Function>}

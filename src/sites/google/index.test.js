@@ -31,10 +31,17 @@ vi.mock('../../core/actions.js', () => ({
 
 const { googleConfig } = await import('./index.js');
 
+// Helper to create a KeyContext for tests
+function makeContext(overrides = {}) {
+  return { pageType: null, filterActive: false, searchActive: false, drawer: null, ...overrides };
+}
+
 describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
+  const defaultCtx = makeContext({ pageType: 'search' });
+
   it('returns an object with "/" key for local filter', () => {
     const app = { openLocalFilter: vi.fn() };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, defaultCtx);
     expect(seqs).toHaveProperty('/');
     seqs['/']();
     expect(app.openLocalFilter).toHaveBeenCalled();
@@ -42,7 +49,7 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
 
   it('returns an object with "i" key for search, pre-filled with URL query', () => {
     const app = { openSearch: vi.fn() };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, defaultCtx);
     expect(seqs).toHaveProperty('i');
     seqs['i']();
     // location.search is '?q=test' from the global mock
@@ -51,7 +58,7 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
 
   it('returns an object with ":" key for command palette', () => {
     const app = { openPalette: vi.fn() };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, defaultCtx);
     expect(seqs).toHaveProperty(':');
     seqs[':']();
     expect(app.openPalette).toHaveBeenCalledWith('command');
@@ -59,14 +66,14 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
 
   it('returns an object with "gg" key for go to top', () => {
     const app = { goToTop: vi.fn() };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, defaultCtx);
     expect(seqs).toHaveProperty('gg');
     seqs['gg']();
     expect(app.goToTop).toHaveBeenCalled();
   });
 
   it('handles null/undefined app gracefully (optional chaining)', () => {
-    const seqs = googleConfig.getKeySequences(null);
+    const seqs = googleConfig.getKeySequences(null, defaultCtx);
     // Should not throw
     expect(() => seqs['i']()).not.toThrow();
     expect(() => seqs[':']()).not.toThrow();
@@ -75,13 +82,13 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
 
   it('"go" navigates to web search results with current query', () => {
     // location.search is '?q=test' from the global mock
-    const seqs = googleConfig.getKeySequences({});
+    const seqs = googleConfig.getKeySequences({}, defaultCtx);
     seqs['go']();
     expect(window.location.href).toBe('/search?q=test');
   });
 
   it('"gi" navigates to image search results with current query', () => {
-    const seqs = googleConfig.getKeySequences({});
+    const seqs = googleConfig.getKeySequences({}, defaultCtx);
     seqs['gi']();
     expect(window.location.href).toBe('/search?q=test&udm=2');
   });
@@ -89,7 +96,7 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
   it('"go" shows message when no query present', () => {
     const origSearch = location.search;
     location.search = '';
-    const seqs = googleConfig.getKeySequences({});
+    const seqs = googleConfig.getKeySequences({}, defaultCtx);
     seqs['go']();
     // showMessage is called instead of navigating — we just verify no throw
     location.search = origSearch;
@@ -98,19 +105,19 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
   it('"gi" shows message when no query present', () => {
     const origSearch = location.search;
     location.search = '';
-    const seqs = googleConfig.getKeySequences({});
+    const seqs = googleConfig.getKeySequences({}, defaultCtx);
     seqs['gi']();
     location.search = origSearch;
   });
 
   it('returns an object with "yy" key', () => {
-    const seqs = googleConfig.getKeySequences({});
+    const seqs = googleConfig.getKeySequences({}, defaultCtx);
     expect(seqs).toHaveProperty('yy');
   });
 
   it('"yy" shows "No item selected" when getSelectedItem returns null', () => {
     const app = { getSelectedItem: vi.fn(() => null) };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, defaultCtx);
     seqs['yy']();
     expect(mockCopyToClipboard).not.toHaveBeenCalled();
     expect(mockCopyImageToClipboard).not.toHaveBeenCalled();
@@ -122,7 +129,7 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
     location.search = '?q=test&udm=2';
     const item = { id: '1', title: 'img', url: 'https://example.com', thumbnail: 'data:image/jpeg;base64,thumb', imageUrl: 'https://cdn.example.com/full.jpg' };
     const app = { getSelectedItem: vi.fn(() => item) };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, makeContext({ pageType: 'images' }));
     seqs['yy']();
     expect(mockCopyImageToClipboard).toHaveBeenCalledWith('https://cdn.example.com/full.jpg');
     expect(mockCopyToClipboard).not.toHaveBeenCalled();
@@ -135,7 +142,7 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
     location.search = '?q=test&udm=2';
     const item = { id: '1', title: 'img', url: 'https://example.com', thumbnail: 'data:image/jpeg;base64,thumb', imageUrl: '' };
     const app = { getSelectedItem: vi.fn(() => item) };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, makeContext({ pageType: 'images' }));
     seqs['yy']();
     expect(mockCopyImageToClipboard).toHaveBeenCalledWith('data:image/jpeg;base64,thumb');
     expect(mockCopyToClipboard).not.toHaveBeenCalled();
@@ -149,7 +156,7 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
     location.search = '?q=test';
     const item = { id: '1', title: 'result', url: 'https://example.com/page', thumbnail: null };
     const app = { getSelectedItem: vi.fn(() => item) };
-    const seqs = googleConfig.getKeySequences(app);
+    const seqs = googleConfig.getKeySequences(app, defaultCtx);
     seqs['yy']();
     expect(mockCopyToClipboard).toHaveBeenCalledWith('https://example.com/page');
     expect(mockCopyImageToClipboard).not.toHaveBeenCalled();
@@ -157,7 +164,7 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
   });
 
   it('"yy" does not throw when app is null', () => {
-    const seqs = googleConfig.getKeySequences(null);
+    const seqs = googleConfig.getKeySequences(null, defaultCtx);
     expect(() => seqs['yy']()).not.toThrow();
   });
 });

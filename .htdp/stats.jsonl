@@ -11,3 +11,4 @@
 {"ts":"2026-02-10T21:40:26.842Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":41,"input":43,"output":11791,"cacheRead":1314082,"cost":1.2345,"duration":212.3}
 {"ts":"2026-02-10T22:05:24.532Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":39,"input":41,"output":9718,"cacheRead":636264,"cost":0.7287,"duration":198.6}
 {"ts":"2026-02-11T17:01:56.569Z","agent":"implementer","wish":"renderGoogleItem","layer":null,"status":"pass","turns":25,"input":27,"output":6387,"cacheRead":288047,"cost":0.4156,"duration":141.7}
+{"ts":"2026-02-11T22:05:12.313Z","agent":"stubber","wish":null,"layer":null,"status":"pass","turns":44,"input":46,"output":40520,"cacheRead":2521980,"cost":2.8301,"duration":662.4}

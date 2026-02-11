@@ -3,7 +3,7 @@
 
 import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
-import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo, clickUndoDismiss } from './commands.js';
+import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, getYouTubeBlockedNativeKeys, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo, clickUndoDismiss } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers, setRecommendedItems } from './drawers/index.js';
@@ -335,13 +335,32 @@ export const youtubeConfig = {
   getCommands: (ctx) => getYouTubeCommands(ctx),
 
   /**
-   * Get key sequence bindings.
-   * @param {Object} ctx - Context with state, callbacks
+   * Get ALL key sequence bindings (including navigation, modifiers, multi-key).
+   * @param {Object} app - App callbacks (navigate, select, openPalette, etc.)
+   * @param {KeyContext} context - Current keyboard context
    * @returns {Object<string, Function>}
    */
-  getKeySequences: (ctx) => getYouTubeKeySequences(ctx),
+  getKeySequences: (app, context) => getYouTubeKeySequences(app, context),
 
   /**
+   * Get keys to block (preventDefault+stopPropagation) on YouTube pages.
+   * @param {KeyContext} context - Current keyboard context
+   * @returns {string[]}
+   */
+  getBlockedNativeKeys: (context) => getYouTubeBlockedNativeKeys(context),
+
+  /**
+   * Check if a DOM target is YouTube's native search input.
+   * Used by the keyboard engine for Escape-to-blur behavior.
+   * @param {HTMLElement} target - Event target element
+   * @returns {boolean}
+   */
+  isNativeSearchInput: (target) => {
+    throw new Error("not implemented: isNativeSearchInput");
+  },
+
+  /**
+   * @deprecated Merged into getKeySequences — will be removed.
    * Get single-key actions (including Shift modifiers like Shift+Y)
    * @param {Object} ctx - Context with state, callbacks
    * @returns {Object<string, Function>}

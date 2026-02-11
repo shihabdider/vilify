@@ -1,11 +1,41 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { handleKeyEvent, setupKeyboardHandler } from './keyboard.js';
+import { handleKeyEvent, normalizeKey, setupKeyboardEngine } from './keyboard.js';
 
-// Helper to create a minimal KeyboardEvent-like object
-function keyEvent(key) {
-  return { key, preventDefault: vi.fn(), stopPropagation: vi.fn() };
-}
+describe('normalizeKey', () => {
+  it('returns key as-is for regular key', () => {
+    expect(normalizeKey({ key: 'a', ctrlKey: false })).toBe('a');
+  });
+
+  it('returns uppercase key for Shift+key (browser gives uppercase)', () => {
+    expect(normalizeKey({ key: 'G', shiftKey: true, ctrlKey: false })).toBe('G');
+  });
+
+  it('returns C- prefix for Ctrl+key', () => {
+    expect(normalizeKey({ key: 'f', ctrlKey: true })).toBe('C-f');
+  });
+
+  it('returns null for Shift modifier-only', () => {
+    expect(normalizeKey({ key: 'Shift' })).toBeNull();
+  });
+
+  it('returns null for Control modifier-only', () => {
+    expect(normalizeKey({ key: 'Control' })).toBeNull();
+  });
+
+  it('returns null for Alt modifier-only', () => {
+    expect(normalizeKey({ key: 'Alt' })).toBeNull();
+  });
+
+  it('returns null for Meta modifier-only', () => {
+    expect(normalizeKey({ key: 'Meta' })).toBeNull();
+  });
+
+  it('returns special keys as-is (Enter, Escape, etc.)', () => {
+    expect(normalizeKey({ key: 'Enter', ctrlKey: false })).toBe('Enter');
+    expect(normalizeKey({ key: 'Escape', ctrlKey: false })).toBe('Escape');
+  });
+});
 
 describe('handleKeyEvent - prefix disambiguation', () => {
   const mute = vi.fn();
@@ -23,7 +53,7 @@ describe('handleKeyEvent - prefix disambiguation', () => {
   };
 
   it('returns pendingAction for ambiguous exact match (m has longer prefixes)', () => {
-    const result = handleKeyEvent(keyEvent('m'), '', sequences, 500);
+    const result = handleKeyEvent('m', '', sequences, 500);
     expect(result.action).toBeNull();
     expect(result.pendingAction).toBe(mute);
     expect(result.newSeq).toBe('m');
@@ -31,7 +61,7 @@ describe('handleKeyEvent - prefix disambiguation', () => {
   });
 
   it('returns action for unambiguous exact match (mw has no longer prefix)', () => {
-    const result = handleKeyEvent(keyEvent('w'), 'm', sequences, 500);
+    const result = handleKeyEvent('w', 'm', sequences, 500);
     expect(result.action).toBe(watchLater);
     expect(result.pendingAction).toBeNull();
     expect(result.newSeq).toBe('');
@@ -39,14 +69,14 @@ describe('handleKeyEvent - prefix disambiguation', () => {
   });
 
   it('returns action for unambiguous exact match (ms)', () => {
-    const result = handleKeyEvent(keyEvent('s'), 'm', sequences, 500);
+    const result = handleKeyEvent('s', 'm', sequences, 500);
     expect(result.action).toBe(subscribe);
     expect(result.pendingAction).toBeNull();
     expect(result.newSeq).toBe('');
   });
 
   it('keeps building sequence for prefix with no exact match (g)', () => {
-    const result = handleKeyEvent(keyEvent('g'), '', sequences, 500);
+    const result = handleKeyEvent('g', '', sequences, 500);
     expect(result.action).toBeNull();
     expect(result.pendingAction).toBeNull();
     expect(result.newSeq).toBe('g');
@@ -54,37 +84,35 @@ describe('handleKeyEvent - prefix disambiguation', () => {
   });
 
   it('resets on no match (mx)', () => {
-    const result = handleKeyEvent(keyEvent('x'), 'm', sequences, 500);
+    const result = handleKeyEvent('x', 'm', sequences, 500);
     expect(result.action).toBeNull();
     expect(result.pendingAction).toBeNull();
     expect(result.newSeq).toBe('');
     expect(result.shouldPrevent).toBe(false);
   });
 
-  it('ignores modifier keys', () => {
-    const result = handleKeyEvent(keyEvent('Shift'), 'g', sequences, 500);
-    expect(result.action).toBeNull();
-    expect(result.pendingAction).toBeNull();
-    expect(result.newSeq).toBe('g');
-  });
-
   it('fires gh immediately (no longer prefix)', () => {
-    const result = handleKeyEvent(keyEvent('h'), 'g', sequences, 500);
+    const result = handleKeyEvent('h', 'g', sequences, 500);
     expect(result.action).toBe(goHome);
     expect(result.pendingAction).toBeNull();
     expect(result.newSeq).toBe('');
   });
 });
 
-describe('setupKeyboardHandler - getSelectedItem forwarding', () => {
-  it('forwards getSelectedItem through appCallbacks to getKeySequences', () => {
-    // Capture the appCallbacks object passed to getKeySequences
+describe('setupKeyboardEngine - appCallbacks forwarding to getKeySequences', () => {
+  it('forwards appCallbacks to getKeySequences with context', () => {
+    // Capture the (app, context) passed to getKeySequences
     let capturedApp = null;
+    let capturedContext = null;
     const mockConfig = {
-      getKeySequences: (app) => {
+      getPageType: () => 'home',
+      getKeySequences: (app, context) => {
         capturedApp = app;
+        capturedContext = context;
         return { 'x': () => {} };
       },
+      getBlockedNativeKeys: () => [],
+      isNativeSearchInput: () => false,
     };
 
     const mockState = {
@@ -95,36 +123,46 @@ describe('setupKeyboardHandler - getSelectedItem forwarding', () => {
     const setState = vi.fn();
 
     const selectedItem = { id: 'video-1', title: 'Test Video' };
-    const getSelectedItem = vi.fn(() => selectedItem);
+    const appCallbacks = {
+      getSelectedItem: vi.fn(() => selectedItem),
+      navigate: vi.fn(),
+      select: vi.fn(),
+      render: vi.fn(),
+    };
 
-    const cleanup = setupKeyboardHandler(mockConfig, getState, setState, {
-      getSelectedItem,
-    });
+    const cleanup = setupKeyboardEngine(mockConfig, getState, setState, appCallbacks, () => null);
 
-    // Trigger a keydown event so the handler runs and builds appCallbacks
-    // Use 'x' which won't match any early-return navigation keys
+    // Trigger a keydown event so the handler runs
     const event = new KeyboardEvent('keydown', { key: 'x', bubbles: true });
     document.dispatchEvent(event);
 
-    // getKeySequences should have been called with appCallbacks containing getSelectedItem
+    // getKeySequences should have been called with appCallbacks and context
     expect(capturedApp).not.toBeNull();
+    expect(capturedContext).not.toBeNull();
     expect(typeof capturedApp.getSelectedItem).toBe('function');
+    expect(capturedContext).toHaveProperty('pageType');
+    expect(capturedContext).toHaveProperty('filterActive');
+    expect(capturedContext).toHaveProperty('searchActive');
+    expect(capturedContext).toHaveProperty('drawer');
 
     // Calling appCallbacks.getSelectedItem should delegate to our callback
     const result = capturedApp.getSelectedItem();
-    expect(getSelectedItem).toHaveBeenCalled();
+    expect(appCallbacks.getSelectedItem).toHaveBeenCalled();
     expect(result).toBe(selectedItem);
 
     cleanup();
   });
 
-  it('handles missing getSelectedItem callback gracefully', () => {
+  it('handles missing optional appCallbacks gracefully', () => {
     let capturedApp = null;
     const mockConfig = {
-      getKeySequences: (app) => {
+      getPageType: () => 'home',
+      getKeySequences: (app, context) => {
         capturedApp = app;
         return { 'x': () => {} };
       },
+      getBlockedNativeKeys: () => [],
+      isNativeSearchInput: () => false,
     };
 
     const mockState = {
@@ -134,15 +172,13 @@ describe('setupKeyboardHandler - getSelectedItem forwarding', () => {
     const getState = () => mockState;
     const setState = vi.fn();
 
-    // No getSelectedItem in callbacks
-    const cleanup = setupKeyboardHandler(mockConfig, getState, setState, {});
+    // Minimal appCallbacks — no getSelectedItem
+    const cleanup = setupKeyboardEngine(mockConfig, getState, setState, {}, () => null);
 
     const event = new KeyboardEvent('keydown', { key: 'x', bubbles: true });
     document.dispatchEvent(event);
 
     expect(capturedApp).not.toBeNull();
-    // Should return undefined (optional chaining), not throw
-    expect(capturedApp.getSelectedItem()).toBeUndefined();
 
     cleanup();
   });

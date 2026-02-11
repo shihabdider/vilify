@@ -574,92 +574,56 @@ export function getYouTubeCommands(app) {
 // =============================================================================
 
 /**
- * Get key sequence bindings for vim-style navigation
- * @param {Object} app - App instance for callbacks
+ * Get ALL key sequence bindings for YouTube, including navigation keys,
+ * modifier combos, and multi-key sequences. Context-conditional: checks
+ * context.pageType, context.filterActive etc. to decide which bindings to include.
+ *
+ * Replaces the old split between getKeySequences + getSingleKeyActions + hardcoded
+ * navigation keys in the core engine. Sites now provide ALL bindings here.
+ *
+ * @param {Object} app - App instance for callbacks (navigate, select, openPalette, etc.)
+ * @param {KeyContext} context - Current keyboard context { pageType, filterActive, searchActive, drawer }
  * @returns {Object} Map of key sequence to action function
  * 
+ * Bindings by context:
+ * - Always: '/', ':', 'i', 'gh', 'gs', 'gy', 'gl', 'gw', 'gg', 'mw',
+ *           'ArrowDown', 'ArrowUp', 'Enter' (on listing pages)
+ * - Listing, !filterActive, !searchActive: 'j', 'k', 'h', 'l', 'u', 'dd'
+ * - Listing: 'G' (goToBottom)
+ * - Watch page: 'C-f', 'C-b', ' ' (space→togglePlayPause), player controls
+ * - Watch page with ctx: 'm', 'c', 'h', 'l', 'f', 't', 'yy', 'yt', 'Y', etc.
+ *
  * Examples:
- *   getYouTubeKeySequences(app) => { 'gh': [Function], 'yy': [Function], ... }
+ *   getYouTubeKeySequences(app, { pageType: 'home', filterActive: false, ... })
+ *     => { 'j': [Function], 'k': [Function], 'gh': [Function], ... }
+ *   getYouTubeKeySequences(app, { pageType: 'watch', ... })
+ *     => { 'C-f': [Function], ' ': [Function], 'm': [Function], ... }
  */
-export function getYouTubeKeySequences(app) {
-  // Inventory: app (callbacks), ctx (VideoContext|null), pageType (Enum)
-  // Template: build object, conditional additions
-
-  const ctx = getVideoContext();
-  const pageType = getYouTubePageType();
-
-  // Base sequences (always available)
-  const sequences = {
-    // '/' routes based on page type:
-    // - Listing pages: inline filter (localFilterActive)
-    // - Watch page: filter drawer modal for recommended videos
-    '/': () => {
-      if (pageType === 'watch') {
-        app?.openRecommended?.();  // Open drawer for recommended videos
-      } else {
-        app?.openLocalFilter?.();  // Inline filter for listing pages
-      }
-    },
-    ':': () => app?.openPalette?.('command'),
-    'i': () => app?.openSearch?.(),
-
-    // Navigation
-    'gh': () => navigateTo('/'),
-    'gs': () => navigateTo('/feed/subscriptions'),
-    'gy': () => navigateTo('/feed/history'),
-    'gl': () => navigateTo('/feed/library'),
-    'gw': () => navigateTo('/playlist?list=WL'),
-
-    // List navigation (vim-style)
-    'gg': () => app?.goToTop?.(),
-  };
-
-  // Listing-page-only sequences
-  if (pageType !== 'watch') {
-    sequences['dd'] = () => app?.removeFromWatchLater?.();
-  }
-
-  // Watch later - available on all pages
-  sequences['mw'] = () => app?.addToWatchLater?.();
-
-  // Video-specific sequences (watch page only)
-  if (ctx) {
-    // Channel navigation - go directly to videos page
-    if (ctx.channelUrl) {
-      sequences['gc'] = () => navigateTo(ctx.channelUrl + '/videos');
-    }
-
-    // Playback speed
-    sequences['g1'] = () => player.setPlaybackRate(1);
-    sequences['g2'] = () => player.setPlaybackRate(2);
-
-    // Copy
-    sequences['yy'] = () => copyVideoUrl(ctx);
-    sequences['yt'] = () => copyVideoTitle(ctx);
-    // Note: Shift+Y (copy URL at time) is handled via getSingleKeyActions
-
-    // Description drawer
-    sequences['zo'] = () => app?.openDrawer?.('description');
-    sequences['zc'] = () => app?.closeDrawer?.();
-
-    // Chapter drawer
-    sequences['f'] = () => app?.openDrawer?.('chapters');
-
-    // Subscribe/unsubscribe
-    sequences['ms'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
-
-    // Player controls (single keys on watch page)
-    sequences['m'] = player.toggleMute;
-    sequences['c'] = player.toggleCaptions;
-    sequences['h'] = () => player.seekRelative(-10);
-    sequences['l'] = () => player.seekRelative(10);
-    sequences['t'] = () => app?.openTranscriptDrawer?.();
-  }
-
-  return sequences;
+export function getYouTubeKeySequences(app, context) {
+  throw new Error("not implemented: getYouTubeKeySequences");
 }
 
 /**
+ * Get keys to block (preventDefault+stopPropagation) on YouTube pages,
+ * even if just a prefix match. Prevents YouTube's native handlers from
+ * intercepting keys that Vilify handles via sequences.
+ * [PURE]
+ *
+ * @param {KeyContext} context - Current keyboard context { pageType, filterActive, searchActive, drawer }
+ * @returns {string[]} Keys to block
+ *
+ * @example
+ * getYouTubeBlockedNativeKeys({ pageType: 'watch', ... })
+ *   => ['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h']
+ * getYouTubeBlockedNativeKeys({ pageType: 'home', ... })
+ *   => []
+ */
+export function getYouTubeBlockedNativeKeys(context) {
+  throw new Error("not implemented: getYouTubeBlockedNativeKeys");
+}
+
+/**
+ * @deprecated Merged into getYouTubeKeySequences — will be removed.
  * Get single-key actions (including Shift modifiers)
  * @param {Object} app - App instance
  * @returns {Object} Map of key to action
