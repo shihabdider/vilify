@@ -126,7 +126,24 @@ export function injectGoogleGridStyles() {
  * @returns {HTMLElement} Grid cell element
  */
 export function renderGoogleGridItem(item, isSelected) {
-  throw new Error('not implemented: renderGoogleGridItem');
+  const classes = isSelected ? 'vilify-google-grid-cell selected' : 'vilify-google-grid-cell';
+  const children = [];
+
+  // Thumbnail image (styled by .vilify-google-grid-cell img selector)
+  const img = el('img', { src: item.thumbnail, alt: item.title || '' });
+  children.push(img);
+
+  // Title overlay at bottom of cell
+  const title = el('div', { class: 'vilify-google-grid-cell-title' }, [item.title || '']);
+  children.push(title);
+
+  // Source domain (only if present)
+  if (item.meta) {
+    const meta = el('div', { class: 'vilify-google-grid-cell-meta' }, [item.meta]);
+    children.push(meta);
+  }
+
+  return el('div', { class: classes }, children);
 }
 
 // =============================================================================
