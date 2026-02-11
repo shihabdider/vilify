@@ -13,7 +13,7 @@ vi.stubGlobal('document', {
 const fakeLocation = { pathname: '/', search: '' };
 vi.stubGlobal('location', fakeLocation);
 
-const { getGooglePageType, scrapeImageResults } = await import('./scraper.js');
+const { getGooglePageType, scrapeImageResults, parseImageMetadata } = await import('./scraper.js');
 
 describe('getGooglePageType', () => {
   beforeEach(() => {
@@ -85,27 +85,12 @@ describe('getGooglePageType', () => {
 
 describe('scrapeImageResults', () => {
   // Helper: create a mock element representing one Google Images result (div[data-lpage])
-  // imgs: optional array of { src, classes?, alt? } for multiple <img> elements
-  //   When omitted, a single img is created from imgSrc/imgAlt (legacy).
-  function mockImageResult({ lpage, imgSrc, ariaLabel, imgAlt, text, imgs }) {
+  function mockImageResult({ lpage, imgSrc, ariaLabel, imgAlt, text, docid }) {
     const imgElements = [];
 
-    if (imgs) {
-      for (const imgDef of imgs) {
-        imgElements.push({
-          src: imgDef.src || '',
-          classList: { contains: (cls) => (imgDef.classes || []).includes(cls) },
-          getAttribute: (name) => {
-            if (name === 'alt') return imgDef.alt ?? null;
-            if (name === 'src') return imgDef.src ?? null;
-            return null;
-          },
-        });
-      }
-    } else if (imgSrc !== undefined) {
+    if (imgSrc !== undefined) {
       imgElements.push({
         src: imgSrc,
-        classList: { contains: () => false },
         getAttribute: (name) => {
           if (name === 'alt') return imgAlt ?? null;
           if (name === 'src') return imgSrc ?? null;
@@ -118,6 +103,7 @@ describe('scrapeImageResults', () => {
       getAttribute: (name) => {
         if (name === 'data-lpage') return lpage ?? null;
         if (name === 'aria-label') return ariaLabel ?? null;
+        if (name === 'data-docid') return docid ?? null;
         return null;
       },
       querySelector: (sel) => {
@@ -132,11 +118,29 @@ describe('scrapeImageResults', () => {
     };
   }
 
-  // Helper: configure document mock with image result elements
-  function setupDOM(mockResults) {
+  // Helper: create mock script elements containing image metadata
+  function mockScriptData(entries) {
+    // entries: array of { docid, fullUrl }
+    // Build a script body matching Google's format:
+    //   [1,[0,"docid",["https://gstatic...",100,200],["full_url",500,800]
+    // Pad to >500 chars (parseImageMetadata skips short scripts as optimization)
+    let body = 'var x = {';
+    for (const { docid, fullUrl } of entries) {
+      body += `"${docid}":[1,[0,"${docid}",["https://encrypted-tbn0.gstatic.com/thumb",100,200],["${fullUrl}",500,800],null]],`;
+    }
+    body += '};';
+    // Pad with a comment to exceed the 500-char threshold
+    while (body.length < 600) body += '/* padding */';
+    return [{ textContent: body }];
+  }
+
+  // Helper: configure document mock with image result elements and optional script metadata
+  function setupDOM(mockResults, scriptEntries = []) {
     const elements = mockResults.map(r => mockImageResult(r));
+    const scripts = scriptEntries.length > 0 ? mockScriptData(scriptEntries) : [];
     document.querySelectorAll.mockImplementation((sel) => {
       if (sel.includes('data-lpage')) return elements;
+      if (sel === 'script') return scripts;
       return [];
     });
   }
@@ -278,32 +282,47 @@ describe('scrapeImageResults', () => {
     expect(results[0].meta).toBe('not-a-valid-url');
   });
 
-  // --- imageUrl extraction ---
+  // --- imageUrl extraction from script metadata ---
 
-  it('extracts full-size HTTP image URL when data-URI thumbnail and HTTP image are both present', () => {
-    setupDOM([{
-      lpage: 'https://example.com/page',
-      ariaLabel: 'Sunset photo',
-      imgs: [
-        { src: 'data:image/jpeg;base64,abc123', classes: ['YQ4gaf'] },       // thumbnail
-        { src: 'https://cdn.example.com/full-size.jpg', classes: [] },        // full-size
-        { src: 'data:image/png;base64,favicon', classes: ['YQ4gaf', 'zr758c'] }, // favicon
-      ],
-    }]);
+  it('extracts full-size URL from script metadata via data-docid', () => {
+    setupDOM(
+      [{
+        lpage: 'https://example.com/page',
+        imgSrc: 'data:image/jpeg;base64,abc123',
+        ariaLabel: 'Sunset photo',
+        docid: 'abc123docid',
+      }],
+      [{ docid: 'abc123docid', fullUrl: 'https://cdn.example.com/full-4000x3000.jpg' }]
+    );
 
     const results = scrapeImageResults();
     expect(results).toHaveLength(1);
     expect(results[0].thumbnail).toBe('data:image/jpeg;base64,abc123');
-    expect(results[0].imageUrl).toBe('https://cdn.example.com/full-size.jpg');
+    expect(results[0].imageUrl).toBe('https://cdn.example.com/full-4000x3000.jpg');
   });
 
-  it('imageUrl is empty when only data-URI thumbnail exists (no HTTP image)', () => {
+  it('imageUrl is empty when data-docid has no matching script entry', () => {
+    setupDOM(
+      [{
+        lpage: 'https://example.com/page',
+        imgSrc: 'data:image/jpeg;base64,abc123',
+        ariaLabel: 'No metadata',
+        docid: 'unknown_docid',
+      }],
+      [{ docid: 'other_docid', fullUrl: 'https://cdn.example.com/other.jpg' }]
+    );
+
+    const results = scrapeImageResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].imageUrl).toBe('');
+  });
+
+  it('imageUrl is empty when no script metadata exists', () => {
     setupDOM([{
       lpage: 'https://example.com/page',
-      ariaLabel: 'Only thumbnail',
-      imgs: [
-        { src: 'data:image/jpeg;base64,abc123', classes: ['YQ4gaf'] },
-      ],
+      imgSrc: 'data:image/jpeg;base64,abc123',
+      ariaLabel: 'No scripts',
+      docid: 'some_docid',
     }]);
 
     const results = scrapeImageResults();
@@ -311,31 +330,106 @@ describe('scrapeImageResults', () => {
     expect(results[0].imageUrl).toBe('');
   });
 
-  it('imageUrl ignores favicon with YQ4gaf class even if src is HTTP', () => {
-    setupDOM([{
-      lpage: 'https://example.com/page',
-      ariaLabel: 'With favicon',
-      imgs: [
-        { src: 'data:image/jpeg;base64,thumb', classes: ['YQ4gaf'] },
-        { src: 'https://example.com/favicon.ico', classes: ['YQ4gaf'] },     // has YQ4gaf → skip
-        { src: 'https://cdn.example.com/real-image.jpg', classes: [] },       // full-size
-      ],
-    }]);
-
-    const results = scrapeImageResults();
-    expect(results).toHaveLength(1);
-    expect(results[0].imageUrl).toBe('https://cdn.example.com/real-image.jpg');
-  });
-
-  it('imageUrl is empty when no images exist at all', () => {
-    setupDOM([{
-      lpage: 'https://example.com/page',
-      ariaLabel: 'No images',
-      // no imgs, no imgSrc → querySelectorAll('img') returns []
-    }]);
+  it('imageUrl is empty when element has no data-docid', () => {
+    setupDOM(
+      [{
+        lpage: 'https://example.com/page',
+        imgSrc: 'data:image/jpeg;base64,abc123',
+        ariaLabel: 'No docid',
+        // no docid
+      }],
+      [{ docid: 'some_docid', fullUrl: 'https://cdn.example.com/full.jpg' }]
+    );
 
     const results = scrapeImageResults();
     expect(results).toHaveLength(1);
     expect(results[0].imageUrl).toBe('');
+  });
+
+  it('maps multiple results to their correct full-size URLs', () => {
+    setupDOM(
+      [
+        { lpage: 'https://a.com/1', imgSrc: 'data:a', ariaLabel: 'First', docid: 'doc1' },
+        { lpage: 'https://b.com/2', imgSrc: 'data:b', ariaLabel: 'Second', docid: 'doc2' },
+        { lpage: 'https://c.com/3', imgSrc: 'data:c', ariaLabel: 'Third', docid: 'doc3' },
+      ],
+      [
+        { docid: 'doc1', fullUrl: 'https://cdn.a.com/full1.jpg' },
+        { docid: 'doc2', fullUrl: 'https://cdn.b.com/full2.jpg' },
+        { docid: 'doc3', fullUrl: 'https://cdn.c.com/full3.jpg' },
+      ]
+    );
+
+    const results = scrapeImageResults();
+    expect(results).toHaveLength(3);
+    expect(results[0].imageUrl).toBe('https://cdn.a.com/full1.jpg');
+    expect(results[1].imageUrl).toBe('https://cdn.b.com/full2.jpg');
+    expect(results[2].imageUrl).toBe('https://cdn.c.com/full3.jpg');
+  });
+});
+
+// =============================================================================
+// parseImageMetadata
+// =============================================================================
+
+describe('parseImageMetadata', () => {
+  beforeEach(() => {
+    document.querySelectorAll.mockReturnValue([]);
+  });
+
+  it('returns empty map when no scripts exist', () => {
+    expect(parseImageMetadata()).toEqual({});
+  });
+
+  // Helper to pad script content to exceed the 500-char threshold
+  function padScript(content) {
+    while (content.length < 600) content += '/* padding */';
+    return content;
+  }
+
+  it('parses docid to full-size URL from script data', () => {
+    document.querySelectorAll.mockImplementation((sel) => {
+      if (sel === 'script') return [{
+        textContent: padScript('var d = {"id1":[1,[0,"myDocId",["https://encrypted-tbn0.gstatic.com/thumb",168,300],["https://cdn.example.com/full.jpg",3000,4000],null]]};')
+      }];
+      return [];
+    });
+
+    const map = parseImageMetadata();
+    expect(map['myDocId']).toBe('https://cdn.example.com/full.jpg');
+  });
+
+  it('unescapes Unicode sequences in URLs', () => {
+    document.querySelectorAll.mockImplementation((sel) => {
+      if (sel === 'script') return [{
+        textContent: padScript('var d = {"x":[1,[0,"doc1",["https://encrypted-tbn0.gstatic.com/t",100,200],["https://example.com/img.jpg?w\\u003d800\\u0026h\\u003d600",600,800],null]]};')
+      }];
+      return [];
+    });
+
+    const map = parseImageMetadata();
+    expect(map['doc1']).toBe('https://example.com/img.jpg?w=800&h=600');
+  });
+
+  it('parses multiple entries from same script', () => {
+    document.querySelectorAll.mockImplementation((sel) => {
+      if (sel === 'script') return [{
+        textContent: padScript('var d = {"a":[1,[0,"d1",["https://encrypted-tbn0.gstatic.com/t",1,2],["https://a.com/1.jpg",100,200],null]],"b":[1,[0,"d2",["https://encrypted-tbn0.gstatic.com/t",1,2],["https://b.com/2.jpg",300,400],null]]};')
+      }];
+      return [];
+    });
+
+    const map = parseImageMetadata();
+    expect(map['d1']).toBe('https://a.com/1.jpg');
+    expect(map['d2']).toBe('https://b.com/2.jpg');
+  });
+
+  it('skips short script tags', () => {
+    document.querySelectorAll.mockImplementation((sel) => {
+      if (sel === 'script') return [{ textContent: 'short' }];
+      return [];
+    });
+
+    expect(parseImageMetadata()).toEqual({});
   });
 });

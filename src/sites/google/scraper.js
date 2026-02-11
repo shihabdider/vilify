@@ -167,27 +167,63 @@ export function scrapeSearchResults() {
 }
 
 /**
+ * Parse image metadata from Google's inline script tags.
+ * Google Images embeds full-size image URLs in script data as JSON-like arrays:
+ *   [1,[0,"docid",["gstatic_thumb",h,w],["full_url",h,w],...]]
+ * Each result's data-docid maps to a docid in this data.
+ *
+ * Signature: parseImageMetadata : () → Map<string, string>
+ * Purpose: Build a map from docid to full-size image URL by parsing script tags.
+ *
+ * @returns {Object<string, string>} Map of docid → full-size image URL
+ */
+export function parseImageMetadata() {
+  const map = {};
+  const scripts = document.querySelectorAll('script');
+  // Match: [1,[0,"docid",["thumb",h,w],["full_url",h,w]
+  const re = /\[1,\[0,"([^"]+)",\["https:[^"]+",\d+,\d+\],\["(https:[^"]+)",\d+,\d+\]/g;
+
+  for (const s of scripts) {
+    const t = s.textContent || '';
+    if (t.length < 500) continue;
+    let m;
+    while ((m = re.exec(t)) !== null) {
+      // Unescape Unicode sequences Google uses in inline scripts
+      const url = m[2].replace(/\\u003d/g, '=').replace(/\\u0026/g, '&');
+      map[m[1]] = url;
+    }
+  }
+  return map;
+}
+
+/**
  * Scrape image results from Google Images DOM.
  *
  * Signature: scrapeImageResults : () → Array<ContentItem>
  * Purpose: Extract image thumbnails, titles, and source URLs from Google Images
  *          DOM. Each result has: id (source URL), title, url (source URL),
  *          thumbnail (data-URI thumbnail for grid display),
- *          imageUrl (full-size HTTP image URL for clipboard copy),
+ *          imageUrl (full-size image URL from script metadata for clipboard copy),
  *          meta (source domain).
+ *
+ * The full-size image URL is extracted from Google's inline script metadata,
+ * keyed by each result's data-docid attribute. This is the same URL that
+ * loads in the preview side panel when clicking a result.
  *
  * Selectors (Google Images with udm=2):
  * - Container: #rso or div[data-query] or #search (varies)
  * - Each image result: marked by data-lpage attribute (link to source page)
- * - Thumbnail: img element within the result
+ * - Thumbnail: img element within the result (data-URI)
  * - Title: extracted from aria-label or nearby text
  * - Source URL: data-lpage or enclosing anchor href
+ * - Full-size URL: from script metadata via data-docid
  *
  * Examples:
  *   // On Google Images page with results
  *   scrapeImageResults() => [
  *     { id: 'https://example.com/page', title: 'Example Image',
- *       url: 'https://example.com/page', thumbnail: 'data:image/...', meta: 'example.com' },
+ *       url: 'https://example.com/page', thumbnail: 'data:image/...',
+ *       imageUrl: 'https://cdn.example.com/full.jpg', meta: 'example.com' },
  *     ...
  *   ]
  *
@@ -198,6 +234,9 @@ export function scrapeSearchResults() {
  */
 export function scrapeImageResults() {
   const results = [];
+
+  // Parse full-size image URLs from script metadata
+  const imageMetadata = parseImageMetadata();
 
   // Each image result is marked by data-lpage attribute (source page URL)
   const resultElements = document.querySelectorAll('[data-lpage]');
@@ -211,11 +250,9 @@ export function scrapeImageResults() {
     const img = element.querySelector('img');
     const thumbnail = img?.src || '';
 
-    // Full-size image: first img with HTTP src (not data URI, not favicon)
-    const fullImg = Array.from(element.querySelectorAll('img')).find(
-      i => i.src && i.src.startsWith('http') && !i.classList.contains('YQ4gaf')
-    );
-    const imageUrl = fullImg?.src || '';
+    // Full-size image URL: look up by data-docid in script metadata
+    const docid = element.getAttribute('data-docid') || '';
+    const imageUrl = imageMetadata[docid] || '';
 
     // Title: try aria-label on container, then img alt, then text content
     const title = element.getAttribute('aria-label')
