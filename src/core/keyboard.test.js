@@ -1,5 +1,6 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { handleKeyEvent } from './keyboard.js';
+import { handleKeyEvent, setupKeyboardHandler } from './keyboard.js';
 
 // Helper to create a minimal KeyboardEvent-like object
 function keyEvent(key) {
@@ -72,5 +73,77 @@ describe('handleKeyEvent - prefix disambiguation', () => {
     expect(result.action).toBe(goHome);
     expect(result.pendingAction).toBeNull();
     expect(result.newSeq).toBe('');
+  });
+});
+
+describe('setupKeyboardHandler - getSelectedItem forwarding', () => {
+  it('forwards getSelectedItem through appCallbacks to getKeySequences', () => {
+    // Capture the appCallbacks object passed to getKeySequences
+    let capturedApp = null;
+    const mockConfig = {
+      getKeySequences: (app) => {
+        capturedApp = app;
+        return { 'x': () => {} };
+      },
+    };
+
+    const mockState = {
+      ui: { drawer: null, searchActive: false, filterActive: false, selectedIdx: 0 },
+      core: { focusModeActive: true },
+    };
+    const getState = () => mockState;
+    const setState = vi.fn();
+
+    const selectedItem = { id: 'video-1', title: 'Test Video' };
+    const getSelectedItem = vi.fn(() => selectedItem);
+
+    const cleanup = setupKeyboardHandler(mockConfig, getState, setState, {
+      getSelectedItem,
+    });
+
+    // Trigger a keydown event so the handler runs and builds appCallbacks
+    // Use 'x' which won't match any early-return navigation keys
+    const event = new KeyboardEvent('keydown', { key: 'x', bubbles: true });
+    document.dispatchEvent(event);
+
+    // getKeySequences should have been called with appCallbacks containing getSelectedItem
+    expect(capturedApp).not.toBeNull();
+    expect(typeof capturedApp.getSelectedItem).toBe('function');
+
+    // Calling appCallbacks.getSelectedItem should delegate to our callback
+    const result = capturedApp.getSelectedItem();
+    expect(getSelectedItem).toHaveBeenCalled();
+    expect(result).toBe(selectedItem);
+
+    cleanup();
+  });
+
+  it('handles missing getSelectedItem callback gracefully', () => {
+    let capturedApp = null;
+    const mockConfig = {
+      getKeySequences: (app) => {
+        capturedApp = app;
+        return { 'x': () => {} };
+      },
+    };
+
+    const mockState = {
+      ui: { drawer: null, searchActive: false, filterActive: false, selectedIdx: 0 },
+      core: { focusModeActive: true },
+    };
+    const getState = () => mockState;
+    const setState = vi.fn();
+
+    // No getSelectedItem in callbacks
+    const cleanup = setupKeyboardHandler(mockConfig, getState, setState, {});
+
+    const event = new KeyboardEvent('keydown', { key: 'x', bubbles: true });
+    document.dispatchEvent(event);
+
+    expect(capturedApp).not.toBeNull();
+    // Should return undefined (optional chaining), not throw
+    expect(capturedApp.getSelectedItem()).toBeUndefined();
+
+    cleanup();
   });
 });

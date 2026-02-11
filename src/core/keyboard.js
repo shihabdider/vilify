@@ -444,6 +444,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
           actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
         }
       },
+      getSelectedItem: () => callbacks.getSelectedItem?.(),
     };
     const sequences = config.getKeySequences ? config.getKeySequences(appCallbacks) : {};
 

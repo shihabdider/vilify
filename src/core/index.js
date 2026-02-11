@@ -1119,6 +1119,11 @@ export function createApp(config) {
         onRemoveFromWatchLater: handleRemoveFromWatchLater,
         onUndoWatchLaterRemoval: handleUndoWatchLaterRemoval,
         onDismissVideo: handleDismissVideo,
+        getSelectedItem: () => {
+          const items = getPageItems(state);
+          const filtered = getVisibleItems(state, items);
+          return filtered[state.ui.selectedIdx] || null;
+        },
       }, () => siteState);
 
       // Set up SPA navigation observer
