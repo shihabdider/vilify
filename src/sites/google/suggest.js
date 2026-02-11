@@ -64,5 +64,155 @@ export async function fetchGoogleSuggestions(query, signal) {
  * @returns {DrawerHandler} Handler with render, updateQuery, getFilterPlaceholder, onKey, cleanup
  */
 export function createSuggestDrawer(config) {
-  throw new Error('not implemented: createSuggestDrawer');
+  // Closure state
+  let query = config.initialQuery || '';
+  let suggestions = [];
+  let selectedIdx = -1;
+  let userNavigated = false;
+  let debounceTimer = null;
+  let abortController = null;
+  let drawerEl = null;
+  let listEl = null;
+
+  /** Render the suggestion list into listEl */
+  const renderList = () => {
+    if (!listEl) return;
+    clear(listEl);
+
+    if (suggestions.length === 0) {
+      if (query) {
+        const msgEl = document.createElement('div');
+        msgEl.className = 'vilify-drawer-item';
+        msgEl.textContent = 'Type to search...';
+        msgEl.style.color = 'var(--txt-2)';
+        msgEl.style.fontSize = '13px';
+        msgEl.style.padding = '10px 16px';
+        listEl.appendChild(msgEl);
+      }
+      return;
+    }
+
+    suggestions.forEach((suggestion, idx) => {
+      const isSelected = idx === selectedIdx;
+      const itemEl = document.createElement('div');
+      itemEl.className = 'vilify-drawer-item' + (isSelected ? ' selected' : '');
+      itemEl.textContent = suggestion;
+      itemEl.style.color = isSelected ? 'var(--txt-1)' : 'var(--txt-2)';
+      itemEl.style.fontSize = '13px';
+      itemEl.style.padding = '10px 16px';
+      listEl.appendChild(itemEl);
+    });
+
+    if (selectedIdx >= 0) {
+      updateListSelection(listEl, '.vilify-drawer-item', selectedIdx);
+    }
+  };
+
+  /** Cancel pending fetch and debounce, then schedule a new fetch for q */
+  const debounceFetch = (q) => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+
+    if (!q) {
+      suggestions = [];
+      renderList();
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      abortController = new AbortController();
+      const results = await fetchGoogleSuggestions(q, abortController.signal);
+      suggestions = results;
+      renderList();
+    }, 200);
+  };
+
+  return {
+    render: (container) => {
+      injectDrawerStyles();
+
+      listEl = document.createElement('div');
+      listEl.className = 'vilify-drawer-list';
+
+      drawerEl = document.createElement('div');
+      drawerEl.className = 'vilify-drawer open';
+      drawerEl.appendChild(listEl);
+
+      container.appendChild(drawerEl);
+
+      if (config.initialQuery) {
+        debounceFetch(config.initialQuery);
+      }
+    },
+
+    updateQuery: (q) => {
+      query = q;
+      selectedIdx = -1;
+      userNavigated = false;
+      debounceFetch(q);
+    },
+
+    getFilterPlaceholder: () => config.placeholder,
+
+    onKey: (key, state) => {
+      if (key === 'Escape') {
+        return { handled: true, newState: { ...state, ui: { ...state.ui, drawer: null } } };
+      }
+
+      if (key === 'ArrowDown') {
+        if (suggestions.length > 0) {
+          selectedIdx = Math.min(selectedIdx + 1, suggestions.length - 1);
+          userNavigated = true;
+          renderList();
+        }
+        return { handled: true, newState: state };
+      }
+
+      if (key === 'ArrowUp') {
+        if (selectedIdx > 0) {
+          selectedIdx--;
+          userNavigated = true;
+          renderList();
+        } else if (selectedIdx === 0) {
+          selectedIdx = -1;
+          renderList();
+        }
+        return { handled: true, newState: state };
+      }
+
+      if (key === 'Enter') {
+        const searchQuery = (userNavigated && selectedIdx >= 0)
+          ? suggestions[selectedIdx]
+          : query;
+        if (searchQuery) {
+          location.href = config.searchUrl(searchQuery);
+        }
+        return { handled: true, newState: { ...state, ui: { ...state.ui, drawer: null } } };
+      }
+
+      return { handled: false, newState: state };
+    },
+
+    cleanup: () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+      if (drawerEl) {
+        drawerEl.remove();
+        drawerEl = null;
+      }
+      listEl = null;
+    },
+  };
 }
