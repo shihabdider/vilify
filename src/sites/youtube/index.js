@@ -356,7 +356,9 @@ export const youtubeConfig = {
    * @returns {boolean}
    */
   isNativeSearchInput: (target) => {
-    throw new Error("not implemented: isNativeSearchInput");
+    return target.id === 'search' || 
+           !!target.closest?.('ytd-searchbox') || 
+           !!target.closest?.('#search-form');
   },
 
   /**

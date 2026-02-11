@@ -302,7 +302,9 @@ export const googleConfig = {
    * @returns {boolean}
    */
   isNativeSearchInput: (target) => {
-    throw new Error("not implemented: isNativeSearchInput");
+    return !!target.closest?.('form[role="search"]') ||
+           (target.tagName === 'TEXTAREA' && target.name === 'q') ||
+           (target.tagName === 'INPUT' && target.name === 'q');
   },
 
   /**
