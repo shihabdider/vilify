@@ -11,6 +11,7 @@ import { getPageItems } from '../../core/view-tree.js';
 import { showMessage } from '../../core/view.js';
 import { copyToClipboard, copyImageToClipboard } from '../../core/actions.js';
 import { getCachedPage, setCachedPage } from './page-cache.js';
+import { createSuggestDrawer } from './suggest.js';
 
 // =============================================================================
 // THEME
@@ -316,11 +317,21 @@ export const googleConfig = {
 
   /**
    * Get drawer handler for site-specific drawers.
-   * Google has no drawers.
+   * Returns suggest drawer handler for 'suggest' drawer state.
    * @param {string} drawerState - Current drawer state
+   * @param {GoogleState} siteState - Google-specific state
    * @returns {DrawerHandler|null}
    */
-  getDrawerHandler: () => null,
+  getDrawerHandler: (drawerState, siteState) => {
+    if (drawerState === 'suggest') {
+      return createSuggestDrawer({
+        searchUrl: googleConfig.searchUrl,
+        placeholder: 'Search Google...',
+        initialQuery: new URLSearchParams(location.search).get('q') || '',
+      });
+    }
+    return null;
+  },
 
   /**
    * Page configurations per page type.

@@ -540,10 +540,10 @@ export function updateStatusBar(state, focusInput = false, drawerPlaceholder = n
       input.value = paletteQuery;
       if (focusInput) input.focus();
     } else if (isSiteDrawer) {
-      // Site-specific drawer (CHAPTERS, etc.) - show input
+      // Site-specific drawer (CHAPTERS, SUGGEST, etc.) - show input
       input.classList.add('visible');
       input.placeholder = drawerPlaceholder || `Filter ${mode.toLowerCase()}...`;
-      input.value = '';
+      input.value = (state.ui.drawer === 'suggest') ? (state.ui?.searchQuery ?? '') : '';
       if (focusInput) input.focus();
     } else {
       input.classList.remove('visible');
