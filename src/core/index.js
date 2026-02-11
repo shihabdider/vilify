@@ -550,7 +550,22 @@ export function createApp(config) {
     const items = getPageItems(state);
     const filtered = getVisibleItems(state, items);
 
-    const result = onNavigate(state, direction, filtered.length);
+    // Grid support: use gridColumns as step for up/down navigation
+    const pageType = config.getPageType ? config.getPageType() : null;
+    const pageConfig = config.pages?.[pageType];
+    const gridColumns = pageConfig?.gridColumns || 0;
+
+    // left/right only navigate on grid pages; no-op on list pages
+    if ((direction === 'left' || direction === 'right') && gridColumns <= 0) {
+      return;
+    }
+
+    let step = 1;
+    if (gridColumns > 0 && (direction === 'up' || direction === 'down')) {
+      step = gridColumns;
+    }
+
+    const result = onNavigate(state, direction, filtered.length, step);
     state = result.state;
 
     if (direction === 'top' || direction === 'bottom') {

@@ -1,8 +1,9 @@
 // Google site configuration
 // Supports search results page with Solarized Dark theme + Google Blue accent
 
-import { getGooglePageType, scrapeSearchResults } from './scraper.js';
+import { getGooglePageType, scrapeSearchResults, scrapeImageResults } from './scraper.js';
 import { renderGoogleItem, injectGoogleItemStyles } from './items.js';
+import { renderGoogleImageGrid, GRID_COLUMNS } from './grid.js';
 import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout.js';
 import { sortItems, getSortLabel } from '../../core/sort.js';
 import { showMessage } from '../../core/view.js';
@@ -270,7 +271,12 @@ export const googleConfig = {
   createPageState: () => {
     const pageType = getGooglePageType();
     
-    if (pageType === 'search' || pageType === 'images') {
+    if (pageType === 'images') {
+      const results = scrapeImageResults();
+      return createGoogleListPageState(results);
+    }
+
+    if (pageType === 'search') {
       const results = scrapeSearchResults();
       return createGoogleListPageState(results);
     }
@@ -315,7 +321,11 @@ export const googleConfig = {
    */
   pages: {
     search: searchPageConfig,
-    images: searchPageConfig,  // Stub: reuse search config (proper image grid later)
+    images: {
+      waitForContent: () => document.querySelector('#rso') !== null || document.querySelector('div[data-query]') !== null,
+      render: renderGoogleImageGrid,
+      gridColumns: GRID_COLUMNS,
+    },
     other: otherPageConfig,
   },
 

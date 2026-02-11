@@ -217,10 +217,19 @@ export function getVisibleItems(state, items) {
  * // Empty list
  * onNavigate(state, 'down', 0)  => { state: { ui: { selectedIdx: 0 } }, boundary: null }
  */
-export function onNavigate(state, direction, itemCount) {
+export function onNavigate(state, direction, itemCount, step = 1) {
   // Template: direction is Enumeration → case per value
   // itemCount is Atomic → use directly
   // state is Compound → access ui.selectedIdx
+  // step is Atomic → stride for up/down in grid layouts (default 1 for lists)
+  //
+  // Directions:
+  //   'down'   → currentIdx + step, boundary at max
+  //   'up'     → currentIdx - step, boundary at 0
+  //   'right'  → currentIdx + 1, boundary at max
+  //   'left'   → currentIdx - 1, boundary at 0
+  //   'top'    → jump to 0
+  //   'bottom' → jump to max
   
   const currentIdx = state.ui.selectedIdx;
   const maxIdx = Math.max(0, itemCount - 1);
@@ -233,11 +242,27 @@ export function onNavigate(state, direction, itemCount) {
       if (currentIdx >= maxIdx) {
         boundary = 'bottom';
       } else {
-        newIdx = currentIdx + 1;
+        newIdx = Math.min(currentIdx + step, maxIdx);
       }
       break;
       
     case 'up':
+      if (currentIdx <= 0) {
+        boundary = 'top';
+      } else {
+        newIdx = Math.max(currentIdx - step, 0);
+      }
+      break;
+
+    case 'right':
+      if (currentIdx >= maxIdx) {
+        boundary = 'bottom';
+      } else {
+        newIdx = currentIdx + 1;
+      }
+      break;
+
+    case 'left':
       if (currentIdx <= 0) {
         boundary = 'top';
       } else {

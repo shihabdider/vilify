@@ -165,3 +165,35 @@ export function scrapeSearchResults() {
   
   return results;
 }
+
+/**
+ * Scrape image results from Google Images DOM.
+ *
+ * Signature: scrapeImageResults : () → Array<ContentItem>
+ * Purpose: Extract image thumbnails, titles, and source URLs from Google Images
+ *          DOM. Each result has: id (source URL), title, url (source URL),
+ *          thumbnail (image src), meta (source domain).
+ *
+ * Selectors (Google Images with udm=2):
+ * - Container: #rso or div[data-query] or #search (varies)
+ * - Each image result: marked by data-lpage attribute (link to source page)
+ * - Thumbnail: img element within the result
+ * - Title: extracted from aria-label or nearby text
+ * - Source URL: data-lpage or enclosing anchor href
+ *
+ * Examples:
+ *   // On Google Images page with results
+ *   scrapeImageResults() => [
+ *     { id: 'https://example.com/page', title: 'Example Image',
+ *       url: 'https://example.com/page', thumbnail: 'data:image/...', meta: 'example.com' },
+ *     ...
+ *   ]
+ *
+ *   // On non-images page or no results
+ *   scrapeImageResults() => []
+ *
+ * @returns {Array<Object>} Array of ContentItem objects
+ */
+export function scrapeImageResults() {
+  throw new Error('not implemented: scrapeImageResults');
+}

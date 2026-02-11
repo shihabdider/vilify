@@ -289,7 +289,7 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         return;
       }
       
-      // j/k only navigate when NOT filtering (user might type those letters)
+      // j/k/h/l only navigate when NOT filtering (user might type those letters)
       if (!filterActive && !searchActive) {
         if (event.key === 'j') {
           event.preventDefault();
@@ -303,6 +303,22 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
           event.preventDefault();
           if (callbacks.onNavigate) {
             callbacks.onNavigate('up');
+          }
+          return;
+        }
+
+        if (event.key === 'h') {
+          event.preventDefault();
+          if (callbacks.onNavigate) {
+            callbacks.onNavigate('left');
+          }
+          return;
+        }
+
+        if (event.key === 'l') {
+          event.preventDefault();
+          if (callbacks.onNavigate) {
+            callbacks.onNavigate('right');
           }
           return;
         }
