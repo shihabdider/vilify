@@ -32,6 +32,8 @@ vi.stubGlobal('location', {
 
 // Mock initSite so content.js doesn't actually run site init
 vi.mock('./core/index.js', () => ({ initSite: vi.fn() }));
+// Mock loading.js so early injectLoadingStyles() call doesn't need full DOM
+vi.mock('./core/loading.js', () => ({ injectLoadingStyles: vi.fn() }));
 
 const { getSiteConfig } = await import('./content.js');
 const { googleConfig } = await import('./sites/google/index.js');

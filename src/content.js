@@ -3,6 +3,7 @@
 // Note: data-bridge.js runs separately in MAIN world to capture ytInitialData
 
 import { initSite } from './core/index.js';
+import { injectLoadingStyles } from './core/loading.js';
 import { youtubeConfig } from './sites/youtube/index.js';
 import { googleConfig } from './sites/google/index.js';
 
@@ -45,6 +46,10 @@ console.log('[Vilify] Content script loaded');
 const config = getSiteConfig();
 
 if (config) {
+  // Inject loading styles immediately at document_start, before DOM is ready,
+  // so CSS that hides Google/YouTube content is present from the very start.
+  injectLoadingStyles();
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => initSite(config));
   } else {
