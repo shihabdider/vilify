@@ -1,7 +1,9 @@
 // Google Images grid renderer
 // CSS grid layout with 2D navigation support
 
-import { el } from '../../core/view.js';
+import { el, clear } from '../../core/view.js';
+import { updateSortIndicator, updateItemCount } from '../../core/layout.js';
+import { sortItems, getSortLabel } from '../../core/sort.js';
 
 /**
  * Number of columns in the image grid.
@@ -170,5 +172,57 @@ export function renderGoogleGridItem(item, isSelected) {
  * @param {HTMLElement} container - DOM container to render into
  */
 export function renderGoogleImageGrid(state, siteState, container) {
-  throw new Error('not implemented: renderGoogleImageGrid');
+  // Inject Google grid-specific styles
+  injectGoogleGridStyles();
+
+  let items = state.page?.videos || [];
+
+  const { filterActive, filterQuery, sort, selectedIdx } = state.ui;
+
+  // Apply local filter if active
+  if (filterActive) {
+    const q = filterQuery.toLowerCase();
+    items = items.filter(i =>
+      i.title?.toLowerCase().includes(q) ||
+      i.meta?.toLowerCase().includes(q) ||
+      i.description?.toLowerCase().includes(q)
+    );
+  }
+
+  // Apply sorting if active
+  if (sort.field) {
+    items = sortItems(items, sort.field, sort.direction);
+  }
+
+  // Update sort indicator and count in status bar
+  updateSortIndicator(getSortLabel(sort.field, sort.direction));
+  updateItemCount(items.length);
+
+  // Clear existing content
+  clear(container);
+
+  // Empty state
+  if (!items || items.length === 0) {
+    const empty = el('div', { class: 'vilify-empty' }, ['No images found']);
+    container.appendChild(empty);
+    return;
+  }
+
+  // Build grid container
+  const grid = el('div', { class: 'vilify-google-grid' });
+
+  items.forEach((item, index) => {
+    const isSelected = index === selectedIdx;
+    const cellEl = renderGoogleGridItem(item, isSelected);
+    cellEl.setAttribute('data-index', String(index));
+    grid.appendChild(cellEl);
+  });
+
+  container.appendChild(grid);
+
+  // Scroll selected item into view
+  const selectedEl = container.querySelector('.vilify-google-grid-cell.selected');
+  if (selectedEl && selectedEl.scrollIntoView) {
+    selectedEl.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  }
 }
