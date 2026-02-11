@@ -9,6 +9,7 @@ import { getSortLabel } from '../../core/sort.js';
 import { getVisibleItems } from '../../core/state.js';
 import { getPageItems } from '../../core/view-tree.js';
 import { showMessage } from '../../core/view.js';
+import { copyToClipboard, copyImageToClipboard } from '../../core/actions.js';
 import { getCachedPage, setCachedPage } from './page-cache.js';
 
 // =============================================================================
@@ -154,6 +155,8 @@ function navigateToSearch(extraParams = '') {
  * @returns {Object<string, Function>} Key sequence map
  */
 function getGoogleKeySequences(app) {
+  const pageType = getGooglePageType();
+
   return {
     // Filter: / opens local filter
     '/': () => {
@@ -169,6 +172,19 @@ function getGoogleKeySequences(app) {
     'go': () => navigateToSearch(),
     // Go to image search results
     'gi': () => navigateToSearch('&udm=2'),
+    // yy: copy (page-type-aware)
+    'yy': () => {
+      const item = app?.getSelectedItem?.();
+      if (!item) {
+        showMessage('No item selected');
+        return;
+      }
+      if (pageType === 'images' && item.thumbnail) {
+        copyImageToClipboard(item.thumbnail);
+      } else if (item.url) {
+        copyToClipboard(item.url);
+      }
+    },
   };
 }
 

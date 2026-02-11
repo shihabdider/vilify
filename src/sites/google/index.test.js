@@ -22,6 +22,13 @@ const mockLocation = { href: 'https://www.google.com/search?q=test', pathname: '
 vi.stubGlobal('window', { location: mockLocation });
 vi.stubGlobal('location', mockLocation);
 
+const mockCopyToClipboard = vi.fn();
+const mockCopyImageToClipboard = vi.fn();
+vi.mock('../../core/actions.js', () => ({
+  copyToClipboard: (...args) => mockCopyToClipboard(...args),
+  copyImageToClipboard: (...args) => mockCopyImageToClipboard(...args),
+}));
+
 const { googleConfig } = await import('./index.js');
 
 describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
@@ -93,6 +100,51 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
     const seqs = googleConfig.getKeySequences({});
     seqs['gi']();
     location.search = origSearch;
+  });
+
+  it('returns an object with "yy" key', () => {
+    const seqs = googleConfig.getKeySequences({});
+    expect(seqs).toHaveProperty('yy');
+  });
+
+  it('"yy" shows "No item selected" when getSelectedItem returns null', () => {
+    const app = { getSelectedItem: vi.fn(() => null) };
+    const seqs = googleConfig.getKeySequences(app);
+    seqs['yy']();
+    expect(mockCopyToClipboard).not.toHaveBeenCalled();
+    expect(mockCopyImageToClipboard).not.toHaveBeenCalled();
+  });
+
+  it('"yy" on images page calls copyImageToClipboard with item.thumbnail', () => {
+    mockCopyImageToClipboard.mockClear();
+    const origSearch = location.search;
+    location.search = '?q=test&udm=2';
+    const item = { id: '1', title: 'img', url: 'https://example.com', thumbnail: 'https://example.com/thumb.jpg' };
+    const app = { getSelectedItem: vi.fn(() => item) };
+    const seqs = googleConfig.getKeySequences(app);
+    seqs['yy']();
+    expect(mockCopyImageToClipboard).toHaveBeenCalledWith('https://example.com/thumb.jpg');
+    expect(mockCopyToClipboard).not.toHaveBeenCalled();
+    location.search = origSearch;
+  });
+
+  it('"yy" on search page calls copyToClipboard with item.url', () => {
+    mockCopyToClipboard.mockClear();
+    mockCopyImageToClipboard.mockClear();
+    const origSearch = location.search;
+    location.search = '?q=test';
+    const item = { id: '1', title: 'result', url: 'https://example.com/page', thumbnail: null };
+    const app = { getSelectedItem: vi.fn(() => item) };
+    const seqs = googleConfig.getKeySequences(app);
+    seqs['yy']();
+    expect(mockCopyToClipboard).toHaveBeenCalledWith('https://example.com/page');
+    expect(mockCopyImageToClipboard).not.toHaveBeenCalled();
+    location.search = origSearch;
+  });
+
+  it('"yy" does not throw when app is null', () => {
+    const seqs = googleConfig.getKeySequences(null);
+    expect(() => seqs['yy']()).not.toThrow();
   });
 });
 
