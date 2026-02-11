@@ -195,5 +195,43 @@ export function scrapeSearchResults() {
  * @returns {Array<Object>} Array of ContentItem objects
  */
 export function scrapeImageResults() {
-  throw new Error('not implemented: scrapeImageResults');
+  const results = [];
+
+  // Each image result is marked by data-lpage attribute (source page URL)
+  const resultElements = document.querySelectorAll('[data-lpage]');
+
+  resultElements.forEach(element => {
+    // Source URL: data-lpage attribute
+    const sourceUrl = element.getAttribute('data-lpage');
+    if (!sourceUrl) return;
+
+    // Thumbnail: img element within the result
+    const img = element.querySelector('img');
+    const thumbnail = img?.src || '';
+
+    // Title: try aria-label on container, then img alt, then text content
+    const title = element.getAttribute('aria-label')
+      || img?.getAttribute('alt')
+      || element.textContent?.trim()
+      || '';
+    if (!title) return; // Skip results without title
+
+    // Domain from source URL
+    let domain = '';
+    try {
+      domain = new URL(sourceUrl).hostname;
+    } catch (e) {
+      domain = sourceUrl;
+    }
+
+    results.push({
+      id: sourceUrl,
+      title: title,
+      url: sourceUrl,
+      thumbnail: thumbnail,
+      meta: domain,
+    });
+  });
+
+  return results;
 }
