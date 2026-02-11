@@ -172,7 +172,9 @@ export function scrapeSearchResults() {
  * Signature: scrapeImageResults : () → Array<ContentItem>
  * Purpose: Extract image thumbnails, titles, and source URLs from Google Images
  *          DOM. Each result has: id (source URL), title, url (source URL),
- *          thumbnail (image src), meta (source domain).
+ *          thumbnail (data-URI thumbnail for grid display),
+ *          imageUrl (full-size HTTP image URL for clipboard copy),
+ *          meta (source domain).
  *
  * Selectors (Google Images with udm=2):
  * - Container: #rso or div[data-query] or #search (varies)
@@ -205,9 +207,15 @@ export function scrapeImageResults() {
     const sourceUrl = element.getAttribute('data-lpage');
     if (!sourceUrl) return;
 
-    // Thumbnail: img element within the result
+    // Thumbnail: first img element within the result (typically data-URI)
     const img = element.querySelector('img');
     const thumbnail = img?.src || '';
+
+    // Full-size image: first img with HTTP src (not data URI, not favicon)
+    const fullImg = Array.from(element.querySelectorAll('img')).find(
+      i => i.src && i.src.startsWith('http') && !i.classList.contains('YQ4gaf')
+    );
+    const imageUrl = fullImg?.src || '';
 
     // Title: try aria-label on container, then img alt, then text content
     const title = element.getAttribute('aria-label')
@@ -229,6 +237,7 @@ export function scrapeImageResults() {
       title: title,
       url: sourceUrl,
       thumbnail: thumbnail,
+      imageUrl: imageUrl,
       meta: domain,
     });
   });

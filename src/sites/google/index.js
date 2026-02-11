@@ -179,8 +179,8 @@ function getGoogleKeySequences(app) {
         showMessage('No item selected');
         return;
       }
-      if (pageType === 'images' && item.thumbnail) {
-        copyImageToClipboard(item.thumbnail);
+      if (pageType === 'images' && (item.imageUrl || item.thumbnail)) {
+        copyImageToClipboard(item.imageUrl || item.thumbnail);
       } else if (item.url) {
         copyToClipboard(item.url);
       }

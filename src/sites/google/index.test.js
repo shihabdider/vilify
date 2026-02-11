@@ -115,15 +115,28 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
     expect(mockCopyImageToClipboard).not.toHaveBeenCalled();
   });
 
-  it('"yy" on images page calls copyImageToClipboard with item.thumbnail', () => {
+  it('"yy" on images page calls copyImageToClipboard with item.imageUrl', () => {
     mockCopyImageToClipboard.mockClear();
     const origSearch = location.search;
     location.search = '?q=test&udm=2';
-    const item = { id: '1', title: 'img', url: 'https://example.com', thumbnail: 'https://example.com/thumb.jpg' };
+    const item = { id: '1', title: 'img', url: 'https://example.com', thumbnail: 'data:image/jpeg;base64,thumb', imageUrl: 'https://cdn.example.com/full.jpg' };
     const app = { getSelectedItem: vi.fn(() => item) };
     const seqs = googleConfig.getKeySequences(app);
     seqs['yy']();
-    expect(mockCopyImageToClipboard).toHaveBeenCalledWith('https://example.com/thumb.jpg');
+    expect(mockCopyImageToClipboard).toHaveBeenCalledWith('https://cdn.example.com/full.jpg');
+    expect(mockCopyToClipboard).not.toHaveBeenCalled();
+    location.search = origSearch;
+  });
+
+  it('"yy" on images page falls back to thumbnail when imageUrl is empty', () => {
+    mockCopyImageToClipboard.mockClear();
+    const origSearch = location.search;
+    location.search = '?q=test&udm=2';
+    const item = { id: '1', title: 'img', url: 'https://example.com', thumbnail: 'data:image/jpeg;base64,thumb', imageUrl: '' };
+    const app = { getSelectedItem: vi.fn(() => item) };
+    const seqs = googleConfig.getKeySequences(app);
+    seqs['yy']();
+    expect(mockCopyImageToClipboard).toHaveBeenCalledWith('data:image/jpeg;base64,thumb');
     expect(mockCopyToClipboard).not.toHaveBeenCalled();
     location.search = origSearch;
   });

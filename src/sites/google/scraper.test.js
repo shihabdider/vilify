@@ -85,15 +85,34 @@ describe('getGooglePageType', () => {
 
 describe('scrapeImageResults', () => {
   // Helper: create a mock element representing one Google Images result (div[data-lpage])
-  function mockImageResult({ lpage, imgSrc, ariaLabel, imgAlt, text }) {
-    const imgEl = imgSrc !== undefined ? {
-      src: imgSrc,
-      getAttribute: (name) => {
-        if (name === 'alt') return imgAlt ?? null;
-        if (name === 'src') return imgSrc ?? null;
-        return null;
-      },
-    } : null;
+  // imgs: optional array of { src, classes?, alt? } for multiple <img> elements
+  //   When omitted, a single img is created from imgSrc/imgAlt (legacy).
+  function mockImageResult({ lpage, imgSrc, ariaLabel, imgAlt, text, imgs }) {
+    const imgElements = [];
+
+    if (imgs) {
+      for (const imgDef of imgs) {
+        imgElements.push({
+          src: imgDef.src || '',
+          classList: { contains: (cls) => (imgDef.classes || []).includes(cls) },
+          getAttribute: (name) => {
+            if (name === 'alt') return imgDef.alt ?? null;
+            if (name === 'src') return imgDef.src ?? null;
+            return null;
+          },
+        });
+      }
+    } else if (imgSrc !== undefined) {
+      imgElements.push({
+        src: imgSrc,
+        classList: { contains: () => false },
+        getAttribute: (name) => {
+          if (name === 'alt') return imgAlt ?? null;
+          if (name === 'src') return imgSrc ?? null;
+          return null;
+        },
+      });
+    }
 
     return {
       getAttribute: (name) => {
@@ -102,8 +121,12 @@ describe('scrapeImageResults', () => {
         return null;
       },
       querySelector: (sel) => {
-        if (sel === 'img') return imgEl;
+        if (sel === 'img') return imgElements[0] || null;
         return null;
+      },
+      querySelectorAll: (sel) => {
+        if (sel === 'img') return imgElements;
+        return [];
       },
       textContent: text ?? '',
     };
@@ -139,6 +162,7 @@ describe('scrapeImageResults', () => {
       title: 'Beautiful sunset',
       url: 'https://example.com/photo',
       thumbnail: 'data:image/jpeg;base64,abc123',
+      imageUrl: '',
       meta: 'example.com',
     }]);
   });
@@ -252,5 +276,66 @@ describe('scrapeImageResults', () => {
     expect(results).toHaveLength(1);
     expect(results[0].url).toBe('not-a-valid-url');
     expect(results[0].meta).toBe('not-a-valid-url');
+  });
+
+  // --- imageUrl extraction ---
+
+  it('extracts full-size HTTP image URL when data-URI thumbnail and HTTP image are both present', () => {
+    setupDOM([{
+      lpage: 'https://example.com/page',
+      ariaLabel: 'Sunset photo',
+      imgs: [
+        { src: 'data:image/jpeg;base64,abc123', classes: ['YQ4gaf'] },       // thumbnail
+        { src: 'https://cdn.example.com/full-size.jpg', classes: [] },        // full-size
+        { src: 'data:image/png;base64,favicon', classes: ['YQ4gaf', 'zr758c'] }, // favicon
+      ],
+    }]);
+
+    const results = scrapeImageResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].thumbnail).toBe('data:image/jpeg;base64,abc123');
+    expect(results[0].imageUrl).toBe('https://cdn.example.com/full-size.jpg');
+  });
+
+  it('imageUrl is empty when only data-URI thumbnail exists (no HTTP image)', () => {
+    setupDOM([{
+      lpage: 'https://example.com/page',
+      ariaLabel: 'Only thumbnail',
+      imgs: [
+        { src: 'data:image/jpeg;base64,abc123', classes: ['YQ4gaf'] },
+      ],
+    }]);
+
+    const results = scrapeImageResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].imageUrl).toBe('');
+  });
+
+  it('imageUrl ignores favicon with YQ4gaf class even if src is HTTP', () => {
+    setupDOM([{
+      lpage: 'https://example.com/page',
+      ariaLabel: 'With favicon',
+      imgs: [
+        { src: 'data:image/jpeg;base64,thumb', classes: ['YQ4gaf'] },
+        { src: 'https://example.com/favicon.ico', classes: ['YQ4gaf'] },     // has YQ4gaf → skip
+        { src: 'https://cdn.example.com/real-image.jpg', classes: [] },       // full-size
+      ],
+    }]);
+
+    const results = scrapeImageResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].imageUrl).toBe('https://cdn.example.com/real-image.jpg');
+  });
+
+  it('imageUrl is empty when no images exist at all', () => {
+    setupDOM([{
+      lpage: 'https://example.com/page',
+      ariaLabel: 'No images',
+      // no imgs, no imgSrc → querySelectorAll('img') returns []
+    }]);
+
+    const results = scrapeImageResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].imageUrl).toBe('');
   });
 });
