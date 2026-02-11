@@ -39,6 +39,66 @@ export async function copyToClipboard(text) {
 }
 
 /**
+ * Copy image to clipboard. Fetches the image, converts to PNG if needed
+ * (clipboard API requires image/png), copies via clipboard API.
+ * Shows success/failure status message, auto-clears after 2 seconds.
+ * [I/O]
+ *
+ * @param {string} imgSrc - Image URL or data URI
+ * @returns {Promise<boolean>} True if successful, false otherwise
+ *
+ * @example
+ * copyImageToClipboard('https://example.com/thumb.jpg')
+ * // Fetches, converts to PNG, copies to clipboard, shows message
+ */
+export async function copyImageToClipboard(imgSrc) {
+  // Template: I/O - side effect (fetch + clipboard API)
+  try {
+    const response = await fetch(imgSrc);
+    let blob = await response.blob();
+
+    // Clipboard API requires image/png; convert if needed
+    if (blob.type !== 'image/png') {
+      blob = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          canvas.toBlob((pngBlob) => {
+            if (pngBlob) resolve(pngBlob);
+            else reject(new Error('Canvas toBlob failed'));
+          }, 'image/png');
+        };
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = imgSrc;
+      });
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': blob }),
+    ]);
+
+    updateStatusMessage('Image copied to clipboard');
+    setTimeout(() => {
+      updateStatusMessage('');
+    }, 2000);
+
+    return true;
+  } catch (err) {
+    console.error('[Vilify] Failed to copy image to clipboard:', err);
+    updateStatusMessage('Failed to copy image');
+    setTimeout(() => {
+      updateStatusMessage('');
+    }, 2000);
+
+    return false;
+  }
+}
+
+/**
  * Navigate current tab to URL/path.
  * [I/O]
  *
