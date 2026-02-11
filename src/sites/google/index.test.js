@@ -40,12 +40,13 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
     expect(app.openLocalFilter).toHaveBeenCalled();
   });
 
-  it('returns an object with "i" key for search', () => {
+  it('returns an object with "i" key for search, pre-filled with URL query', () => {
     const app = { openSearch: vi.fn() };
     const seqs = googleConfig.getKeySequences(app);
     expect(seqs).toHaveProperty('i');
     seqs['i']();
-    expect(app.openSearch).toHaveBeenCalled();
+    // location.search is '?q=test' from the global mock
+    expect(app.openSearch).toHaveBeenCalledWith('test');
   });
 
   it('returns an object with ":" key for command palette', () => {

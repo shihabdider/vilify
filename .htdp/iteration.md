@@ -1,32 +1,15 @@
 # Iteration
 
-anchor: de68fb4c056b9caf71bcbb89f7dee9fa62bdd163
-started: 2026-02-10T04:33:30-05:00
+anchor: e95821c9455e7c9024a15551ab70c1b83a8582d8
+started: 2026-02-10T04:32:52-05:00
 mode: data-definition-driven
 language: JavaScript
 transparent: true
 
 ## Problem
 
-TODO #3 iteration 3 + TODO #4: `yy` copies to clipboard on Google pages.
-- Images page: copy selected image blob to clipboard via `navigator.clipboard.write()` with `ClipboardItem`
-- Web search page: copy selected link URL to clipboard via existing `copyToClipboard`
-- Show success/failure message. Extension already has `clipboardWrite` permission.
+When pressing 'i' to enter search mode on Google pages, the search input is always empty. Instead, it should be pre-filled with the current Google search query (from URL `?q=` param) so users can easily append/modify their search. This applies to both web search and image search Google pages.
 
 ## Data Definition Plan
 
-No data definition changes. ContentItem already has `thumbnail` and `url` fields.
-
-## Wishes
-
-### Layer 2 (leaf)
-- `copyImageToClipboard(imgSrc: string): Promise<boolean>` in `src/core/actions.js`
-  Purpose: Fetch image blob from URL/data-URI, convert to PNG, copy to clipboard via navigator.clipboard.write([new ClipboardItem]). Show success/failure status message.
-
-### Layer 1
-- Thread `getSelectedItem` callback through `src/core/index.js` → `src/core/keyboard.js` → `appCallbacks`
-  Purpose: Plumb a `getSelectedItem()` callback so site key sequences can access the currently selected ContentItem.
-
-### Layer 0
-- `yy` key sequence in `src/sites/google/index.js` `getGoogleKeySequences`
-  Purpose: Page-type-aware copy — images page: `copyImageToClipboard(item.thumbnail)`, search page: `copyToClipboard(item.url)`. Uses `app.getSelectedItem()`.
+No data definition changes. UIState.searchQuery already holds a string. The change is behavioral: `openSearch` callback accepts an optional initial query, and Google's 'i' key sequence extracts `?q=` from URL and passes it.

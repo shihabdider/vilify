@@ -163,7 +163,10 @@ function getGoogleKeySequences(app) {
       app?.openLocalFilter?.();
     },
     // Search: i opens search mode
-    'i': () => app?.openSearch?.(),
+    'i': () => {
+      const q = new URLSearchParams(location.search).get('q') || '';
+      app?.openSearch?.(q);
+    },
     // Command palette
     ':': () => app?.openPalette?.('command'),
     // Go to top

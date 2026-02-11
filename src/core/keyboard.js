@@ -353,9 +353,9 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
       openLocalFilter: () => {
         setState(updateUI({ filterActive: true, filterQuery: '' }));
       },
-      openSearch: () => {
-        // Open our search mode
-        setState(updateUI({ searchActive: true, searchQuery: '' }));
+      openSearch: (initialQuery) => {
+        // Open our search mode (optionally pre-filled with initialQuery)
+        setState(updateUI({ searchActive: true, searchQuery: initialQuery || '' }));
       },
       openDrawer: (drawerId) => {
         setState(updateUI({ drawer: drawerId }));
