@@ -289,8 +289,10 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
         return;
       }
       
-      // j/k/h/l only navigate when NOT filtering (user might type those letters)
-      if (!filterActive && !searchActive) {
+      // j/k/h/l only navigate when NOT filtering AND no key sequence in progress.
+      // When a sequence is building (e.g. keySeq='g'), let h/l/j/k fall through
+      // to the sequence handler so multi-key combos like 'gh', 'gl' can complete.
+      if (!filterActive && !searchActive && !keySeq) {
         if (event.key === 'j') {
           event.preventDefault();
           if (callbacks.onNavigate) {
