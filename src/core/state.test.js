@@ -208,6 +208,121 @@ describe('onNavigate', () => {
     expect(result.state.ui.selectedIdx).toBe(0);
     expect(result.boundary).toBe(null);
   });
+
+  // --- step parameter for down ---
+  it('moves down by step from index 0', () => {
+    const state = createAppState();
+    const result = onNavigate(state, 'down', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(5);
+    expect(result.boundary).toBe(null);
+  });
+
+  it('moves down by step and hits bottom boundary at max', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 15;
+    const result = onNavigate(state, 'down', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(19);
+    expect(result.boundary).toBe(null);
+  });
+
+  it('moves down by step clamped to max when near end', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 18;
+    const result = onNavigate(state, 'down', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(19);
+    expect(result.boundary).toBe(null);
+  });
+
+  // --- step parameter for up ---
+  it('moves up by step from index 10', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 10;
+    const result = onNavigate(state, 'up', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(5);
+    expect(result.boundary).toBe(null);
+  });
+
+  it('moves up by step clamped to 0 when near start', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 3;
+    const result = onNavigate(state, 'up', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(0);
+    expect(result.boundary).toBe(null);
+  });
+
+  it('hits top boundary when up from index 0 with step', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 0;
+    const result = onNavigate(state, 'up', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(0);
+    expect(result.boundary).toBe('top');
+  });
+
+  // --- left direction ---
+  it('moves left from index 5', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 5;
+    const result = onNavigate(state, 'left', 20);
+    expect(result.state.ui.selectedIdx).toBe(4);
+    expect(result.boundary).toBe(null);
+  });
+
+  it('hits top boundary when left from index 0', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 0;
+    const result = onNavigate(state, 'left', 20);
+    expect(result.state.ui.selectedIdx).toBe(0);
+    expect(result.boundary).toBe('top');
+  });
+
+  it('left ignores step parameter (always -1)', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 5;
+    const result = onNavigate(state, 'left', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(4);
+    expect(result.boundary).toBe(null);
+  });
+
+  // --- right direction ---
+  it('moves right from index 5', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 5;
+    const result = onNavigate(state, 'right', 20);
+    expect(result.state.ui.selectedIdx).toBe(6);
+    expect(result.boundary).toBe(null);
+  });
+
+  it('hits bottom boundary when right from max index', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 19;
+    const result = onNavigate(state, 'right', 20);
+    expect(result.state.ui.selectedIdx).toBe(19);
+    expect(result.boundary).toBe('bottom');
+  });
+
+  it('right ignores step parameter (always +1)', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 5;
+    const result = onNavigate(state, 'right', 20, 5);
+    expect(result.state.ui.selectedIdx).toBe(6);
+    expect(result.boundary).toBe(null);
+  });
+
+  // --- backward compatibility ---
+  it('down without step defaults to step=1', () => {
+    const state = createAppState();
+    const result = onNavigate(state, 'down', 5);
+    expect(result.state.ui.selectedIdx).toBe(1);
+    expect(result.boundary).toBe(null);
+  });
+
+  it('up without step defaults to step=1', () => {
+    const state = createAppState();
+    state.ui.selectedIdx = 2;
+    const result = onNavigate(state, 'up', 5);
+    expect(result.state.ui.selectedIdx).toBe(1);
+    expect(result.boundary).toBe(null);
+  });
 });
 
 describe('onFilterToggle', () => {
