@@ -600,7 +600,84 @@ export function getYouTubeCommands(app) {
  *     => { 'C-f': [Function], ' ': [Function], 'm': [Function], ... }
  */
 export function getYouTubeKeySequences(app, context) {
-  throw new Error("not implemented: getYouTubeKeySequences");
+  const ctx = getVideoContext();
+  const pageType = context?.pageType;
+
+  // (1) Always-available bindings
+  const sequences = {
+    '/': () => {
+      if (pageType === 'watch') {
+        app?.openRecommended?.();
+      } else {
+        app?.openLocalFilter?.();
+      }
+    },
+    ':': () => app?.openPalette?.('command'),
+    'i': () => app?.openSearch?.(),
+
+    // g-prefixed navigation
+    'gh': () => navigateTo('/'),
+    'gs': () => navigateTo('/feed/subscriptions'),
+    'gy': () => navigateTo('/feed/history'),
+    'gl': () => navigateTo('/feed/library'),
+    'gw': () => navigateTo('/playlist?list=WL'),
+
+    'gg': () => app?.goToTop?.(),
+    'mw': () => app?.addToWatchLater?.(),
+  };
+
+  // (2) Listing pages (pageType !== 'watch')
+  if (pageType !== 'watch') {
+    sequences['ArrowDown'] = () => app?.navigate?.('down');
+    sequences['ArrowUp'] = () => app?.navigate?.('up');
+    sequences['Enter'] = () => app?.select?.(false);
+    sequences['G'] = () => app?.goToBottom?.();
+    sequences['dd'] = () => app?.removeFromWatchLater?.();
+
+    // (3) Listing + !filterActive + !searchActive
+    if (!context?.filterActive && !context?.searchActive) {
+      sequences['j'] = () => app?.navigate?.('down');
+      sequences['k'] = () => app?.navigate?.('up');
+      sequences['h'] = () => app?.navigate?.('left');
+      sequences['l'] = () => app?.navigate?.('right');
+      sequences['u'] = () => app?.undoWatchLaterRemoval?.();
+    }
+  }
+
+  // (4) Watch page basics
+  if (pageType === 'watch') {
+    sequences['C-f'] = () => app?.nextCommentPage?.();
+    sequences['C-b'] = () => app?.prevCommentPage?.();
+    sequences[' '] = () => player.togglePlayPause();
+  }
+
+  // (5) Watch page with video context
+  if (ctx) {
+    if (ctx.channelUrl) {
+      sequences['gc'] = () => navigateTo(ctx.channelUrl + '/videos');
+    }
+
+    sequences['g1'] = () => player.setPlaybackRate(1);
+    sequences['g2'] = () => player.setPlaybackRate(2);
+
+    sequences['yy'] = () => copyVideoUrl(ctx);
+    sequences['yt'] = () => copyVideoTitle(ctx);
+    sequences['Y'] = () => copyVideoUrlAtTime(ctx);
+
+    sequences['zo'] = () => app?.openDrawer?.('description');
+    sequences['zc'] = () => app?.closeDrawer?.();
+    sequences['f'] = () => app?.openDrawer?.('chapters');
+
+    sequences['ms'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
+
+    sequences['m'] = player.toggleMute;
+    sequences['c'] = player.toggleCaptions;
+    sequences['h'] = () => player.seekRelative(-10);
+    sequences['l'] = () => player.seekRelative(10);
+    sequences['t'] = () => app?.openTranscriptDrawer?.();
+  }
+
+  return sequences;
 }
 
 /**
