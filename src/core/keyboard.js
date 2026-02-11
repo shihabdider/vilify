@@ -130,5 +130,150 @@ export function handleKeyEvent(key, keySeq, sequences, timeout) {
  * // Registers capture-phase keydown listener
  */
 export function setupKeyboardEngine(config, getState, setState, appCallbacks, getSiteState = null) {
-  throw new Error("not implemented: setupKeyboardEngine");
+  let keySeq = '';
+  let keyTimer = null;
+  let pendingAction = null;
+  const SEQUENCE_TIMEOUT = 500;
+
+  function focusInputIfNeeded() {
+    setTimeout(() => {
+      const input = document.getElementById('vilify-status-input');
+      if (input) input.focus();
+    }, 10);
+  }
+
+  function handler(event) {
+    const state = getState();
+    const { drawer, filterActive, searchActive } = state.ui;
+    const focusModeActive = state.core.focusModeActive;
+    const target = event.target;
+
+    // 1. Input element filtering
+    if (isInputElement(target)) {
+      // Vilify's own status bar input — let it handle everything
+      if (target.id === 'vilify-status-input') {
+        return;
+      }
+      // Native search input — Escape blurs, block rest
+      if (config.isNativeSearchInput?.(target)) {
+        if (event.key === 'Escape') {
+          target.blur();
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
+      // All other inputs — don't intercept
+      return;
+    }
+
+    // 2. Focus mode check
+    if (!focusModeActive) return;
+
+    // 3. Escape handling (generic modal stack: drawer > filter > search)
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (drawer !== null) {
+        setState({ ...state, ui: { ...state.ui, drawer: null, paletteQuery: '', paletteSelectedIdx: 0 } });
+        appCallbacks.render?.();
+      } else if (filterActive) {
+        setState({ ...state, ui: { ...state.ui, filterActive: false, filterQuery: '', selectedIdx: 0 } });
+        appCallbacks.render?.();
+      } else if (searchActive) {
+        setState({ ...state, ui: { ...state.ui, searchActive: false, searchQuery: '' } });
+        appCallbacks.render?.();
+      }
+      return;
+    }
+
+    // 4. Drawer key delegation (not palette, not recommended)
+    if (drawer !== null && drawer !== 'palette' && drawer !== 'recommended') {
+      event.preventDefault();
+      event.stopPropagation();
+      appCallbacks.onDrawerKey?.(event.key);
+      return;
+    }
+
+    // 5. Palette block
+    if (drawer === 'palette') return;
+
+    // 6. Normalize key
+    const key = normalizeKey(event);
+    if (key === null) return; // modifier-only
+
+    // 7. Build context & get bindings
+    const pageType = config.getPageType?.() ?? null;
+    const context = { pageType, filterActive, searchActive, drawer };
+    const sequences = config.getKeySequences(appCallbacks, context);
+    const blockedKeys = config.getBlockedNativeKeys?.(context) ?? [];
+
+    // 8. Block native keys
+    if (blockedKeys.includes(key)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    // 9. Clear existing timeout
+    if (keyTimer) {
+      clearTimeout(keyTimer);
+      keyTimer = null;
+    }
+
+    // 10. Process through sequence engine
+    const result = handleKeyEvent(key, keySeq, sequences, SEQUENCE_TIMEOUT);
+    keySeq = result.newSeq;
+
+    // 11. For any match (exact, pending, or prefix): block event
+    if (result.shouldPrevent) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    // 12. Execute action or handle pending/timeout
+    if (result.action) {
+      pendingAction = null;
+      result.action();
+      focusInputIfNeeded();
+      return;
+    }
+
+    if (result.pendingAction) {
+      pendingAction = result.pendingAction;
+    }
+
+    // If sequence reset and there's a pending action, fire it
+    if (keySeq === '' && pendingAction) {
+      const fn = pendingAction;
+      pendingAction = null;
+      fn();
+      focusInputIfNeeded();
+      return;
+    }
+
+    // If there's an active sequence, set a timeout
+    if (keySeq) {
+      keyTimer = setTimeout(() => {
+        keyTimer = null;
+        if (pendingAction) {
+          const fn = pendingAction;
+          pendingAction = null;
+          fn();
+          focusInputIfNeeded();
+        }
+        keySeq = '';
+      }, SEQUENCE_TIMEOUT);
+    }
+  }
+
+  document.addEventListener('keydown', handler, true); // capture phase
+
+  // Cleanup function
+  return function cleanup() {
+    document.removeEventListener('keydown', handler, true);
+    if (keyTimer) {
+      clearTimeout(keyTimer);
+      keyTimer = null;
+    }
+  };
 }
