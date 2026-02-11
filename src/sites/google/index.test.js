@@ -18,9 +18,9 @@ vi.stubGlobal('document', {
   getElementById: vi.fn(() => null),
 });
 
-vi.stubGlobal('window', {
-  location: { href: 'https://www.google.com/search?q=test', pathname: '/search' },
-});
+const mockLocation = { href: 'https://www.google.com/search?q=test', pathname: '/search', search: '?q=test' };
+vi.stubGlobal('window', { location: mockLocation });
+vi.stubGlobal('location', mockLocation);
 
 const { googleConfig } = await import('./index.js');
 
@@ -63,6 +63,36 @@ describe('getGoogleKeySequences (via googleConfig.getKeySequences)', () => {
     expect(() => seqs['i']()).not.toThrow();
     expect(() => seqs[':']()).not.toThrow();
     expect(() => seqs['gg']()).not.toThrow();
+  });
+
+  it('"go" navigates to web search results with current query', () => {
+    // location.search is '?q=test' from the global mock
+    const seqs = googleConfig.getKeySequences({});
+    seqs['go']();
+    expect(window.location.href).toBe('/search?q=test');
+  });
+
+  it('"gi" navigates to image search results with current query', () => {
+    const seqs = googleConfig.getKeySequences({});
+    seqs['gi']();
+    expect(window.location.href).toBe('/search?q=test&udm=2');
+  });
+
+  it('"go" shows message when no query present', () => {
+    const origSearch = location.search;
+    location.search = '';
+    const seqs = googleConfig.getKeySequences({});
+    seqs['go']();
+    // showMessage is called instead of navigating — we just verify no throw
+    location.search = origSearch;
+  });
+
+  it('"gi" shows message when no query present', () => {
+    const origSearch = location.search;
+    location.search = '';
+    const seqs = googleConfig.getKeySequences({});
+    seqs['gi']();
+    location.search = origSearch;
   });
 });
 
@@ -124,5 +154,19 @@ describe('googleConfig search fields', () => {
 
   it('has searchPlaceholder string', () => {
     expect(googleConfig.searchPlaceholder).toBe('Search Google...');
+  });
+
+  it('searchUrl appends &udm=2 when on images page', () => {
+    const origSearch = location.search;
+    location.search = '?q=test&udm=2';
+    expect(googleConfig.searchUrl('cats')).toBe('/search?q=cats&udm=2');
+    location.search = origSearch;
+  });
+
+  it('searchUrl omits &udm=2 when on regular search page', () => {
+    const origSearch = location.search;
+    location.search = '?q=test';
+    expect(googleConfig.searchUrl('cats')).toBe('/search?q=cats');
+    location.search = origSearch;
   });
 });
