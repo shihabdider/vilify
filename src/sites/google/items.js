@@ -5,14 +5,15 @@ import { el } from '../../core/view.js';
 
 // CSS for Google-specific item styles
 const GOOGLE_ITEM_CSS = `
-  /* Google search result item - no thumbnail */
+  /* Google search result item - favicon + text */
   .vilify-google-item {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     padding: 12px 24px;
     cursor: pointer;
     border-left: 2px solid transparent;
     gap: 4px;
+    align-items: flex-start;
   }
 
   .vilify-google-item:hover {
@@ -22,6 +23,23 @@ const GOOGLE_ITEM_CSS = `
   .vilify-google-item.selected {
     background: var(--bg-2);
     border-left-color: var(--accent);
+  }
+
+  .vilify-google-item-favicon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-right: 10px;
+    margin-top: 2px;
+    border-radius: 2px;
+  }
+
+  .vilify-google-item-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .vilify-google-item-title {
@@ -81,23 +99,63 @@ export function injectGoogleItemStyles() {
  */
 export function renderGoogleItem(item, isSelected) {
   const classes = isSelected ? 'vilify-google-item selected' : 'vilify-google-item';
-  const children = [];
+  const topChildren = [];
+
+  // Favicon - only for valid http(s) URLs
+  const faviconUrl = getFaviconUrl(item.url);
+  if (faviconUrl) {
+    const favicon = el('img', {
+      src: faviconUrl,
+      width: '20',
+      height: '20',
+      class: 'vilify-google-item-favicon',
+    });
+    favicon.onerror = function () { this.style.display = 'none'; };
+    topChildren.push(favicon);
+  }
+
+  // Info div wrapping title, url, description
+  const infoChildren = [];
 
   // Title
   const title = el('div', { class: 'vilify-google-item-title' }, [item.title || '']);
-  children.push(title);
+  infoChildren.push(title);
 
   // URL (meta field contains display URL)
   if (item.meta) {
     const url = el('div', { class: 'vilify-google-item-url' }, [item.meta]);
-    children.push(url);
+    infoChildren.push(url);
   }
 
   // Description (snippet text)
   if (item.description) {
     const desc = el('div', { class: 'vilify-google-item-description' }, [item.description]);
-    children.push(desc);
+    infoChildren.push(desc);
   }
 
-  return el('div', { class: classes }, children);
+  const infoDiv = el('div', { class: 'vilify-google-item-info' }, infoChildren);
+  topChildren.push(infoDiv);
+
+  return el('div', { class: classes }, topChildren);
+}
+
+/**
+ * Derive a Google favicon service URL from an item URL.
+ * Returns null if the URL is falsy or not a valid http(s) URL.
+ *
+ * Signature: getFaviconUrl : String|undefined → String|null
+ * Purpose: Extract hostname from URL and build favicon service URL
+ *
+ * @param {string|undefined} url - The item URL
+ * @returns {string|null} Favicon URL or null
+ */
+function getFaviconUrl(url) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=32`;
+  } catch {
+    return null;
+  }
 }
