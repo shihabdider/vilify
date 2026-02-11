@@ -12,7 +12,26 @@ const LOADING_CSS = `
   body.vilify-loading #content,
   body.vilify-loading ytd-browse,
   body.vilify-loading ytd-watch-flexy,
-  body.vilify-loading ytd-search {
+  body.vilify-loading ytd-search,
+  html.vilify-loading ytd-app,
+  html.vilify-loading #content,
+  html.vilify-loading ytd-browse,
+  html.vilify-loading ytd-watch-flexy,
+  html.vilify-loading ytd-search,
+  body.vilify-loading #searchform,
+  body.vilify-loading #rcnt,
+  body.vilify-loading #rso,
+  body.vilify-loading #appbar,
+  body.vilify-loading #botstuff,
+  body.vilify-loading footer,
+  body.vilify-loading #top_nav,
+  html.vilify-loading #searchform,
+  html.vilify-loading #rcnt,
+  html.vilify-loading #rso,
+  html.vilify-loading #appbar,
+  html.vilify-loading #botstuff,
+  html.vilify-loading footer,
+  html.vilify-loading #top_nav {
     visibility: hidden !important;
   }
   
@@ -69,6 +88,10 @@ export function injectLoadingStyles() {
   // Inject into head (or documentElement if head not ready)
   const target = document.head || document.documentElement;
   target.appendChild(style);
+
+  // Add vilify-loading class to html element immediately so hiding
+  // works at document_start before <body> exists
+  document.documentElement.classList.add('vilify-loading');
 
   stylesInjected = true;
 }
@@ -148,8 +171,9 @@ export function showLoadingScreen(siteConfig) {
  */
 export function hideLoadingScreen() {
   // Template: I/O - DOM mutation and removal
-  // Remove loading class from body
+  // Remove loading class from body and html
   document.body?.classList.remove('vilify-loading');
+  document.documentElement.classList.remove('vilify-loading');
 
   // Find overlay
   const overlay = document.getElementById('vilify-loading-overlay');
@@ -167,3 +191,6 @@ export function hideLoadingScreen() {
 // Legacy exports for backward compatibility
 export { showLoadingScreen as showLoading };
 export { hideLoadingScreen as hideLoading };
+
+// Test-only export for CSS content verification
+export { LOADING_CSS as _LOADING_CSS_FOR_TEST };

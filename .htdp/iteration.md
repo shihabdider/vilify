@@ -1,6 +1,6 @@
 # Iteration
 
-anchor: e95821c9455e7c9024a15551ab70c1b83a8582d8
+anchor: 45730a8dd820d96ef2988e75368e7219d9db079a
 started: 2026-02-10T04:32:52-05:00
 mode: data-definition-driven
 language: JavaScript
@@ -8,8 +8,11 @@ transparent: true
 
 ## Problem
 
-When pressing 'i' to enter search mode on Google pages, the search input is always empty. Instead, it should be pre-filled with the current Google search query (from URL `?q=` param) so users can easily append/modify their search. This applies to both web search and image search Google pages.
+Loading screen injection for Google: The original Google page flashes before the Vilify overlay appears because (1) LOADING_CSS only hides YouTube-specific selectors, (2) loading styles are injected at DOMContentLoaded (too late), and (3) the hiding class targets `body` which doesn't exist at `document_start`.
 
 ## Data Definition Plan
 
-No data definition changes. UIState.searchQuery already holds a string. The change is behavioral: `openSearch` callback accepts an optional initial query, and Google's 'i' key sequence extracts `?q=` from URL and passes it.
+No data definition changes. Fix is behavioral:
+1. Add Google-specific selectors to LOADING_CSS
+2. Support `html.vilify-loading` selector (works at document_start before body exists)
+3. In content.js, inject loading styles + hiding class immediately at document_start
