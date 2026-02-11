@@ -313,6 +313,28 @@ export const googleConfig = {
       waitForContent: () => document.querySelector('#rso') !== null || document.querySelector('div[data-query]') !== null,
       render: renderGoogleImageGrid,
       gridColumns: GRID_COLUMNS,
+      /**
+       * Force-load lazy thumbnails that Google hasn't loaded yet.
+       * Google Images uses IntersectionObserver to lazy-load thumbnails.
+       * Images below the fold never load because our overlay prevents scrolling.
+       * Fix: temporarily allow scrolling, scroll to trigger lazy loading, re-scrape.
+       * [I/O]
+       */
+      onEnter: async (ctx) => {
+        // Temporarily allow scrolling (body has overflow:hidden!important via vilify-focus-mode)
+        document.body.classList.remove('vilify-focus-mode');
+
+        // Scroll to bottom to trigger IntersectionObserver for all images
+        window.scrollTo(0, document.body.scrollHeight);
+        await new Promise(r => setTimeout(r, 300));
+
+        // Scroll back to top and restore overlay
+        window.scrollTo(0, 0);
+        document.body.classList.add('vilify-focus-mode');
+
+        // Re-scrape now that thumbnails have loaded
+        ctx.refreshItems();
+      },
     },
     other: otherPageConfig,
   },

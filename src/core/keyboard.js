@@ -449,8 +449,9 @@ export function setupKeyboardHandler(config, getState, setState, callbacks, getS
 
     // Check for single-key modal openers FIRST (before sequence building)
     // These special keys (`:`, `/`, `i`) should trigger immediately
+    // BUT only when no key sequence is in progress (e.g., 'gi' must not fire 'i')
     const singleKeyActions = [':', '/', 'i'];
-    if (singleKeyActions.includes(event.key) && sequences[event.key]) {
+    if (singleKeyActions.includes(event.key) && sequences[event.key] && !keySeq) {
       event.preventDefault();
       event.stopPropagation(); // Stop YouTube from handling
       keySeq = '';

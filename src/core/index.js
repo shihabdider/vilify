@@ -890,6 +890,29 @@ export function createApp(config) {
     return config?.pages?.[pageType] ?? null;
   }
 
+  /**
+   * Build onEnter context for page config hooks.
+   * [PURE factory - returns I/O object]
+   */
+  function buildOnEnterCtx() {
+    return {
+      getSiteState: () => siteState,
+      updateSiteState: (fn) => {
+        siteState = fn(siteState);
+        state = { ...state, site: siteState };
+      },
+      render,
+      /** Re-scrape items from DOM and re-render (for lazy-loaded content). */
+      refreshItems: () => {
+        if (config.createPageState) {
+          const pageState = config.createPageState();
+          state = onPageUpdate(state, pageState);
+        }
+        render();
+      },
+    };
+  }
+
   function handleNavigation(oldUrl, newUrl) {
     // Get old page type before URL changes
     const oldPageType = config.getPageType ? config.getPageType() : 'other';
@@ -937,15 +960,7 @@ export function createApp(config) {
 
         const newPageConfig = getPageConfig(newPageType);
         if (newPageConfig?.onEnter) {
-          const ctx = {
-            getSiteState: () => siteState,
-            updateSiteState: (fn) => {
-              siteState = fn(siteState);
-              state = { ...state, site: siteState };
-            },
-            render
-          };
-          await newPageConfig.onEnter(ctx);
+          await newPageConfig.onEnter(buildOnEnterCtx());
         }
 
         if (config.onContentReady) {
@@ -970,15 +985,7 @@ export function createApp(config) {
         const newPageConfig = getPageConfig(newPageType);
         
         if (newPageConfig?.onEnter) {
-          const ctx = {
-            getSiteState: () => siteState,
-            updateSiteState: (fn) => {
-              siteState = fn(siteState);
-              state = { ...state, site: siteState };
-            },
-            render
-          };
-          await newPageConfig.onEnter(ctx);
+          await newPageConfig.onEnter(buildOnEnterCtx());
         }
         
         if (config.onContentReady) {
@@ -1143,15 +1150,7 @@ export function createApp(config) {
 
           const pageConfig = getPageConfig(pageType);
           if (pageConfig?.onEnter) {
-            const ctx = {
-              getSiteState: () => siteState,
-              updateSiteState: (fn) => {
-                siteState = fn(siteState);
-                state = { ...state, site: siteState };
-              },
-              render
-            };
-            await pageConfig.onEnter(ctx);
+            await pageConfig.onEnter(buildOnEnterCtx());
           }
 
           if (config.onContentReady) {
@@ -1186,15 +1185,7 @@ export function createApp(config) {
         // Call page-specific onEnter hook
         const pageConfig = getPageConfig(pageType);
         if (pageConfig?.onEnter) {
-          const ctx = {
-            getSiteState: () => siteState,
-            updateSiteState: (fn) => {
-              siteState = fn(siteState);
-              state = { ...state, site: siteState };
-            },
-            render
-          };
-          await pageConfig.onEnter(ctx);
+          await pageConfig.onEnter(buildOnEnterCtx());
         }
 
         // Legacy: Call site's onContentReady hook
