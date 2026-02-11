@@ -351,14 +351,6 @@ export const googleConfig = {
   },
 
   /**
-   * @deprecated Merged into getKeySequences — will be removed.
-   * Get single-key actions (Ctrl+F/B for pagination).
-   * @param {Object} app - App callbacks
-   * @returns {Object<string, Function>}
-   */
-  getSingleKeyActions: getGoogleSingleKeyActions,
-
-  /**
    * Get drawer handler for site-specific drawers.
    * Returns suggest drawer handler for 'suggest' drawer state.
    * @param {string} drawerState - Current drawer state

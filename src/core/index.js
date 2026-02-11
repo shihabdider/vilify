@@ -1108,26 +1108,90 @@ export function createApp(config) {
 
       // Construct appCallbacks — the full set of callbacks that key sequences can invoke.
       // Previously built inside keyboard.js; now constructed here and passed in.
-      // TODO: implement — move appCallbacks construction from old keyboard.js setupKeyboardHandler
       const appCallbacks = {
         navigate: handleListNavigation,
         select: handleSelect,
         render: render,
         onDrawerKey: handleSiteDrawerKey,
-        openPalette: (mode) => { throw new Error("not implemented: appCallbacks.openPalette"); },
-        openRecommended: () => { throw new Error("not implemented: appCallbacks.openRecommended"); },
-        openLocalFilter: () => { throw new Error("not implemented: appCallbacks.openLocalFilter"); },
-        openSearch: (initialQuery) => { throw new Error("not implemented: appCallbacks.openSearch"); },
-        openDrawer: (drawerId) => { throw new Error("not implemented: appCallbacks.openDrawer"); },
-        closeDrawer: () => { throw new Error("not implemented: appCallbacks.closeDrawer"); },
-        goToTop: () => { throw new Error("not implemented: appCallbacks.goToTop"); },
-        goToBottom: () => { throw new Error("not implemented: appCallbacks.goToBottom"); },
-        openTranscriptDrawer: () => { throw new Error("not implemented: appCallbacks.openTranscriptDrawer"); },
+        openPalette: (mode) => {
+          state = { ...state, ui: { ...state.ui, drawer: 'palette', paletteQuery: mode === 'command' ? ':' : '', paletteSelectedIdx: 0 } };
+          render();
+        },
+        openRecommended: () => {
+          state = { ...state, ui: { ...state.ui, drawer: 'recommended' } };
+          render();
+        },
+        openLocalFilter: () => {
+          state = { ...state, ui: { ...state.ui, filterActive: true, filterQuery: '' } };
+          render();
+        },
+        openSearch: (initialQuery) => {
+          const siteStateVal = siteState;
+          const hasSuggestDrawer = config.getDrawerHandler?.('suggest', siteStateVal);
+          if (hasSuggestDrawer) {
+            state = { ...state, ui: { ...state.ui, drawer: 'suggest', searchQuery: initialQuery || '' } };
+          } else {
+            state = { ...state, ui: { ...state.ui, searchActive: true, searchQuery: initialQuery || '' } };
+          }
+          render();
+        },
+        openDrawer: (drawerId) => {
+          state = { ...state, ui: { ...state.ui, drawer: drawerId } };
+          render();
+        },
+        closeDrawer: () => {
+          state = { ...state, ui: { ...state.ui, drawer: null } };
+          render();
+        },
+        goToTop: () => handleListNavigation('top'),
+        goToBottom: () => handleListNavigation('bottom'),
+        openTranscriptDrawer: () => {
+          const ss = siteState;
+          if (!ss) return;
+          const currentDrawer = state.ui?.drawer ?? null;
+          if (currentDrawer === 'transcript') {
+            state = { ...state, ui: { ...state.ui, drawer: null } };
+            render();
+            return;
+          }
+          if (!ss.transcript || ss.transcript.status !== 'loaded') {
+            if (ss.transcript === null || ss.transcript.status === 'loading') {
+              showMessage('Loading transcript...');
+            } else {
+              showMessage('No transcript available');
+            }
+            return;
+          }
+          state = { ...state, ui: { ...state.ui, drawer: 'transcript' } };
+          render();
+        },
         dismissVideo: handleDismissVideo,
         addToWatchLater: handleAddToWatchLater,
         removeFromWatchLater: handleRemoveFromWatchLater,
-        exitFocusMode: () => { throw new Error("not implemented: appCallbacks.exitFocusMode"); },
-        updateSubscribeButton: (isSubscribed) => { throw new Error("not implemented: appCallbacks.updateSubscribeButton"); },
+        exitFocusMode: () => {
+          state = { ...state, core: { ...state.core, focusModeActive: false } };
+          removeFocusMode();
+          document.body.classList.remove('vilify-watch-page');
+        },
+        updateSubscribeButton: (isSubscribed) => {
+          const statusEl = document.getElementById('vilify-sub-status');
+          if (statusEl) {
+            statusEl.textContent = isSubscribed ? '· subscribed' : '· subscribe';
+            if (isSubscribed) {
+              statusEl.classList.remove('not-subscribed');
+            } else {
+              statusEl.classList.add('not-subscribed');
+            }
+          }
+          const actionEl = document.getElementById('vilify-sub-action');
+          if (actionEl) {
+            const kbd = document.createElement('kbd');
+            kbd.textContent = 'ms';
+            actionEl.innerHTML = '';
+            actionEl.appendChild(kbd);
+            actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
+          }
+        },
         getSelectedItem: () => {
           const items = getPageItems(state);
           const filtered = getVisibleItems(state, items);

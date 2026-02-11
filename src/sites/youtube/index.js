@@ -3,7 +3,7 @@
 
 import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper.js';
 import { getDataProvider } from './data/index.js';
-import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeSingleKeyActions, getYouTubeBlockedNativeKeys, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo, clickUndoDismiss } from './commands.js';
+import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeBlockedNativeKeys, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo, clickUndoDismiss } from './commands.js';
 import { applyDefaultVideoSettings, seekToChapter } from './player.js';
 import { injectWatchStyles, renderWatchPage, nextCommentPage, prevCommentPage } from './watch.js';
 import { getYouTubeDrawerHandler, resetYouTubeDrawers, setRecommendedItems } from './drawers/index.js';
@@ -360,14 +360,6 @@ export const youtubeConfig = {
            !!target.closest?.('ytd-searchbox') || 
            !!target.closest?.('#search-form');
   },
-
-  /**
-   * @deprecated Merged into getKeySequences — will be removed.
-   * Get single-key actions (including Shift modifiers like Shift+Y)
-   * @param {Object} ctx - Context with state, callbacks
-   * @returns {Object<string, Function>}
-   */
-  getSingleKeyActions: (ctx) => getYouTubeSingleKeyActions(ctx),
 
   /**
    * Get video description text.
