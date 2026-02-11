@@ -619,7 +619,10 @@ export function getYouTubeKeySequences(app, context) {
  *   => []
  */
 export function getYouTubeBlockedNativeKeys(context) {
-  throw new Error("not implemented: getYouTubeBlockedNativeKeys");
+  if (context.pageType === 'watch') {
+    return ['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h'];
+  }
+  return [];
 }
 
 /**

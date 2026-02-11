@@ -2,7 +2,7 @@
 
 phase: 1
 layer: -
-updated: 2026-02-11T22:07:06.945Z
+updated: 2026-02-11T22:07:57.491Z
 
 ## Wishes
 
@@ -15,3 +15,5 @@ updated: 2026-02-11T22:07:06.945Z
 - 17:06:15 normalizeKey: running
 - 17:07:01 normalizeKey: pass (45.7s, $0.1862)
 - 17:07:06 handleKeyEvent: running
+- 17:07:52 handleKeyEvent: pass (45.8s, $0.1817)
+- 17:07:57 getYouTubeBlockedNativeKeys: running

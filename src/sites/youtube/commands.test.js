@@ -158,6 +158,38 @@ describe('getYouTubeKeySequences - dd and mw on listing pages', () => {
   });
 });
 
+describe('getYouTubeBlockedNativeKeys', () => {
+  it('returns full blocked keys list on watch page', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'watch' }));
+    expect(result).toEqual(['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h']);
+  });
+
+  it('returns empty array on home page', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'home' }));
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array on subscriptions page', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'subscriptions' }));
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when pageType is null', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: null }));
+    expect(result).toEqual([]);
+  });
+
+  it('returns blocked keys regardless of other context flags on watch page', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({
+      pageType: 'watch',
+      filterActive: true,
+      searchActive: true,
+      drawer: 'settings',
+    }));
+    expect(result).toEqual(['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h']);
+  });
+});
+
 describe('getYouTubeCommands - Not interested display key', () => {
   let app;
 
