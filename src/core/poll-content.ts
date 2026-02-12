@@ -15,7 +15,11 @@
  * @param {number} interval  - Poll interval in ms (default 50)
  * @returns {Promise<boolean>} true if a predicate was found (handled), false otherwise
  */
-export async function pollPageContent(cfg, timeout = 5000, interval = 50) {
+export async function pollPageContent(
+  cfg: { getPageType?: () => string; pages?: Record<string, { waitForContent?: () => boolean; [key: string]: any }>; [key: string]: any },
+  timeout: number = 5000,
+  interval: number = 50
+): Promise<boolean> {
   const pageType = cfg.getPageType ? cfg.getPageType() : 'other';
   const pageConfig = cfg.pages?.[pageType];
   const predicate = pageConfig?.waitForContent;

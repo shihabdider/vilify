@@ -17,14 +17,14 @@
  * })
  * // Sets up observer, site handles the reaction
  */
-export function setupNavigationObserver(onNavigate) {
+export function setupNavigationObserver(onNavigate: (oldUrl: string, newUrl: string) => void): MutationObserver {
   // Template: I/O - Set up MutationObserver and event listeners
-  let lastUrl = location.href;
+  let lastUrl: string = location.href;
 
   /**
    * Check if URL changed and call callback
    */
-  const checkUrlChange = () => {
+  const checkUrlChange = (): void => {
     if (location.href !== lastUrl) {
       const oldUrl = lastUrl;
       lastUrl = location.href;
@@ -39,7 +39,7 @@ export function setupNavigationObserver(onNavigate) {
   });
 
   // Wait for body to be available, then observe
-  const startObserving = () => {
+  const startObserving = (): void => {
     if (document.body) {
       observer.observe(document.body, {
         childList: true,
@@ -54,7 +54,7 @@ export function setupNavigationObserver(onNavigate) {
   startObserving();
 
   // Also listen for popstate (back/forward navigation)
-  const handlePopstate = () => {
+  const handlePopstate = (): void => {
     checkUrlChange();
   };
 

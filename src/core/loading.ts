@@ -2,6 +2,7 @@
 // Following HTDP design from .design/BLUEPRINT.md
 
 import { el } from './view';
+import type { SiteConfig } from '../types';
 
 /**
  * CSS for loading screen.
@@ -76,7 +77,7 @@ let stylesInjected = false;
  * @example
  * injectLoadingStyles()  // Adds <style> to head
  */
-export function injectLoadingStyles() {
+export function injectLoadingStyles(): void {
   // Template: I/O - DOM mutation
   // Only inject once
   if (stylesInjected) return;
@@ -110,7 +111,7 @@ export function injectLoadingStyles() {
  * showLoadingScreen(youtubeConfig)
  * // Creates overlay with bg1 background, accent spinner, optional logo
  */
-export function showLoadingScreen(siteConfig) {
+export function showLoadingScreen(siteConfig: SiteConfig): void {
   // Template: I/O - DOM creation and mutation
   // Ensure styles are injected
   injectLoadingStyles();
@@ -169,7 +170,7 @@ export function showLoadingScreen(siteConfig) {
  * hideLoadingScreen()
  * // Fades out and removes overlay element
  */
-export function hideLoadingScreen() {
+export function hideLoadingScreen(): void {
   // Template: I/O - DOM mutation and removal
   // Remove loading class from body and html
   document.body?.classList.remove('vilify-loading');
