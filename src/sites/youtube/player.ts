@@ -1,6 +1,7 @@
 // YouTube player controls
 // All functions fail silently if video element not found (no messages - caller handles that)
 
+import type { Chapter } from '../../types';
 import { showMessage } from '../../core/view';
 
 // =============================================================================
@@ -15,8 +16,8 @@ import { showMessage } from '../../core/view';
  *   getVideo() => <video class="html5-main-video">
  *   getVideo() => null  // Not on watch page
  */
-export function getVideo() {
-  return document.querySelector('video.html5-main-video');
+export function getVideo(): HTMLVideoElement | null {
+  return document.querySelector<HTMLVideoElement>('video.html5-main-video');
 }
 
 // =============================================================================
@@ -31,7 +32,7 @@ export function getVideo() {
  * Examples:
  *   togglePlayPause()  // Pauses if playing, plays if paused
  */
-export function togglePlayPause() {
+export function togglePlayPause(): void {
   // Inventory: video element
   // Template: conditional on video state
   const video = getVideo();
@@ -54,7 +55,7 @@ export function togglePlayPause() {
  *   seekRelative(10)   // Forward 10s
  *   seekRelative(-5)   // Back 5s
  */
-export function seekRelative(seconds) {
+export function seekRelative(seconds: number): void {
   // Inventory: video element, seconds (Number)
   // Template: clamp to boundaries
   const video = getVideo();
@@ -77,7 +78,7 @@ export function seekRelative(seconds) {
  *   setPlaybackRate(1.5)  // Sets 1.5x
  *   setPlaybackRate(2)    // Sets 2x
  */
-export function setPlaybackRate(rate) {
+export function setPlaybackRate(rate: number): void {
   // Inventory: video element, rate (Number)
   // Template: simple assignment
   const video = getVideo();
@@ -94,7 +95,7 @@ export function setPlaybackRate(rate) {
  * Examples:
  *   toggleMute()  // Mutes if unmuted, unmutes if muted
  */
-export function toggleMute() {
+export function toggleMute(): void {
   // Inventory: video element
   // Template: toggle boolean
   const video = getVideo();
@@ -115,7 +116,7 @@ export function toggleMute() {
  * Examples:
  *   toggleFullscreen()  // Enters or exits fullscreen
  */
-export function toggleFullscreen() {
+export function toggleFullscreen(): void {
   // Inventory: player element, fullscreen button
   // Template: find and click button
   const player = document.querySelector('#movie_player');
@@ -133,7 +134,7 @@ export function toggleFullscreen() {
  * Toggle theater mode by clicking YouTube's theater button
  * @returns {void}
  */
-export function toggleTheaterMode() {
+export function toggleTheaterMode(): void {
   // Inventory: theater button
   // Template: find and click button
   const theaterButton = document.querySelector('.ytp-size-button');
@@ -148,7 +149,7 @@ export function toggleTheaterMode() {
  * Toggle captions by clicking YouTube's CC button
  * @returns {void}
  */
-export function toggleCaptions() {
+export function toggleCaptions(): void {
   // Inventory: CC button
   // Template: find and click button
   const ccButton = document.querySelector('.ytp-subtitles-button');
@@ -171,7 +172,7 @@ export function toggleCaptions() {
  * Examples:
  *   seekToChapter({ title: 'Main Topic', time: 65, timeText: '1:05' })
  */
-export function seekToChapter(chapter) {
+export function seekToChapter(chapter: Chapter): void {
   // Inventory: video element, chapter (Compound with time)
   // Template: access compound field
   const video = getVideo();
@@ -189,7 +190,7 @@ export function seekToChapter(chapter) {
  *   seekToPercent(50)  // Jump to middle
  *   seekToPercent(0)   // Jump to start
  */
-export function seekToPercent(percent) {
+export function seekToPercent(percent: number): void {
   // Inventory: video element, percent (Number)
   // Template: calculate and set
   const video = getVideo();
@@ -202,7 +203,7 @@ export function seekToPercent(percent) {
 // DEFAULT SETTINGS
 // =============================================================================
 
-const DEFAULT_PLAYBACK_RATE = 2;
+const DEFAULT_PLAYBACK_RATE: number = 2;
 
 /**
  * Apply default video settings (2x playback speed)
@@ -212,7 +213,7 @@ const DEFAULT_PLAYBACK_RATE = 2;
  * Examples:
  *   applyDefaultVideoSettings()  // Sets playbackRate to 2
  */
-export function applyDefaultVideoSettings() {
+export function applyDefaultVideoSettings(): void {
   // Inventory: video element
   // Template: conditional assignment
   const video = getVideo();
@@ -228,16 +229,16 @@ export function applyDefaultVideoSettings() {
 // =============================================================================
 
 export const playerControls = {
-  play() {
+  play(): void {
     const video = getVideo();
     if (video) video.play();
   },
-  pause() {
+  pause(): void {
     const video = getVideo();
     if (video) video.pause();
   },
   toggle: togglePlayPause,
-  seek(seconds) {
+  seek(seconds: number): void {
     const video = getVideo();
     if (video) video.currentTime = seconds;
   },
