@@ -1,6 +1,8 @@
 // YouTube state transitions - Pure functions
 // Following HTDP design from .design/DATA.md
 
+import type { ListPageState, WatchPageState, VideoContext, ContentItem, Chapter, YouTubeState, TranscriptResult, TranscriptSegment, ChaptersResult } from '../../types';
+
 // =============================================================================
 // PAGE STATE CREATION
 // =============================================================================
@@ -20,7 +22,7 @@
  * createListPageState([{ id: '1', title: 'Video 1' }, { id: '2', title: 'Video 2' }])
  *   => { type: 'list', videos: [{ id: '1', title: 'Video 1' }, { id: '2', title: 'Video 2' }] }
  */
-export function createListPageState(videos = []) {
+export function createListPageState(videos: ContentItem[] = []): ListPageState {
   // Template: videos is List → use directly
   return {
     type: 'list',
@@ -55,7 +57,7 @@ export function createListPageState(videos = []) {
  *   chapters: [{ title: 'Intro', time: 0, timeText: '0:00' }]
  * }
  */
-export function createWatchPageState(videoContext = null, recommended = [], chapters = []) {
+export function createWatchPageState(videoContext: VideoContext | null = null, recommended: ContentItem[] = [], chapters: Chapter[] = []): WatchPageState {
   // Template: all inputs are simple (Compound/List) → construct directly
   return {
     type: 'watch',
@@ -91,7 +93,7 @@ export function createWatchPageState(videoContext = null, recommended = [], chap
  * onTranscriptRequest({ transcript: { status: 'loaded', videoId: 'old', lines: [...] } }, 'new')
  *   => { transcript: { status: 'loading', videoId: 'new', lines: [], language: null } }
  */
-export function onTranscriptRequest(siteState, videoId) {
+export function onTranscriptRequest(siteState: YouTubeState, videoId: string): YouTubeState {
   // Template: siteState is Compound → access transcript
   // videoId is Atomic → use directly
   
@@ -106,8 +108,6 @@ export function onTranscriptRequest(siteState, videoId) {
     transcript: {
       status: 'loading',
       videoId,
-      lines: [],
-      language: null
     }
   };
 }
@@ -142,7 +142,7 @@ export function onTranscriptRequest(siteState, videoId) {
  *   { status: 'unavailable', videoId: 'abc', lines: [], language: null }
  * ) => { transcript: { status: 'unavailable', videoId: 'abc', lines: [], language: null } }
  */
-export function onTranscriptLoad(siteState, result) {
+export function onTranscriptLoad(siteState: YouTubeState, result: TranscriptResult): YouTubeState {
   // Template: siteState is Compound → access transcript
   // result is Compound → access status, videoId, lines, language
   
@@ -171,7 +171,7 @@ export function onTranscriptLoad(siteState, result) {
  * onTranscriptClear({ transcript: { status: 'loaded', ... } })
  *   => { transcript: null }
  */
-export function onTranscriptClear(siteState) {
+export function onTranscriptClear(siteState: YouTubeState): YouTubeState {
   return {
     ...siteState,
     transcript: null
@@ -204,7 +204,7 @@ export function onTranscriptClear(siteState) {
  * onChaptersRequest({ chapters: { status: 'loaded', videoId: 'old', chapters: [...] } }, 'new')
  *   => { chapters: { status: 'loading', videoId: 'new', chapters: [] } }
  */
-export function onChaptersRequest(siteState, videoId) {
+export function onChaptersRequest(siteState: YouTubeState, videoId: string): YouTubeState {
   // Template: siteState is Compound → access chapters
   // videoId is Atomic → use directly
   
@@ -254,7 +254,7 @@ export function onChaptersRequest(siteState, videoId) {
  *   { status: 'loaded', videoId: 'abc', chapters: [] }
  * ) => { chapters: { status: 'loaded', videoId: 'abc', chapters: [] } }
  */
-export function onChaptersLoad(siteState, result) {
+export function onChaptersLoad(siteState: YouTubeState, result: ChaptersResult): YouTubeState {
   // Template: siteState is Compound → access chapters
   // result is Compound → access status, videoId, chapters
   
@@ -283,7 +283,7 @@ export function onChaptersLoad(siteState, result) {
  * onChaptersClear({ chapters: { status: 'loaded', ... } })
  *   => { chapters: null }
  */
-export function onChaptersClear(siteState) {
+export function onChaptersClear(siteState: YouTubeState): YouTubeState {
   return {
     ...siteState,
     chapters: null
