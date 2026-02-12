@@ -1,6 +1,7 @@
 // Command palette - Bottom drawer for commands
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
+import type { AppState } from '../types';
 import { el, clear, updateListSelection } from './view';
 
 // Palette CSS styles - Bottom drawer pattern
@@ -39,10 +40,19 @@ const PALETTE_CSS = `
   .vilify-cmd-item.selected .vilify-cmd-keys kbd { border-color: var(--txt-3); }
 `;
 
+/** A command item or group header in the palette */
+export interface PaletteItem {
+  label?: string;
+  keys?: string;
+  group?: string;
+  action?: () => void;
+  [key: string]: any;
+}
+
 // Module-level state for DOM elements
-let drawerEl = null;
-let listEl = null;
-let stylesInjected = false;
+let drawerEl: HTMLElement | null = null;
+let listEl: HTMLElement | null = null;
+let stylesInjected: boolean = false;
 
 /**
  * Inject palette styles into the document.
@@ -51,7 +61,7 @@ let stylesInjected = false;
  * @example
  * injectPaletteStyles()  // Adds <style> element to head
  */
-export function injectPaletteStyles() {
+export function injectPaletteStyles(): void {
   // Template: I/O - DOM mutation
   // Only inject once
   if (stylesInjected) return;
@@ -76,7 +86,7 @@ export function injectPaletteStyles() {
  *
  * filterItems(items, '')  => items (non-group items only if query empty, all items if truly empty)
  */
-export function filterItems(items, query) {
+export function filterItems(items: PaletteItem[], query: string): PaletteItem[] {
   // Template: Self-referential (list) - iteration
   // If no query, return all items
   if (!query) return items;
@@ -113,7 +123,7 @@ export function filterItems(items, query) {
  * openPalette(state, 'video')
  *   => { ...state, ui: { drawer: 'palette', paletteQuery: '', paletteSelectedIdx: 0 } }
  */
-export function openPalette(state, mode) {
+export function openPalette(state: AppState, mode?: string): AppState {
   // Template: Compound - return new state with updated fields
   return {
     ...state,
@@ -138,7 +148,7 @@ export function openPalette(state, mode) {
  * closePalette(state)
  *   => { ...state, ui: { ...state.ui, drawer: null, paletteQuery: '' } }
  */
-export function closePalette(state) {
+export function closePalette(state: AppState): AppState {
   // Template: Compound - return new state with cleared fields
   return {
     ...state,
@@ -158,7 +168,7 @@ export function closePalette(state) {
  * - .vilify-drawer (container)
  *   - .vilify-drawer-list (scrollable item list)
  */
-function createPaletteDrawer() {
+function createPaletteDrawer(): void {
   // Template: I/O - DOM creation
   // Create list container
   listEl = el('div', { class: 'vilify-drawer-list' }, []);
@@ -180,7 +190,7 @@ function createPaletteDrawer() {
  * @example
  * renderPalette([{label: 'Copy URL', keys: 'yy'}, ...], 0)
  */
-export function renderPalette(items, selectedIdx) {
+export function renderPalette(items: PaletteItem[], selectedIdx: number): void {
   // Template: I/O - DOM mutation
   // Ensure drawer exists
   if (!drawerEl) createPaletteDrawer();
@@ -234,7 +244,7 @@ export function renderPalette(items, selectedIdx) {
  * @example
  * showPalette()  // Makes drawer visible
  */
-export function showPalette() {
+export function showPalette(): void {
   // Template: I/O - DOM mutation
   // Ensure drawer exists
   if (!drawerEl) createPaletteDrawer();
@@ -250,7 +260,7 @@ export function showPalette() {
  * @example
  * hidePalette()  // Hides drawer
  */
-export function hidePalette() {
+export function hidePalette(): void {
   // Template: I/O - DOM mutation
   // Remove 'open' class to hide drawer
   if (drawerEl) {
