@@ -2,6 +2,7 @@
 // Following HTDP design from .design/iterations/009-module-boundaries/DATA.md
 
 import { el, clear, updateListSelection } from './view';
+import type { DrawerHandler, AppState } from '../types';
 
 // =============================================================================
 // CSS STYLES
@@ -139,7 +140,7 @@ let stylesInjected = false;
  * Inject drawer styles into document
  * [I/O]
  */
-export function injectDrawerStyles() {
+export function injectDrawerStyles(): void {
   if (stylesInjected) return;
   
   const styleEl = document.createElement('style');
@@ -148,6 +149,25 @@ export function injectDrawerStyles() {
   document.head.appendChild(styleEl);
   
   stylesInjected = true;
+}
+
+// =============================================================================
+// CONFIG TYPES
+// =============================================================================
+
+interface ListDrawerConfig {
+  id: string;
+  getItems: () => any[];
+  renderItem: (item: any, isSelected: boolean) => HTMLElement;
+  onSelect: (item: any) => void;
+  filterPlaceholder: string;
+  matchesFilter?: ((item: any, query: string) => boolean) | null;
+}
+
+interface ContentDrawerConfig {
+  id: string;
+  getContent: () => string | null;
+  emptyMessage?: string;
 }
 
 // =============================================================================
@@ -172,12 +192,12 @@ export function injectDrawerStyles() {
  *   matchesFilter: null
  * });
  */
-export function createListDrawer(config) {
+export function createListDrawer(config: ListDrawerConfig): DrawerHandler {
   // Internal state (closure-scoped)
   let query = '';
   let selectedIdx = 0;
-  let drawerEl = null;
-  let listEl = null;
+  let drawerEl: HTMLElement | null = null;
+  let listEl: HTMLElement | null = null;
   
   /**
    * Get items filtered by current query
@@ -220,7 +240,7 @@ export function createListDrawer(config) {
       if (isSelected) {
         itemEl.classList.add('selected');
       }
-      itemEl.dataset.idx = idx;
+      itemEl.dataset.idx = String(idx);
       listEl.appendChild(itemEl);
     });
     
@@ -334,9 +354,9 @@ export function createListDrawer(config) {
  * @param {string} config.emptyMessage - Message when no content
  * @returns {DrawerHandler} Handler with render, onKey, cleanup methods
  */
-export function createContentDrawer(config) {
-  let drawerEl = null;
-  let contentEl = null;
+export function createContentDrawer(config: ContentDrawerConfig): DrawerHandler {
+  let drawerEl: HTMLElement | null = null;
+  let contentEl: HTMLElement | null = null;
   
   const SCROLL_AMOUNT = 100;
   
@@ -435,17 +455,17 @@ export function createContentDrawer(config) {
 // DRAWER MANAGER
 // =============================================================================
 
-/** @type {DrawerHandler|null} Currently active drawer handler */
-let activeDrawer = null;
+/** Currently active drawer handler */
+let activeDrawer: DrawerHandler | null = null;
 
-/** @type {HTMLElement|null} Drawer container element */
-let drawerContainer = null;
+/** Drawer container element */
+let drawerContainer: HTMLElement | null = null;
 
 /**
  * Get or create the drawer container element
  * @returns {HTMLElement}
  */
-function getDrawerContainer() {
+function getDrawerContainer(): HTMLElement {
   if (!drawerContainer) {
     drawerContainer = el('div', { id: 'vilify-drawer-container' }, []);
     document.body.appendChild(drawerContainer);
@@ -460,7 +480,7 @@ function getDrawerContainer() {
  * @param {DrawerState} drawerState - Current drawer state
  * @param {DrawerHandler|null} handler - Handler for this drawer
  */
-export function renderDrawer(drawerState, handler) {
+export function renderDrawer(drawerState: string | null, handler: DrawerHandler | null): void {
   const container = getDrawerContainer();
   
   // Cleanup previous drawer
@@ -489,7 +509,7 @@ export function renderDrawer(drawerState, handler) {
  * @param {DrawerHandler|null} handler - Handler for current drawer
  * @returns {{ handled: boolean, newState: AppState }}
  */
-export function handleDrawerKey(key, state, handler) {
+export function handleDrawerKey(key: string, state: AppState, handler: DrawerHandler | null): { handled: boolean; newState: AppState } {
   if (state.ui.drawer === null || handler === null) {
     return { handled: false, newState: state };
   }
@@ -501,7 +521,7 @@ export function handleDrawerKey(key, state, handler) {
  * Close active drawer and cleanup
  * [I/O]
  */
-export function closeDrawer() {
+export function closeDrawer(): void {
   if (activeDrawer && activeDrawer.cleanup) {
     activeDrawer.cleanup();
   }

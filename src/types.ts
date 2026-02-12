@@ -112,12 +112,11 @@ export interface PageConfig {
 }
 
 export interface DrawerHandler {
-  element: HTMLElement;
-  update?: (query: string) => void;
-  setQuery?: (query: string) => void;
-  navigateDrawer?: (direction: number) => void;
-  getSelected?: () => any;
+  render: (container: HTMLElement) => void;
+  onKey: (key: string, state: AppState) => { handled: boolean; newState: AppState };
   cleanup?: () => void;
+  updateQuery?: (query: string) => void;
+  getFilterPlaceholder?: () => string;
   [key: string]: any;
 }
 
