@@ -29,6 +29,7 @@
 // Fetch endpoint: /complete/search?client=firefox&q=<encoded-query>
 //   Returns JSON: [query, [suggestion1, suggestion2, ...]]
 
+import type { SiteConfig, DrawerHandler } from '../../types';
 import { injectDrawerStyles } from '../../core/drawer';
 import { el, clear, updateListSelection } from '../../core/view';
 
@@ -40,7 +41,7 @@ import { el, clear, updateListSelection } from '../../core/view';
  * @param {AbortSignal} signal - AbortController signal for cancellation
  * @returns {Promise<string[]>} Array of suggestion strings
  */
-export async function fetchGoogleSuggestions(query, signal) {
+export async function fetchGoogleSuggestions(query: string, signal: AbortSignal): Promise<string[]> {
   if (!query) return [];
   try {
     const response = await fetch(
@@ -63,7 +64,7 @@ export async function fetchGoogleSuggestions(query, signal) {
  * @param {SuggestDrawerConfig} config - { searchUrl, placeholder, initialQuery }
  * @returns {DrawerHandler} Handler with render, updateQuery, getFilterPlaceholder, onKey, cleanup
  */
-export function createSuggestDrawer(config) {
+export function createSuggestDrawer(config: SiteConfig): DrawerHandler {
   // Closure state
   let query = config.initialQuery || '';
   let suggestions = [];
@@ -219,8 +220,8 @@ export function createSuggestDrawer(config) {
 // CACHED SINGLETON (same pattern as YouTube's getChapterDrawer/resetChapterDrawer)
 // =============================================================================
 
-/** @type {DrawerHandler|null} Cached drawer instance */
-let cachedDrawer = null;
+/** Cached drawer instance */
+let cachedDrawer: DrawerHandler | null = null;
 
 /**
  * Get or create the suggest drawer handler (cached singleton).
@@ -231,7 +232,7 @@ let cachedDrawer = null;
  * @param {SuggestDrawerConfig} config - { searchUrl, placeholder, initialQuery }
  * @returns {DrawerHandler}
  */
-export function getSuggestDrawer(config) {
+export function getSuggestDrawer(config: SiteConfig): DrawerHandler | null {
   if (!cachedDrawer) {
     const drawer = createSuggestDrawer(config);
     // Wrap cleanup to also clear module cache
@@ -248,7 +249,7 @@ export function getSuggestDrawer(config) {
 /**
  * Reset the cached suggest drawer (call on navigation away).
  */
-export function resetSuggestDrawer() {
+export function resetSuggestDrawer(): void {
   if (cachedDrawer?.cleanup) {
     cachedDrawer.cleanup();
   }

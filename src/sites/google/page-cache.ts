@@ -9,6 +9,8 @@
 // Storage: sessionStorage (persists across navigations within a tab, cleared on tab close)
 // All access wrapped in try/catch (private browsing may throw)
 
+import type { ContentItem } from '../../types';
+
 /**
  * Maximum number of cached pages before pruning oldest entries.
  * @type {number}
@@ -43,7 +45,7 @@ const KEY_PREFIX = 'vilify-page-cache:';
  * @param {string} url - The page URL to look up
  * @returns {Array<Object>|null} Cached ContentItem array, or null
  */
-export function getCachedPage(url) {
+export function getCachedPage(url: string): ContentItem[] | null {
   try {
     const raw = sessionStorage.getItem(KEY_PREFIX + url);
     if (raw === null) return null;
@@ -74,7 +76,7 @@ export function getCachedPage(url) {
  * @param {Array<Object>} items - ContentItem array to store
  * @returns {void}
  */
-export function setCachedPage(url, items) {
+export function setCachedPage(url: string, items: ContentItem[]): void {
   try {
     // Prune if at or over limit (before adding the new entry)
     pruneIfNeeded();
@@ -98,7 +100,7 @@ export function setCachedPage(url, items) {
  *
  * @returns {void}
  */
-export function clearPageCache() {
+export function clearPageCache(): void {
   try {
     const keysToRemove = [];
     for (let i = 0; i < sessionStorage.length; i++) {
@@ -128,7 +130,7 @@ export function clearPageCache() {
  *
  * @returns {void}
  */
-function pruneIfNeeded() {
+function pruneIfNeeded(): void {
   const cacheKeys = [];
   for (let i = 0; i < sessionStorage.length; i++) {
     const key = sessionStorage.key(i);

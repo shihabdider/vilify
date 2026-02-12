@@ -1,6 +1,7 @@
 // Google Images grid renderer
 // CSS grid layout with 2D navigation support
 
+import type { AppState, ContentItem } from '../../types';
 import { el, clear } from '../../core/view';
 import { updateSortIndicator, updateItemCount } from '../../core/layout';
 import { getSortLabel } from '../../core/sort';
@@ -105,7 +106,7 @@ let stylesInjected = false;
  * Signature: injectGoogleGridStyles : () → void
  * Purpose: Inject CSS for image grid layout (grid container, cells, selection highlight, thumbnail sizing)
  */
-export function injectGoogleGridStyles() {
+export function injectGoogleGridStyles(): void {
   if (stylesInjected) return;
 
   const style = document.createElement('style');
@@ -129,7 +130,7 @@ export function injectGoogleGridStyles() {
  * @param {boolean} isSelected - Whether this item is currently selected
  * @returns {HTMLElement} Grid cell element
  */
-export function renderGoogleGridItem(item, isSelected) {
+export function renderGoogleGridItem(item: ContentItem, isSelected: boolean): HTMLElement {
   const classes = isSelected ? 'vilify-google-grid-cell selected' : 'vilify-google-grid-cell';
   const children = [];
 
@@ -173,7 +174,7 @@ export function renderGoogleGridItem(item, isSelected) {
  * @param {Object} siteState - GoogleState (unused for now)
  * @param {HTMLElement} container - DOM container to render into
  */
-export function renderGoogleImageGrid(state, siteState, container) {
+export function renderGoogleImageGrid(state: AppState, siteState: any, container: HTMLElement): void {
   // Inject Google grid-specific styles
   injectGoogleGridStyles();
 

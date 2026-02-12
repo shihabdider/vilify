@@ -9,6 +9,8 @@
 // - Class names are minified and change frequently
 // - Semantic HTML (h3, cite, a) is stable
 
+import type { ContentItem } from '../../types';
+
 /**
  * GooglePageType is one of:
  * - 'search' : web search results page (/search?q=... without udm=2)
@@ -27,7 +29,7 @@
  *   // URL: google.com/maps
  *   getGooglePageType() => 'other'
  */
-export function getGooglePageType() {
+export function getGooglePageType(): string {
   if (location.pathname === '/search') {
     const params = new URLSearchParams(location.search);
     if (params.get('udm') === '2') {
@@ -47,7 +49,7 @@ export function getGooglePageType() {
  * @param {Element} citeEl - Cite element (to avoid including URL text)
  * @returns {string} Description text or empty string
  */
-function extractDescription(element, titleEl, citeEl) {
+function extractDescription(element: Element, titleEl: Element | null, citeEl: Element | null): string {
   // Strategy 1: Look for div with -webkit-line-clamp style
   const lineClampEl = element.querySelector('div[style*="-webkit-line-clamp"]');
   if (lineClampEl?.textContent?.trim()) {
@@ -122,7 +124,7 @@ function extractDescription(element, titleEl, citeEl) {
  * 
  * @returns {Array<Object>} Array of ContentItem objects
  */
-export function scrapeSearchResults() {
+export function scrapeSearchResults(): ContentItem[] {
   // Template: List comprehension over DOM elements
   const results = [];
   
@@ -177,7 +179,7 @@ export function scrapeSearchResults() {
  *
  * @returns {Object<string, string>} Map of docid → full-size image URL
  */
-export function parseImageMetadata() {
+export function parseImageMetadata(): Record<string, string> {
   const map = {};
   const scripts = document.querySelectorAll('script');
   // Match: [1,[0,"docid",["thumb",h,w],["full_url",h,w]
@@ -232,7 +234,7 @@ export function parseImageMetadata() {
  *
  * @returns {Array<Object>} Array of ContentItem objects
  */
-export function scrapeImageResults() {
+export function scrapeImageResults(): ContentItem[] {
   const results = [];
 
   // Parse full-size image URLs from script metadata

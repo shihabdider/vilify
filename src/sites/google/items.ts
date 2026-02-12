@@ -1,6 +1,7 @@
 // Google item rendering - custom renderer for search results
 // No thumbnails, shows description text
 
+import type { ContentItem } from '../../types';
 import { el } from '../../core/view';
 
 // CSS for Google-specific item styles
@@ -77,7 +78,7 @@ let stylesInjected = false;
  * Inject Google item styles into document.
  * [I/O]
  */
-export function injectGoogleItemStyles() {
+export function injectGoogleItemStyles(): void {
   if (stylesInjected) return;
   
   const style = document.createElement('style');
@@ -97,7 +98,7 @@ export function injectGoogleItemStyles() {
  * @param {boolean} isSelected - Whether this item is selected
  * @returns {HTMLElement} Rendered item element
  */
-export function renderGoogleItem(item, isSelected) {
+export function renderGoogleItem(item: ContentItem, isSelected: boolean): HTMLElement {
   const classes = isSelected ? 'vilify-google-item selected' : 'vilify-google-item';
   const topChildren = [];
 
@@ -149,7 +150,7 @@ export function renderGoogleItem(item, isSelected) {
  * @param {string|undefined} url - The item URL
  * @returns {string|null} Favicon URL or null
  */
-function getFaviconUrl(url) {
+function getFaviconUrl(url: string | undefined): string | null {
   if (!url) return null;
   try {
     const parsed = new URL(url);
