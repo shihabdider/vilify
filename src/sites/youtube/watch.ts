@@ -3,6 +3,8 @@
 
 import { el, clear, showMessage } from '../../core/view';
 import { getComments, getYouTubePageType, formatDuration } from './scraper';
+import type { YouTubeState, VideoContext } from '../../types';
+import type { CommentsResult, ScrapedComment } from './scraper';
 
 // =============================================================================
 // CSS STYLES
@@ -158,7 +160,7 @@ const WATCH_CSS = `
 `;
 
 // Track if styles have been injected
-let stylesInjected = false;
+let stylesInjected: boolean = false;
 
 // =============================================================================
 // STYLE INJECTION
@@ -171,7 +173,7 @@ let stylesInjected = false;
  * @example
  * injectWatchStyles()  // Adds <style> element to head
  */
-export function injectWatchStyles() {
+export function injectWatchStyles(): void {
   // Template: I/O - DOM mutation
   // Guard: only inject once
   if (stylesInjected) return;
@@ -200,7 +202,7 @@ export function injectWatchStyles() {
  * renderWatchPage(videoContext, youtubeState, container)
  * // Renders video info box and comments box
  */
-export function renderWatchPage(ctx, state, container, watchLaterAdded = null) {
+export function renderWatchPage(ctx: VideoContext | null, state: YouTubeState, container: HTMLElement, watchLaterAdded: Set<string> | null = null): void {
   // Template: Compound - access ctx fields, I/O for DOM
   // Inventory: ctx (VideoContext|null), state (YouTubeState), container (HTMLElement)
   
@@ -255,7 +257,7 @@ export function renderWatchPage(ctx, state, container, watchLaterAdded = null) {
  * @param {YouTubeState} siteState - YouTube-specific state (optional)
  * @returns {HTMLElement} Video info box
  */
-function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
+function renderVideoInfoBox(ctx: VideoContext, siteState: YouTubeState | null = null, watchLaterAdded: Set<string> | null = null): HTMLElement {
   // Template: Compound - access all fields from ctx
   // Inventory: ctx.title, ctx.channelName, ctx.isSubscribed, ctx.uploadDate
   
@@ -347,7 +349,7 @@ function renderVideoInfoBox(ctx, siteState = null, watchLaterAdded = null) {
  * renderVideoInfo(videoContext, container)
  * // Renders title, channel, subscribe button
  */
-export function renderVideoInfo(ctx, container) {
+export function renderVideoInfo(ctx: VideoContext | null, container: HTMLElement): void {
   // Template: I/O - DOM mutation
   // Inventory: ctx (VideoContext), container (HTMLElement)
   
@@ -369,13 +371,13 @@ export function renderVideoInfo(ctx, container) {
 // =============================================================================
 
 /** Track current starting index for comments window */
-let commentStartIdx = 0;
+let commentStartIdx: number = 0;
 
 /** Track current ending index (exclusive) for comments window */
-let commentEndIdx = 0;
+let commentEndIdx: number = 0;
 
 /** History of start positions for going back */
-let commentStartHistory = [];
+let commentStartHistory: number[] = [];
 
 /**
  * Create comments box element (initial structure)
@@ -385,7 +387,7 @@ let commentStartHistory = [];
  * @param {YouTubeState} state - YouTube state for pagination
  * @returns {HTMLElement} Comments box element
  */
-function renderCommentsBox(commentsResult, state) {
+function renderCommentsBox(commentsResult: CommentsResult, state: YouTubeState): HTMLElement {
   const { comments, status } = commentsResult;
   
   // Create the list container
@@ -441,7 +443,7 @@ function renderCommentsBox(commentsResult, state) {
  * @param {number} maxHeight - Maximum height before stopping
  * @returns {number} End index (exclusive) - how many comments were rendered
  */
-function renderCommentsWindow(comments, startIdx, listEl, maxHeight) {
+function renderCommentsWindow(comments: ScrapedComment[], startIdx: number, listEl: HTMLElement, maxHeight: number): number {
   clear(listEl);
   const originalOverflow = listEl.style.overflow;
   listEl.style.overflow = 'hidden';
@@ -470,7 +472,7 @@ function renderCommentsWindow(comments, startIdx, listEl, maxHeight) {
  * 
  * @param {Array<Comment>} comments - All comments
  */
-function updateCommentsUI(comments) {
+function updateCommentsUI(comments: ScrapedComment[]): void {
   const commentsList = document.querySelector('.vilify-comments-list');
   const paginationEl = document.getElementById('vilify-comments-pagination');
   const commentsBox = document.querySelector('.vilify-comments');
@@ -521,7 +523,7 @@ function updateCommentsUI(comments) {
  * @param {Comment} comment - Comment data
  * @returns {HTMLElement} Comment element
  */
-function renderComment(comment) {
+function renderComment(comment: ScrapedComment): HTMLElement {
   // Template: Compound - access comment.author, comment.text
   // Inventory: comment (Comment)
   
@@ -546,7 +548,7 @@ function renderComment(comment) {
  * renderComments(commentsResult, youtubeState, container)
  * // Renders paginated comments list
  */
-export function renderComments(commentsResult, youtubeState, container) {
+export function renderComments(commentsResult: CommentsResult, youtubeState: YouTubeState, container: HTMLElement): void {
   // Template: I/O - DOM mutation
   // Inventory: commentsResult (CommentsResult), youtubeState (YouTubeState), container (HTMLElement)
   
@@ -567,7 +569,7 @@ export function renderComments(commentsResult, youtubeState, container) {
  * @param {YouTubeState} state - Current YouTube state
  * @returns {YouTubeState} Updated state with incremented page
  */
-export function nextCommentPage(state) {
+export function nextCommentPage(state: YouTubeState): YouTubeState {
   const { comments } = getComments();
   
   // Next window starts where current window ends
@@ -596,7 +598,7 @@ export function nextCommentPage(state) {
  * @param {YouTubeState} state - Current YouTube state
  * @returns {YouTubeState} Updated state
  */
-export function prevCommentPage(state) {
+export function prevCommentPage(state: YouTubeState): YouTubeState {
   // If we have history, go back to previous position
   if (commentStartHistory.length > 0) {
     commentStartIdx = commentStartHistory.pop();
@@ -622,7 +624,7 @@ export function prevCommentPage(state) {
  * Load more comments by scrolling in YouTube's DOM to trigger lazy loading
  * [I/O]
  */
-function loadMoreComments() {
+function loadMoreComments(): void {
   if (getYouTubePageType() !== 'watch') return;
   
   showMessage('Loading more comments...');
@@ -691,7 +693,7 @@ function loadMoreComments() {
  * triggerCommentLoad()
  * // Scrolls to comments, dispatches scroll events
  */
-export function triggerCommentLoad() {
+export function triggerCommentLoad(): void {
   // Template: I/O - DOM interaction
   
   const commentsSection = document.querySelector('#comments, ytd-comments');
@@ -715,15 +717,15 @@ export function triggerCommentLoad() {
 }
 
 /** Track active comment retry timer */
-let commentRetryTimer = null;
+let commentRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Track MutationObserver for comments */
-let commentObserver = null;
+let commentObserver: MutationObserver | null = null;
 
 /**
  * Stop watching for comments
  */
-function stopCommentObserver() {
+function stopCommentObserver(): void {
   if (commentObserver) {
     commentObserver.disconnect();
     commentObserver = null;
@@ -744,7 +746,7 @@ function stopCommentObserver() {
  * @param {HTMLElement} container - Container element
  * @param {VideoContext} ctx - Video context
  */
-function scheduleCommentRetry(state, container, ctx) {
+function scheduleCommentRetry(state: YouTubeState, container: HTMLElement, ctx: VideoContext): void {
   // Clear any existing watchers
   stopCommentObserver();
   
@@ -841,7 +843,7 @@ function scheduleCommentRetry(state, container, ctx) {
  * updateSubscribeButton(true)   // Shows "subscribed" (grey), action "unsub"
  * updateSubscribeButton(false)  // Shows "subscribe" (red), action "sub"
  */
-export function updateSubscribeButton(isSubscribed) {
+export function updateSubscribeButton(isSubscribed: boolean): void {
   // Update status indicator after channel name
   const statusEl = document.getElementById('vilify-sub-status');
   if (statusEl) {

@@ -15,13 +15,13 @@ interface ScrapedVideo {
 }
 
 /** A single scraped comment */
-interface ScrapedComment {
+export interface ScrapedComment {
   author: string;
   text: string;
 }
 
 /** Result from getComments() */
-interface CommentsResult {
+export interface CommentsResult {
   comments: ScrapedComment[];
   status: 'loading' | 'disabled' | 'loaded';
 }
