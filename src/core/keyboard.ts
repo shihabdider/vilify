@@ -1,6 +1,7 @@
 // Keyboard handler - Core keyboard functions for Vilify
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
+import type { KeyEventResult, KeyboardState } from '../types';
 import { isInputElement, showMessage } from './view';
 import { removeFocusMode } from './layout';
 
@@ -13,7 +14,7 @@ import { removeFocusMode } from './layout';
  * @example
  * createKeyboardState() => { keySeq: '', keyTimer: null }
  */
-export function createKeyboardState() {
+export function createKeyboardState(): KeyboardState {
   // Template: Compound - construct all fields
   return {
     keySeq: '',
@@ -42,7 +43,7 @@ export function createKeyboardState() {
  * normalizeKey({ key: 'f', ctrlKey: true }) => 'C-f'
  * normalizeKey({ key: 'Shift' }) => null
  */
-export function normalizeKey(event) {
+export function normalizeKey(event: KeyboardEvent): string | null {
   const MODIFIER_KEYS = ['Shift', 'Control', 'Alt', 'Meta'];
   if (MODIFIER_KEYS.includes(event.key)) return null;
   if (event.ctrlKey) return 'C-' + event.key;
@@ -75,7 +76,7 @@ export function normalizeKey(event) {
  * handleKeyEvent('x', '', { 'gh': goHome }, 500)
  *   => { action: null, newSeq: '', shouldPrevent: false }
  */
-export function handleKeyEvent(key, keySeq, sequences, timeout) {
+export function handleKeyEvent(key: string, keySeq: string, sequences: Record<string, Function>, timeout: number): KeyEventResult {
   const newSeq = keySeq + key;
   const exactMatch = sequences[newSeq] || null;
   const longerPrefix = Object.keys(sequences).some(s => s.startsWith(newSeq) && s.length > newSeq.length);
@@ -129,7 +130,7 @@ export function handleKeyEvent(key, keySeq, sequences, timeout) {
  * setupKeyboardEngine(youtubeConfig, getState, setState, appCallbacks, getSiteState)
  * // Registers capture-phase keydown listener
  */
-export function setupKeyboardEngine(config, getState, setState, appCallbacks, getSiteState = null) {
+export function setupKeyboardEngine(config: any, getState: any, setState: any, appCallbacks: any, getSiteState: any = null): () => void {
   let keySeq = '';
   let keyTimer = null;
   let pendingAction = null;
