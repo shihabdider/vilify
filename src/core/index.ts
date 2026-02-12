@@ -2,6 +2,8 @@
 // Following HTDP design from .design/DATA.md and .design/WORLD.md
 // Iteration 023: Encapsulated state via createApp()
 
+import type { SiteConfig, AppState, App, ContentItem, PageState, DrawerHandler, KeyContext } from '../types';
+
 import { 
   createAppState,
   getMode,
@@ -64,7 +66,7 @@ const POLL_INTERVAL_MS = 200;
  * buildSearchUrl({ searchUrl: q => '/search?q=' + encodeURIComponent(q) }, 'hello')
  * // => '/search?q=hello'
  */
-export function buildSearchUrl(config, query) {
+export function buildSearchUrl(config: SiteConfig, query: string): string {
   return config.searchUrl
     ? config.searchUrl(query)
     : '/results?search_query=' + encodeURIComponent(query);
@@ -88,7 +90,7 @@ export function buildSearchUrl(config, query) {
  * // ... later
  * app.destroy();
  */
-export function createApp(config) {
+export function createApp(config: SiteConfig): App {
   // ==========================================================================
   // ENCAPSULATED STATE (private via closure)
   // ==========================================================================
@@ -1349,8 +1351,8 @@ export function createApp(config) {
 // LEGACY API (for backward compatibility)
 // =============================================================================
 
-/** @type {ReturnType<typeof createApp>|null} Singleton app instance for legacy API */
-let legacyApp = null;
+/** Singleton app instance for legacy API */
+let legacyApp: App | null = null;
 
 /**
  * Initialize site with configuration.
@@ -1359,7 +1361,7 @@ let legacyApp = null;
  * 
  * @deprecated Use createApp(config).init() instead
  */
-export function initSite(config) {
+export function initSite(config: SiteConfig): void {
   // Destroy any existing app
   if (legacyApp) {
     legacyApp.destroy();
@@ -1376,7 +1378,7 @@ export function initSite(config) {
  * @returns {Object|null}
  * @deprecated Use app.getSiteState() instead
  */
-export function getSiteState() {
+export function getSiteState(): any {
   return legacyApp?.getSiteState() ?? null;
 }
 
@@ -1386,7 +1388,7 @@ export function getSiteState() {
  * @param {Object} newState - New site state
  * @deprecated Use app.setSiteState() instead
  */
-export function setSiteState(newState) {
+export function setSiteState(newState: any): void {
   if (legacyApp) {
     legacyApp.setSiteState(newState);
   }

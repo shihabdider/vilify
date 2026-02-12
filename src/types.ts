@@ -284,8 +284,12 @@ export interface ViewTree {
 // =============================================================================
 
 export interface App {
-  getState: () => AppState;
+  init: () => Promise<void>;
+  destroy: () => void;
+  getState: () => AppState | null;
+  setState: (newState: AppState) => void;
   getSiteState: () => any;
+  setSiteState: (newState: any) => void;
   render: () => void;
   openPalette: (mode?: string) => void;
   openLocalFilter: () => void;
