@@ -1,6 +1,31 @@
 // YouTube scrapers
 // Implements video, chapter, and comment scraping using verified DOM selectors
 
+import type { Chapter, ContentItem } from '../../types';
+
+/** Raw video data scraped from DOM before transformation to ContentItem */
+interface ScrapedVideo {
+  videoId: string;
+  title: string | undefined;
+  channel: string | undefined;
+  channelUrl: string | null | undefined;
+  views: string | null | undefined;
+  uploadDate: string | null | undefined;
+  duration: string | null;
+}
+
+/** A single scraped comment */
+interface ScrapedComment {
+  author: string;
+  text: string;
+}
+
+/** Result from getComments() */
+interface CommentsResult {
+  comments: ScrapedComment[];
+  status: 'loading' | 'disabled' | 'loaded';
+}
+
 // =============================================================================
 // HELPERS
 // =============================================================================
@@ -16,7 +41,7 @@
  *   extractVideoId('/shorts/abc') => null
  *   extractVideoId(null) => null
  */
-export function extractVideoId(url) {
+export function extractVideoId(url: string | null | undefined): string | null {
   // Inventory: url (String|null)
   // Template: conditional for null, then pattern match
   if (!url) return null;
@@ -35,7 +60,7 @@ export function extractVideoId(url) {
  *   parseTimestamp('0:00') => 0
  *   parseTimestamp('') => 0
  */
-export function parseTimestamp(str) {
+export function parseTimestamp(str: string | null | undefined): number {
   // Inventory: str (String)
   // Template: split and accumulate
   if (!str) return 0;
@@ -50,7 +75,7 @@ export function parseTimestamp(str) {
  * @param {string} videoId - YouTube video ID
  * @returns {string} Thumbnail URL
  */
-function getThumbnailUrl(videoId) {
+function getThumbnailUrl(videoId: string): string {
   return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
 }
 
@@ -63,7 +88,7 @@ function getThumbnailUrl(videoId) {
  *   scrapeDuration(videoElement) => '12:34'
  *   scrapeDuration(liveElement) => null
  */
-function scrapeDuration(element) {
+function scrapeDuration(element: Element): string | null {
   // Try specific selectors first
   const selectors = [
     'ytd-thumbnail-overlay-time-status-renderer #text',
@@ -106,7 +131,7 @@ function scrapeDuration(element) {
  *   getWatchPageViews() => '1,234,567 views'
  *   getWatchPageViews() => '5,432 watching now'
  */
-function getWatchPageViews() {
+function getWatchPageViews(): string | null {
   const selectors = [
     '#info-strings yt-formatted-string',
     'ytd-watch-metadata #info span',
@@ -136,7 +161,7 @@ function getWatchPageViews() {
  *   formatDuration(3661) => '1:01:01'
  *   formatDuration(0) => '0:00'
  */
-export function formatDuration(seconds) {
+export function formatDuration(seconds: number | null | undefined): string {
   if (!seconds || seconds <= 0) return '0:00';
   
   const h = Math.floor(seconds / 3600);
@@ -165,7 +190,7 @@ export function formatDuration(seconds) {
  *   // URL: youtube.com/shorts/xyz
  *   getYouTubePageType() => 'shorts'
  */
-export function getYouTubePageType() {
+export function getYouTubePageType(): string {
   // Inventory: location.pathname, location.search
   // Template: Enum - case per variant
   const path = location.pathname;
@@ -193,7 +218,7 @@ export function getYouTubePageType() {
  * Used on home page (inside ytd-rich-item-renderer) and history/library (standalone)
  * @returns {Array<Object>} Raw video data objects
  */
-function scrapeLockupLayout() {
+function scrapeLockupLayout(): ScrapedVideo[] {
   const videos = [];
 
   // Query yt-lockup-view-model directly - it may be inside ytd-rich-item-renderer (home)
@@ -250,7 +275,7 @@ function scrapeLockupLayout() {
  * Also handles history page which uses ytd-video-renderer inside ytd-section-list-renderer
  * @returns {Array<Object>} Raw video data objects
  */
-function scrapeSearchLayout() {
+function scrapeSearchLayout(): ScrapedVideo[] {
   const videos = [];
 
   document.querySelectorAll('ytd-video-renderer').forEach(item => {
@@ -301,7 +326,7 @@ function scrapeSearchLayout() {
  * Library page may use ytd-compact-video-renderer
  * @returns {Array<Object>} Raw video data objects
  */
-function scrapeHistoryLayout() {
+function scrapeHistoryLayout(): ScrapedVideo[] {
   const videos = [];
 
   // History page: videos in section-list containers
@@ -369,7 +394,7 @@ function scrapeHistoryLayout() {
  * Scrape videos from playlist layout (ytd-playlist-video-renderer)
  * @returns {Array<Object>} Raw video data objects
  */
-function scrapePlaylistLayout() {
+function scrapePlaylistLayout(): ScrapedVideo[] {
   const videos = [];
 
   document.querySelectorAll('ytd-playlist-video-renderer').forEach(item => {
@@ -411,7 +436,7 @@ function scrapePlaylistLayout() {
  *   getVideos() => [{ type: 'content', id: 'abc', title: 'Video 1', ... }, ...]
  *   getVideos() => []  // No videos found
  */
-export function getVideos() {
+export function getVideos(): ContentItem[] {
   // Inventory: DOM elements from multiple renderers
   // Template: Try multiple strategies, deduplicate results
 
@@ -478,7 +503,7 @@ export function getVideos() {
  *   getVideoContext() => { videoId: 'abc123', title: 'Video Title', chapters: [...], ... }
  *   getVideoContext() => null  // Not on watch page
  */
-export function getVideoContext() {
+export function getVideoContext(): Record<string, any> | null {
   // Inventory: URL, video element, metadata elements
   // Template: Compound - access all fields
 
@@ -631,7 +656,7 @@ export function getVideoContext() {
  *   getChapters() => [{ title: 'Intro', time: 0, timeText: '0:00' }, ...]
  *   getChapters() => []  // Video without chapters
  */
-export function getChapters() {
+export function getChapters(): Chapter[] {
   // Inventory: chapter renderer elements
   // Template: Self-referential (list) - iterate and accumulate
 
@@ -679,7 +704,7 @@ export function getChapters() {
  * Get comment loading status
  * @returns {'loading'|'disabled'|'loaded'}
  */
-function getCommentStatus() {
+function getCommentStatus(): 'loading' | 'disabled' | 'loaded' {
   const commentsSection = document.querySelector('#comments, ytd-comments');
   if (!commentsSection) return 'loading';
 
@@ -718,7 +743,7 @@ function getCommentStatus() {
  *   getComments() => { comments: [], status: 'loading' }
  *   getComments() => { comments: [], status: 'disabled' }
  */
-export function getComments() {
+export function getComments(): CommentsResult {
   // Inventory: comment thread elements
   // Template: Compound result with status enum
 
@@ -767,7 +792,7 @@ export function getComments() {
  *   getRecommendedVideos() => [{ type: 'content', id: 'abc', title: 'Related Video', ... }, ...]
  *   getRecommendedVideos() => []  // Not on watch page or no recommendations
  */
-export function getRecommendedVideos() {
+export function getRecommendedVideos(): ContentItem[] {
   // Inventory: DOM elements from various renderers in sidebar
   // Template: iterate and accumulate
 
@@ -935,7 +960,7 @@ export function getRecommendedVideos() {
  *   getDescription() => "In this video we explore...\n\nLinks:\n..."
  *   getDescription() => ""  // Not found
  */
-export function getDescription() {
+export function getDescription(): string {
   // Inventory: description element
   // Template: Try multiple selectors, return text
 
