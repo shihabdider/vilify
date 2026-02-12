@@ -14,7 +14,7 @@ import { updateStatusMessage } from './layout';
  * copyToClipboard('https://youtube.com/watch?v=abc')
  * // Copies, shows "Copied to clipboard"
  */
-export async function copyToClipboard(text) {
+export async function copyToClipboard(text: string): Promise<boolean> {
   // Template: I/O - side effect (clipboard API)
   try {
     await navigator.clipboard.writeText(text);
@@ -51,7 +51,7 @@ export async function copyToClipboard(text) {
  * copyImageToClipboard('https://example.com/thumb.jpg')
  * // Fetches, converts to PNG, copies to clipboard, shows message
  */
-export async function copyImageToClipboard(imgSrc) {
+export async function copyImageToClipboard(imgSrc: string): Promise<boolean> {
   // Template: I/O - side effect (fetch + clipboard API)
   try {
     const response = await fetch(imgSrc);
@@ -108,7 +108,7 @@ export async function copyImageToClipboard(imgSrc) {
  * navigateTo('/feed/history')
  * navigateTo('https://youtube.com/')
  */
-export function navigateTo(path) {
+export function navigateTo(path: string): void {
   // Template: I/O - side effect (navigation)
   location.href = path;
 }
@@ -122,7 +122,7 @@ export function navigateTo(path) {
  * @example
  * openInNewTab('https://youtube.com/watch?v=abc')
  */
-export function openInNewTab(url) {
+export function openInNewTab(url: string): void {
   // Template: I/O - side effect (window API)
   window.open(url, '_blank');
 }
@@ -139,7 +139,7 @@ export function openInNewTab(url) {
  * navigate('/watch?v=abc', false)  // Navigate in current tab
  * navigate('/watch?v=abc', true)   // Open in new tab
  */
-export function navigate(url, newTab = false) {
+export function navigate(url: string, newTab: boolean = false): void {
   // Template: I/O - conditional based on newTab
   if (newTab) {
     openInNewTab(url);
