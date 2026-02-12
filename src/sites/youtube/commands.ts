@@ -1,13 +1,14 @@
 // YouTube-specific commands
 // Provides command palette items and key sequence bindings
 
+import type { App, KeyContext } from '../../types';
 import * as player from './player';
 import { getYouTubePageType } from './scraper';
 import { getDataProvider } from './data/index';
 import { showMessage } from '../../core/view';
 
 /** Get video context using DataProvider */
-function getVideoContext() {
+function getVideoContext(): Record<string, any> | null {
   return getDataProvider().getVideoContext();
 }
 
@@ -19,7 +20,7 @@ function getVideoContext() {
  * Navigate to a URL (same tab)
  * @param {string} url - URL or path to navigate to
  */
-function navigateTo(url) {
+function navigateTo(url: string): void {
   window.location.href = url;
 }
 
@@ -27,7 +28,7 @@ function navigateTo(url) {
  * Open URL in new tab
  * @param {string} url - URL to open
  */
-function openInNewTab(url) {
+function openInNewTab(url: string): void {
   window.open(url, '_blank');
 }
 
@@ -36,7 +37,7 @@ function openInNewTab(url) {
  * @param {string} text - Text to copy
  * @param {string} message - Toast message (optional)
  */
-async function copyToClipboard(text, message) {
+async function copyToClipboard(text: string, message?: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
     if (message) showMessage(message);
@@ -59,7 +60,7 @@ async function copyToClipboard(text, message) {
  * @param {number} seconds - Time in seconds
  * @returns {string} Formatted timestamp like '1:23' or '1:23:45'
  */
-function formatTimestamp(seconds) {
+function formatTimestamp(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -78,7 +79,7 @@ function formatTimestamp(seconds) {
  * Copy video URL to clipboard
  * @param {Object} ctx - Video context
  */
-function copyVideoUrl(ctx) {
+function copyVideoUrl(ctx: Record<string, any> | null): void {
   if (!ctx) return;
   copyToClipboard(ctx.cleanUrl, 'Copied URL');
 }
@@ -87,7 +88,7 @@ function copyVideoUrl(ctx) {
  * Copy video URL at current time
  * @param {Object} ctx - Video context
  */
-function copyVideoUrlAtTime(ctx) {
+function copyVideoUrlAtTime(ctx: Record<string, any> | null): void {
   if (!ctx) return;
   const t = Math.floor(ctx.currentTime || 0);
   copyToClipboard(`https://www.youtube.com/watch?v=${ctx.videoId}&t=${t}s`, `Copied URL at ${formatTimestamp(t)}`);
@@ -97,7 +98,7 @@ function copyVideoUrlAtTime(ctx) {
  * Copy video title
  * @param {Object} ctx - Video context
  */
-function copyVideoTitle(ctx) {
+function copyVideoTitle(ctx: Record<string, any> | null): void {
   if (!ctx?.title) return;
   copyToClipboard(ctx.title, 'Copied title');
 }
@@ -106,7 +107,7 @@ function copyVideoTitle(ctx) {
  * Copy video title and URL
  * @param {Object} ctx - Video context
  */
-function copyVideoTitleAndUrl(ctx) {
+function copyVideoTitleAndUrl(ctx: Record<string, any> | null): void {
   if (!ctx?.title) return;
   copyToClipboard(`${ctx.title}\n${ctx.cleanUrl}`, 'Copied title + URL');
 }
@@ -120,7 +121,7 @@ function copyVideoTitleAndUrl(ctx) {
  * @param {Object} ctx - Video context
  * @param {Function} onUpdate - Callback after state change
  */
-function toggleSubscribe(ctx, onUpdate) {
+function toggleSubscribe(ctx: Record<string, any> | null, onUpdate?: (subscribed: boolean) => void): void {
   if (!ctx) return;
 
   const channelName = ctx.channelName || 'channel';
@@ -214,7 +215,7 @@ function toggleSubscribe(ctx, onUpdate) {
  * Examples:
  *   getYouTubeCommands(app) => [{ group: 'Navigation' }, { label: 'Home', ... }, ...]
  */
-export function getYouTubeCommands(app) {
+export function getYouTubeCommands(app: App): any[] {
   // Inventory: app (callbacks), pageType (Enum), ctx (VideoContext|null)
   // Template: Enum - case per page type, Compound - access ctx fields
 
@@ -598,7 +599,7 @@ export function getYouTubeCommands(app) {
  *   getYouTubeKeySequences(app, { pageType: 'watch', ... })
  *     => { 'C-f': [Function], ' ': [Function], 'm': [Function], ... }
  */
-export function getYouTubeKeySequences(app, context) {
+export function getYouTubeKeySequences(app: App, context: KeyContext): Record<string, Function> {
   const ctx = getVideoContext();
   const pageType = context?.pageType;
 
@@ -694,7 +695,7 @@ export function getYouTubeKeySequences(app, context) {
  * getYouTubeBlockedNativeKeys({ pageType: 'home', ... })
  *   => []
  */
-export function getYouTubeBlockedNativeKeys(context) {
+export function getYouTubeBlockedNativeKeys(context: KeyContext): string[] {
   if (context.pageType === 'watch') {
     return ['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h'];
   }
@@ -716,7 +717,7 @@ export function getYouTubeBlockedNativeKeys(context) {
  * @example
  * await addToWatchLater('dQw4w9WgXcQ')  // => true if added
  */
-export async function addToWatchLater(videoId) {
+export async function addToWatchLater(videoId: string): Promise<boolean> {
   console.log('[Vilify] addToWatchLater called for:', videoId);
   return new Promise((resolve) => {
     const requestId = `wl_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -759,7 +760,7 @@ export async function addToWatchLater(videoId) {
  * @param {string} videoId - Video ID to look up
  * @returns {Promise<{ setVideoId: string, position: number } | null>}
  */
-export async function getPlaylistItemData(videoId) {
+export async function getPlaylistItemData(videoId: string): Promise<{ setVideoId: string; position: number } | null> {
   console.log('[Vilify] getPlaylistItemData called for:', videoId);
   return new Promise((resolve) => {
     const requestId = `pid_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -796,7 +797,7 @@ export async function getPlaylistItemData(videoId) {
  * @param {string} setVideoId - Playlist item ID (NOT the video ID)
  * @returns {Promise<boolean>} True if successfully removed
  */
-export async function removeFromWatchLater(setVideoId) {
+export async function removeFromWatchLater(setVideoId: string): Promise<boolean> {
   console.log('[Vilify] removeFromWatchLater called for:', setVideoId);
   return new Promise((resolve) => {
     const requestId = `rm_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -834,7 +835,7 @@ export async function removeFromWatchLater(setVideoId) {
  * @param {number} position - Position to insert at
  * @returns {Promise<boolean>} True if successfully added back
  */
-export async function undoRemoveFromWatchLater(videoId, position) {
+export async function undoRemoveFromWatchLater(videoId: string, position: number): Promise<boolean> {
   console.log('[Vilify] undoRemoveFromWatchLater called for:', videoId, 'at position:', position);
   return new Promise((resolve) => {
     const requestId = `undo_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -876,7 +877,7 @@ export async function undoRemoveFromWatchLater(videoId, position) {
  * @param {string} videoId - Video ID to find
  * @returns {HTMLElement|null} Container element or null
  */
-function findVideoElement(videoId) {
+function findVideoElement(videoId: string): Element | null {
   const selectors = [
     'ytd-rich-item-renderer',
     'ytd-video-renderer',
@@ -911,7 +912,7 @@ function findVideoElement(videoId) {
  * @param {HTMLElement} videoElement - Video container element
  * @returns {HTMLElement|null} Menu button or null
  */
-function findMenuButton(videoElement) {
+function findMenuButton(videoElement: Element): Element | null {
   const selectors = [
     'button[aria-label="Action menu"]',
     'ytd-menu-renderer button.yt-icon-button',
@@ -937,7 +938,7 @@ function findMenuButton(videoElement) {
  * @param {number} timeout - Max wait in ms
  * @returns {Promise<HTMLElement|null>}
  */
-function waitForElement(selector, timeout = 2000) {
+function waitForElement(selector: string, timeout: number = 2000): Promise<Element | null> {
   return new Promise((resolve) => {
     const el = document.querySelector(selector);
     if (el) { resolve(el); return; }
@@ -965,7 +966,7 @@ function waitForElement(selector, timeout = 2000) {
  * @param {HTMLElement} dropdown - The tp-yt-iron-dropdown element
  * @returns {boolean} True if found and clicked
  */
-function clickNotInterested(dropdown) {
+function clickNotInterested(dropdown: Element): boolean {
   // Search for menu items containing "Not interested" text
   const items = dropdown.querySelectorAll(
     'yt-list-item-view-model, ytd-menu-service-item-renderer, tp-yt-paper-item'
@@ -994,7 +995,7 @@ function clickNotInterested(dropdown) {
  * @example
  * await dismissVideo('dQw4w9WgXcQ')  // => true if YouTube menu clicked
  */
-export async function dismissVideo(videoId) {
+export async function dismissVideo(videoId: string): Promise<boolean> {
   console.log('[Vilify] dismissVideo called for:', videoId);
   
   const videoElement = findVideoElement(videoId);
@@ -1068,7 +1069,7 @@ export async function dismissVideo(videoId) {
  * @example
  * await clickUndoDismiss()  // => true if YouTube's Undo was clicked
  */
-export async function clickUndoDismiss() {
+export async function clickUndoDismiss(): Promise<boolean> {
   // YouTube shows a notification with "Undo" button after "Not interested"
   // The button is inside .ytNotificationMultiActionRendererButtonContainer
   const containers = document.querySelectorAll(

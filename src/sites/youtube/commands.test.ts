@@ -576,3 +576,44 @@ describe('getYouTubeCommands - Not interested display key', () => {
     });
   });
 });
+
+// =============================================================================
+// Type contract tests — verify return types match annotations
+// =============================================================================
+describe('type contracts', () => {
+  let app;
+
+  beforeEach(() => {
+    app = makeApp();
+    mockNoVideoContext();
+  });
+
+  it('getYouTubeCommands returns an array', () => {
+    getYouTubePageType.mockReturnValue('home');
+    const result = getYouTubeCommands(app);
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it('getYouTubeKeySequences returns a plain object with function values', () => {
+    const result = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(typeof result).toBe('object');
+    expect(result).not.toBeNull();
+    for (const val of Object.values(result)) {
+      expect(typeof val).toBe('function');
+    }
+  });
+
+  it('getYouTubeBlockedNativeKeys returns an array of strings', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'watch' }));
+    expect(Array.isArray(result)).toBe(true);
+    for (const item of result) {
+      expect(typeof item).toBe('string');
+    }
+  });
+
+  it('getYouTubeBlockedNativeKeys returns empty array for non-watch', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'home' }));
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0);
+  });
+});
