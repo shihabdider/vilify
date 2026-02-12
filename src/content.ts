@@ -2,6 +2,7 @@
 // Loads when matching site patterns are detected
 // Note: data-bridge.js runs separately in MAIN world to capture ytInitialData
 
+import type { SiteConfig } from './types';
 import { initSite } from './core/index';
 import { injectLoadingStyles } from './core/loading';
 import { youtubeConfig } from './sites/youtube/index';
@@ -23,7 +24,7 @@ import { googleConfig } from './sites/google/index';
  * 
  * @returns {SiteConfig|null} Site config or null if unsupported site
  */
-export function getSiteConfig() {
+export function getSiteConfig(): SiteConfig | null {
   const hostname = location.hostname;
   
   if (hostname === 'www.youtube.com' || hostname === 'youtube.com') {
@@ -43,7 +44,7 @@ export function getSiteConfig() {
 console.log('[Vilify] Content script loaded');
 
 // Initialize UI when DOM is ready
-const config = getSiteConfig();
+const config: SiteConfig | null = getSiteConfig();
 
 if (config) {
   // Inject loading styles immediately at document_start, before DOM is ready,
