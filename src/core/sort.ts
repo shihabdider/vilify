@@ -1,6 +1,8 @@
 // List sorting - Sort listing items by various fields
 // Supports date, duration, title, channel, views with Vim-style prefix matching
 
+import type { SortFieldDef, ContentItem } from '../types';
+
 // =============================================================================
 // SORT FIELDS
 // =============================================================================
@@ -9,7 +11,7 @@
  * Available sort fields with their default directions
  * @type {Object<string, {name: string, defaultDir: 'asc'|'desc', prefixes: string[]}>}
  */
-export const SORT_FIELDS = {
+export const SORT_FIELDS: Record<string, SortFieldDef> = {
   date: { name: 'date', defaultDir: 'desc', prefixes: ['da', 'date'] },
   duration: { name: 'duration', defaultDir: 'desc', prefixes: ['du', 'dur', 'duration'] },
   title: { name: 'title', defaultDir: 'asc', prefixes: ['t', 'ti', 'title'] },
@@ -34,7 +36,7 @@ export const SORT_FIELDS = {
  * parseRelativeDate('2 days ago')  // => Date.now() - 2*24*60*60*1000
  * parseRelativeDate('1 year ago')  // => Date.now() - 365*24*60*60*1000
  */
-export function parseRelativeDate(dateStr) {
+export function parseRelativeDate(dateStr: string): number {
   if (!dateStr || typeof dateStr !== 'string') return Infinity;
 
   const str = dateStr.toLowerCase().trim();
@@ -82,7 +84,7 @@ export function parseRelativeDate(dateStr) {
  * parseDuration('12:34')    // => 754
  * parseDuration('1:23:45')  // => 5025
  */
-export function parseDuration(durStr) {
+export function parseDuration(durStr: string): number {
   if (!durStr || typeof durStr !== 'string') return 0;
 
   const parts = durStr.split(':').map((p) => parseInt(p, 10));
@@ -113,7 +115,7 @@ export function parseDuration(durStr) {
  * parseViewCount('1,234,567 views') // => 1234567
  * parseViewCount('1.5K views')      // => 1500
  */
-export function parseViewCount(viewStr) {
+export function parseViewCount(viewStr: string): number {
   if (!viewStr || typeof viewStr !== 'string') return 0;
 
   const str = viewStr.toLowerCase().replace(/,/g, '').replace(/\s*views?$/i, '').trim();
@@ -142,7 +144,7 @@ export function parseViewCount(viewStr) {
  * @param {string} meta - Meta string
  * @returns {string} Channel name (lowercased for sorting)
  */
-export function extractChannel(meta) {
+export function extractChannel(meta: string): string {
   if (!meta || typeof meta !== 'string') return '';
 
   // Split by " · " and take first part
@@ -158,7 +160,7 @@ export function extractChannel(meta) {
  * @param {string} meta - Meta string
  * @returns {string} Date part
  */
-export function extractDateFromMeta(meta) {
+export function extractDateFromMeta(meta: string): string {
   if (!meta || typeof meta !== 'string') return '';
 
   const parts = meta.split(' · ');
@@ -177,7 +179,7 @@ export function extractDateFromMeta(meta) {
  * @param {string} field - Sort field name
  * @returns {number|string} Sortable value
  */
-function getSortValue(item, field) {
+function getSortValue(item: ContentItem, field: string): number | string {
   switch (field) {
     case 'date':
       return parseRelativeDate(extractDateFromMeta(item.meta));
@@ -204,7 +206,7 @@ function getSortValue(item, field) {
  * @param {'asc'|'desc'} direction - Sort direction
  * @returns {Array<ContentItem>} Sorted items (new array)
  */
-export function sortItems(items, field, direction) {
+export function sortItems(items: ContentItem[], field: string, direction: 'asc' | 'desc'): ContentItem[] {
   if (!items || items.length === 0) return items;
   if (!field) return items;
 
@@ -256,7 +258,7 @@ export function sortItems(items, field, direction) {
  * matchSortPrefix('duration') // => 'duration'
  * matchSortPrefix('xyz')      // => null
  */
-export function matchSortPrefix(prefix) {
+export function matchSortPrefix(prefix: string): string | null {
   if (!prefix || typeof prefix !== 'string') return null;
 
   const p = prefix.toLowerCase().trim();
@@ -287,7 +289,7 @@ export function matchSortPrefix(prefix) {
  * parseSortCommand('')     // => null (reset to default)
  * parseSortCommand('xyz')  // => null
  */
-export function parseSortCommand(cmdStr) {
+export function parseSortCommand(cmdStr: string): { field: string; reverse: boolean } | null {
   if (!cmdStr || typeof cmdStr !== 'string') return null;
 
   const str = cmdStr.trim();
@@ -310,7 +312,7 @@ export function parseSortCommand(cmdStr) {
  * @param {'asc'|'desc'} direction - Current direction
  * @returns {string} Display label (e.g., "date↓", "dur↑") or empty string
  */
-export function getSortLabel(field, direction) {
+export function getSortLabel(field: string | null, direction: string): string {
   if (!field) return '';
 
   // Short labels for status bar
@@ -333,7 +335,7 @@ export function getSortLabel(field, direction) {
  * @param {'asc'|'desc'} current - Current direction
  * @returns {'asc'|'desc'} Toggled direction
  */
-export function toggleDirection(current) {
+export function toggleDirection(current: 'asc' | 'desc'): 'asc' | 'desc' {
   return current === 'desc' ? 'asc' : 'desc';
 }
 
@@ -344,6 +346,6 @@ export function toggleDirection(current) {
  * @param {string} field - Sort field
  * @returns {'asc'|'desc'} Default direction
  */
-export function getDefaultDirection(field) {
+export function getDefaultDirection(field: string): 'asc' | 'desc' {
   return SORT_FIELDS[field]?.defaultDir || 'asc';
 }
