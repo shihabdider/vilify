@@ -2,6 +2,7 @@
 // Following HTDP design: State → ViewTree (pure), then applyView (I/O)
 // See .design/DATA.md for ViewTree type definitions
 
+import type { AppState, SiteConfig, ContentItem, StatusBarView, ContentView, DrawerView, ViewTree } from '../types';
 import { getMode, getVisibleItems } from './state';
 import { getSortLabel } from './sort';
 import { filterItems } from './palette';
@@ -28,7 +29,7 @@ import { filterItems } from './palette';
  * toStatusBarView({ ui: { filterActive: true, filterQuery: 'react' } })
  *   => { mode: 'FILTER', inputVisible: true, inputValue: 'react', inputPlaceholder: 'Filter...', ... }
  */
-export function toStatusBarView(state, drawerPlaceholder = null) {
+export function toStatusBarView(state: AppState, drawerPlaceholder?: string | null): StatusBarView {
   const mode = getMode(state);
   
   // Extract values from state (support both nested and legacy formats)
@@ -115,7 +116,7 @@ export function toStatusBarView(state, drawerPlaceholder = null) {
  * getPageItems({ page: null })
  *   => []
  */
-export function getPageItems(state) {
+export function getPageItems(state: AppState): ContentItem[] {
   if (!state.page) return [];
   
   // Template: state.page is Itemization → check type discriminator
@@ -150,7 +151,7 @@ export function getPageItems(state) {
  * toContentView({ page: { type: 'watch', ... } }, { pages: { watch: { render: fn } } })
  *   => { type: 'custom', items: [], selectedIdx: 0, render: fn }
  */
-export function toContentView(state, config, items = null) {
+export function toContentView(state: AppState, config: SiteConfig, items: ContentItem[] | null = null): ContentView {
   const pageType = config?.getPageType?.() ?? 'other';
   const selectedIdx = state.ui?.selectedIdx ?? state.selectedIdx ?? 0;
   
@@ -224,7 +225,7 @@ export function toContentView(state, config, items = null) {
  * toDrawerView({ ui: { drawer: 'palette', paletteQuery: ':sort' } }, config, { commands })
  *   => { type: 'palette', visible: true, items: [...filtered], selectedIdx: 0, handler: null }
  */
-export function toDrawerView(state, config, context = {}) {
+export function toDrawerView(state: AppState, config: SiteConfig, context: any = {}): DrawerView | null {
   const { drawer, paletteSelectedIdx, paletteQuery } = state.ui;
   
   if (drawer === null) {
@@ -275,7 +276,7 @@ export function toDrawerView(state, config, context = {}) {
  * const view = toView(state, config, { commands, siteState });
  * // view = { statusBar: {...}, content: {...}, drawer: {...} }
  */
-export function toView(state, config, context = {}) {
+export function toView(state: AppState, config: SiteConfig, context: any = {}): ViewTree {
   const { commands = [], siteState = null } = context;
   
   // Get drawer placeholder for status bar
@@ -317,7 +318,7 @@ export function toView(state, config, context = {}) {
  * @param {StatusBarView} b - Second view
  * @returns {boolean} True if equal
  */
-export function statusBarViewEqual(a, b) {
+export function statusBarViewEqual(a: StatusBarView, b: StatusBarView): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   
@@ -341,7 +342,7 @@ export function statusBarViewEqual(a, b) {
  * @param {ContentView} b - Second view
  * @returns {boolean} True if need re-render
  */
-export function contentViewChanged(a, b) {
+export function contentViewChanged(a: ContentView, b: ContentView): boolean {
   if (a === b) return false;
   if (!a || !b) return true;
   
@@ -365,7 +366,7 @@ export function contentViewChanged(a, b) {
  * @param {DrawerView|null} b - Second view
  * @returns {boolean} True if changed
  */
-export function drawerViewChanged(a, b) {
+export function drawerViewChanged(a: DrawerView | null, b: DrawerView | null): boolean {
   if (a === b) return false;
   if (!a || !b) return true;
   

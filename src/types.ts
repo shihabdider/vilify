@@ -231,27 +231,24 @@ export interface StatusBarView {
   inputValue: string;
   inputPlaceholder: string;
   inputFocus: boolean;
-  hints: string | null;
   sortLabel: string;
   itemCount: number | null;
-  message: string | null;
-  boundaryFlash: BoundaryFlash | null;
-  keySeq: string;
+  hints: string | null;
 }
 
 export interface ContentView {
-  pageType: string | null;
+  type: string;
   items: ContentItem[];
   selectedIdx: number;
-  renderFn: ((state: AppState, siteState: any, container: HTMLElement) => void) | null;
-  isWatchPage: boolean;
+  render: ((state: AppState, siteState: any, container: HTMLElement) => void) | null;
 }
 
 export interface DrawerView {
   type: string;
-  handler: DrawerHandler | null;
-  query: string;
+  visible: boolean;
+  items: any[];
   selectedIdx: number;
+  handler: DrawerHandler | null;
 }
 
 export interface ViewTree {
