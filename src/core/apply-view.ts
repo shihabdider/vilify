@@ -2,6 +2,7 @@
 // Following HTDP design: all DOM manipulation isolated here
 // See .design/DATA.md for ViewTree type definitions
 
+import type { StatusBarView, ContentView, DrawerView, ViewTree } from '../types';
 import { el, clear } from './view';
 import { renderListing, renderDefaultItem, updateSortIndicator, updateItemCount } from './layout';
 import { renderPalette, showPalette, hidePalette } from './palette';
@@ -13,10 +14,10 @@ import { statusBarViewEqual, contentViewChanged, drawerViewChanged } from './vie
 // =============================================================================
 
 /** @type {ViewTree|null} Previous view for diffing */
-let previousView = null;
+let previousView: ViewTree | null = null;
 
 /** @type {string|null} Last rendered drawer type (for tracking) */
-let lastRenderedDrawerType = null;
+let lastRenderedDrawerType: string | null = null;
 
 // =============================================================================
 // STATUS BAR
@@ -29,7 +30,7 @@ let lastRenderedDrawerType = null;
  * @param {StatusBarView} view - Status bar view data
  * @param {StatusBarView|null} prev - Previous status bar view (for diffing)
  */
-export function applyStatusBar(view, prev = null) {
+export function applyStatusBar(view: StatusBarView, prev?: StatusBarView | null): void {
   // Skip if unchanged
   if (prev && statusBarViewEqual(view, prev)) {
     return;
@@ -109,8 +110,8 @@ export function applyStatusBar(view, prev = null) {
  * @param {ContentView|null} prev - Previous content view (for diffing)
  * @param {Object} context - Additional context { state, siteState, container }
  */
-export function applyContent(view, prev = null, context = {}) {
-  const { state, siteState, container } = context;
+export function applyContent(view: ContentView, prev?: ContentView | null, context?: any): void {
+  const { state, siteState, container } = context || {};
   const targetContainer = container || document.getElementById('vilify-content');
   
   if (!targetContainer) return;
@@ -150,7 +151,7 @@ export function applyContent(view, prev = null, context = {}) {
  * @param {HTMLElement} container - Content container
  * @param {number} selectedIdx - New selected index
  */
-function updateSelection(container, selectedIdx) {
+function updateSelection(container: HTMLElement, selectedIdx: number): void {
   // Remove previous selection
   const prevSelected = container.querySelector('.vilify-item.selected');
   if (prevSelected) {
@@ -176,7 +177,7 @@ function updateSelection(container, selectedIdx) {
  * @param {DrawerView|null} view - Drawer view data
  * @param {DrawerView|null} prev - Previous drawer view (for diffing)
  */
-export function applyDrawer(view, prev = null) {
+export function applyDrawer(view: DrawerView | null, prev?: DrawerView | null): void {
   // Handle closing drawer
   if (!view) {
     if (prev) {
@@ -228,7 +229,7 @@ export function applyDrawer(view, prev = null) {
  * @param {ViewTree} view - View tree to apply
  * @param {Object} context - Additional context { state, siteState }
  */
-export function applyView(view, context = {}) {
+export function applyView(view: ViewTree, context?: any): void {
   const prev = previousView;
   
   // Apply each component
@@ -244,7 +245,7 @@ export function applyView(view, context = {}) {
  * Reset previous view (call on navigation or major state changes).
  * [I/O]
  */
-export function resetViewState() {
+export function resetViewState(): void {
   previousView = null;
   lastRenderedDrawerType = null;
 }
@@ -255,6 +256,6 @@ export function resetViewState() {
  *
  * @returns {string|null}
  */
-export function getLastRenderedDrawerType() {
+export function getLastRenderedDrawerType(): string | null {
   return lastRenderedDrawerType;
 }
