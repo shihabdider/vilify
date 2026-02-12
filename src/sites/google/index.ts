@@ -1,6 +1,7 @@
 // Google site configuration
 // Supports search results page with Solarized Dark theme + Google Blue accent
 
+import type { SiteConfig, SiteTheme, GoogleState, AppState, ContentItem, PageConfig, App, KeyContext, DrawerHandler, ListPageState } from '../../types';
 import { getGooglePageType, scrapeSearchResults, scrapeImageResults } from './scraper';
 import { renderGoogleItem, injectGoogleItemStyles } from './items';
 import { renderGoogleImageGrid, GRID_COLUMNS } from './grid';
@@ -27,7 +28,7 @@ import { getSuggestDrawer, resetSuggestDrawer } from './suggest';
  * - Yellow: #FBBC04
  * - Green: #34A853
  */
-const googleTheme = {
+const googleTheme: SiteTheme = {
   bg1: '#002b36',      // Solarized base03
   bg2: '#073642',      // Solarized base02
   bg3: '#0a4a5c',      // Slightly lighter for hover
@@ -50,7 +51,7 @@ const googleTheme = {
  *
  * @returns {GoogleState} Initial Google state
  */
-function createGoogleState() {
+function createGoogleState(): GoogleState {
   return {};
 }
 
@@ -65,7 +66,7 @@ function createGoogleState() {
  * @param {Array<ContentItem>} results - Search results
  * @returns {ListPageState}
  */
-function createGoogleListPageState(results = []) {
+function createGoogleListPageState(results: ContentItem[] = []): ListPageState {
   return {
     type: 'list',
     videos: results  // Reusing 'videos' field name for compatibility
@@ -84,7 +85,7 @@ function createGoogleListPageState(results = []) {
  * @param {GoogleState} siteState - Google state (unused for now)
  * @param {HTMLElement} container - Container to render into
  */
-function renderGoogleListing(state, siteState, container) {
+function renderGoogleListing(state: AppState, siteState: GoogleState, container: HTMLElement): void {
   // Inject Google-specific item styles
   injectGoogleItemStyles();
   
@@ -109,7 +110,7 @@ function renderGoogleListing(state, siteState, container) {
  * Navigate to next page of Google search results.
  * [I/O]
  */
-function nextPage() {
+function nextPage(): void {
   // Find the "Next" link in Google's pagination
   const nextLink = document.querySelector('a#pnnext');
   if (nextLink) {
@@ -123,7 +124,7 @@ function nextPage() {
  * Navigate to previous page of Google search results.
  * [I/O]
  */
-function prevPage() {
+function prevPage(): void {
   // Find the "Previous" link in Google's pagination
   const prevLink = document.querySelector('a#pnprev');
   if (prevLink) {
@@ -143,7 +144,7 @@ function prevPage() {
  * 
  * @param {string} extraParams - Additional URL params to append (e.g. '&udm=2')
  */
-function navigateToSearch(extraParams = '') {
+function navigateToSearch(extraParams: string = ''): void {
   const query = new URLSearchParams(location.search).get('q');
   if (!query) { showMessage('No search query'); return; }
   location.href = '/search?q=' + encodeURIComponent(query) + extraParams;
@@ -162,7 +163,7 @@ function navigateToSearch(extraParams = '') {
  * @param {KeyContext} context - Current keyboard context { pageType, filterActive, searchActive, drawer }
  * @returns {Object<string, Function>} Key sequence map
  */
-function getGoogleKeySequences(app, context) {
+function getGoogleKeySequences(app: any, context: KeyContext): Record<string, Function> {
   const pageType = context?.pageType;
 
   // (1) Always-available bindings
@@ -217,7 +218,7 @@ function getGoogleKeySequences(app, context) {
  * Search results page configuration.
  * @type {PageConfig}
  */
-const searchPageConfig = {
+const searchPageConfig: PageConfig = {
   waitForContent: () => document.querySelector('#rso') !== null,
   render: renderGoogleListing,
 };
@@ -226,7 +227,7 @@ const searchPageConfig = {
  * Other pages - no overlay.
  * @type {PageConfig}
  */
-const otherPageConfig = {
+const otherPageConfig: PageConfig = {
   waitForContent: () => true,
   render: () => {},  // No overlay on non-search pages
 };
@@ -244,7 +245,7 @@ const otherPageConfig = {
  * 
  * @type {SiteConfig}
  */
-export const googleConfig = {
+export const googleConfig: SiteConfig = {
   name: 'google',
   matches: ['*://www.google.com/search*', '*://google.com/search*'],
   theme: googleTheme,
