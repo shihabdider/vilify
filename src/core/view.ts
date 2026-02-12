@@ -21,7 +21,7 @@
  * el('ul', {}, [el('li', {}, ['One']), el('li', {}, ['Two'])])
  *   => <ul><li>One</li><li>Two</li></ul>
  */
-export function el(tag, attrs = {}, children = []) {
+export function el(tag: string, attrs: Record<string, any> = {}, children: (string | Node)[] = []): HTMLElement {
   // Template: Create element, apply attributes, append children
   const element = document.createElement(tag);
 
@@ -53,7 +53,7 @@ export function el(tag, attrs = {}, children = []) {
  * @example
  * clear(container)  // container.innerHTML = ''
  */
-export function clear(element) {
+export function clear(element: HTMLElement): void {
   // Template: DOM mutation
   element.innerHTML = '';
 }
@@ -71,7 +71,7 @@ export function clear(element) {
  * updateListSelection(container, '.item', 4)
  * // Removes .selected from old item, adds to item at index 4, scrolls into view
  */
-export function updateListSelection(container, selector, index) {
+export function updateListSelection(container: HTMLElement, selector: string, index: number): void {
   // Template: DOM query and mutation
   const items = container.querySelectorAll(selector);
 
@@ -101,9 +101,9 @@ export function updateListSelection(container, selector, index) {
  * showMessage("")             // Clears immediately
  */
 /** Track message clear timeout */
-let messageClearTimeout = null;
+let messageClearTimeout: ReturnType<typeof setTimeout> | null = null;
 
-export function showMessage(msg, duration = 3000) {
+export function showMessage(msg: string, duration: number = 3000): void {
   // Template: I/O - side effect (display message in status bar)
   const msgEl = document.getElementById('vilify-status-message');
   if (msgEl) {
@@ -137,7 +137,7 @@ export function showMessage(msg, duration = 3000) {
  * @example
  * flashBoundary()  // Brief CSS animation
  */
-export function flashBoundary() {
+export function flashBoundary(): void {
   // Template: I/O - DOM animation
   const container = document.getElementById('vilify-content');
   if (!container) return;
@@ -167,7 +167,7 @@ export function flashBoundary() {
  * navigateList('bottom', 5, 10) => { index: 9, boundary: null }
  * navigateList('down', 0, 0)    => { index: 0, boundary: null }  // Empty list
  */
-export function navigateList(direction, index, count) {
+export function navigateList(direction: 'up' | 'down' | 'top' | 'bottom', index: number, count: number): { index: number; boundary: 'top' | 'bottom' | null } {
   // Template: Enumeration - case per direction value
   // Handle empty list
   if (count === 0) {
@@ -217,7 +217,7 @@ export function navigateList(direction, index, count) {
  * scrollHalfPage('down', 95, 100, 20) => 99   // Clamped to max
  * scrollHalfPage('up', 3, 100, 20)    => 0    // Clamped to min
  */
-export function scrollHalfPage(direction, index, count, visibleCount) {
+export function scrollHalfPage(direction: 'up' | 'down', index: number, count: number, visibleCount: number): number {
   // Template: Enumeration - case per direction
   // Half of visible count, minimum 1
   const halfPage = Math.max(1, Math.floor(visibleCount / 2));
@@ -247,7 +247,7 @@ export function scrollHalfPage(direction, index, count, visibleCount) {
  * isInputElement(document.querySelector('div'))                      => false
  * isInputElement(document.querySelector('[contenteditable="true"]')) => true
  */
-export function isInputElement(element) {
+export function isInputElement(element: Element): boolean {
   // Template: Check element type and attributes
   if (!element) return false;
 
