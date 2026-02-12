@@ -3,6 +3,7 @@
 
 import { el, clear } from './view';
 import { getMode } from './state';
+import type { SiteConfig, SiteTheme, AppState, ContentItem } from '../types';
 
 // Main CSS for focus mode - Solarized Dark theme with TUI aesthetic
 const FOCUS_MODE_CSS = `
@@ -324,13 +325,13 @@ const FOCUS_MODE_CSS = `
 const STYLE_ID = 'vilify-focus-mode-styles';
 
 // Store callbacks for input handling
-let inputCallbacks = null;
+let inputCallbacks: any = null;
 
 /**
  * Set callbacks for status bar input handling
  * @param {Object} callbacks - { onFilterChange, onFilterSubmit, onSearchChange, onSearchSubmit, onCommandChange, onCommandSubmit, onEscape }
  */
-export function setInputCallbacks(callbacks) {
+export function setInputCallbacks(callbacks: any): void {
   inputCallbacks = callbacks;
 }
 
@@ -339,7 +340,7 @@ export function setInputCallbacks(callbacks) {
  * Idempotent - won't add duplicate style elements.
  * [I/O]
  */
-export function injectFocusModeStyles() {
+export function injectFocusModeStyles(): void {
   if (document.getElementById(STYLE_ID)) {
     return;
   }
@@ -354,7 +355,7 @@ export function injectFocusModeStyles() {
  * Apply CSS custom properties from theme to focus mode container.
  * [I/O]
  */
-export function applyTheme(theme) {
+export function applyTheme(theme: SiteTheme): void {
   const root = document.documentElement;
 
   root.style.setProperty('--bg-1', theme.bg1);
@@ -372,7 +373,7 @@ export function applyTheme(theme) {
  * Render the full focus mode overlay (content area, status bar).
  * [I/O]
  */
-export function renderFocusMode(config, state) {
+export function renderFocusMode(config: SiteConfig, state: AppState): void {
   injectFocusModeStyles();
 
   if (config.theme) {
@@ -405,7 +406,7 @@ export function renderFocusMode(config, state) {
  * Create the status bar element with mode badge and input field.
  * [PURE - but attaches event listeners]
  */
-function createStatusBar(state) {
+function createStatusBar(state: AppState): HTMLElement {
   const mode = getMode(state);
   
   // Mode badge
@@ -502,7 +503,7 @@ function createStatusBar(state) {
  * @param {boolean} focusInput - Whether to focus the input
  * @param {string|null} drawerPlaceholder - Placeholder for site-specific drawers
  */
-export function updateStatusBar(state, focusInput = false, drawerPlaceholder = null, searchPlaceholder = null) {
+export function updateStatusBar(state: AppState, focusInput: boolean = false, drawerPlaceholder: string | null = null, searchPlaceholder: string | null = null): void {
   const mode = getMode(state);
   
   // Update mode badge
@@ -572,7 +573,7 @@ export function updateStatusBar(state, focusInput = false, drawerPlaceholder = n
  *
  * @param {string|null} sortLabel - Sort label (e.g., "date↓") or null/empty to hide
  */
-export function updateSortIndicator(sortLabel) {
+export function updateSortIndicator(sortLabel: string): void {
   const sortEl = document.getElementById('vilify-status-sort');
   if (sortEl) {
     if (sortLabel) {
@@ -591,7 +592,7 @@ export function updateSortIndicator(sortLabel) {
  *
  * @param {number} count - Number of items
  */
-export function updateItemCount(count) {
+export function updateItemCount(count: number): void {
   const countEl = document.getElementById('vilify-status-count');
   if (countEl) {
     countEl.textContent = count > 0 ? `[${count}]` : '';
@@ -602,7 +603,7 @@ export function updateItemCount(count) {
  * Render a list of content items with selection state.
  * [I/O]
  */
-export function renderListing(items, selectedIdx, container = null, renderItem = null) {
+export function renderListing(items: ContentItem[], selectedIdx: number, container: HTMLElement | null = null, renderItem: ((item: ContentItem, isSelected: boolean) => HTMLElement) | null = null): void {
   const targetContainer = container || document.getElementById('vilify-content');
   if (!targetContainer) {
     return;
@@ -634,7 +635,7 @@ export function renderListing(items, selectedIdx, container = null, renderItem =
  * Default item renderer for ContentItem.
  * [PURE]
  */
-export function renderDefaultItem(item, isSelected) {
+export function renderDefaultItem(item: ContentItem, isSelected: boolean): HTMLElement {
   // Check for group header
   if ('group' in item && item.group) {
     return el('div', { class: 'vilify-group-header' }, [item.group]);
@@ -681,7 +682,7 @@ export function renderDefaultItem(item, isSelected) {
  * Render a command item for palette display.
  * [PURE]
  */
-function renderCommandItem(cmd, isSelected) {
+function renderCommandItem(cmd: any, isSelected: boolean): HTMLElement {
   const classes = isSelected ? 'vilify-item selected' : 'vilify-item';
   const children = [];
 
@@ -713,7 +714,7 @@ function renderCommandItem(cmd, isSelected) {
  * Update status bar message.
  * [I/O]
  */
-export function updateStatusMessage(message) {
+export function updateStatusMessage(message: string): void {
   const msgEl = document.getElementById('vilify-status-message');
   if (msgEl) {
     msgEl.textContent = message;
@@ -724,7 +725,7 @@ export function updateStatusMessage(message) {
  * Remove focus mode overlay and restore normal page.
  * [I/O]
  */
-export function removeFocusMode() {
+export function removeFocusMode(): void {
   const container = document.getElementById('vilify-focus');
   if (container) {
     container.remove();
@@ -736,6 +737,6 @@ export function removeFocusMode() {
  * Get the content container element.
  * [I/O]
  */
-export function getContentContainer() {
+export function getContentContainer(): HTMLElement | null {
   return document.getElementById('vilify-content');
 }
