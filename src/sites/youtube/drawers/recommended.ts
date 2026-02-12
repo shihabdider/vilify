@@ -3,15 +3,13 @@
 
 import { createListDrawer } from '../../../core/drawer';
 import { el } from '../../../core/view';
+import type { ContentItem, DrawerHandler } from '../../../types';
 
-/** @type {Array<ContentItem>} Cached recommended items */
-let cachedRecommended = [];
+let cachedRecommended: ContentItem[] = [];
 
-/** @type {DrawerHandler|null} Cached drawer instance */
-let recommendedDrawer = null;
+let recommendedDrawer: DrawerHandler | null = null;
 
-/** @type {Array<ContentItem>|null} Items used to create current drawer */
-let drawerItems = null;
+let drawerItems: ContentItem[] | null = null;
 
 /**
  * Update the cached recommended items.
@@ -19,7 +17,7 @@ let drawerItems = null;
  * 
  * @param {Array<ContentItem>} items - Recommended items from state.page.recommended
  */
-export function setRecommendedItems(items) {
+export function setRecommendedItems(items: ContentItem[]): void {
   cachedRecommended = items || [];
 }
 
@@ -31,7 +29,7 @@ export function setRecommendedItems(items) {
  * @param {Array<ContentItem>} items - Recommended video items
  * @returns {DrawerHandler}
  */
-export function createRecommendedDrawer(items) {
+export function createRecommendedDrawer(items: ContentItem[]): DrawerHandler {
   return createListDrawer({
     id: 'recommended',
     
@@ -93,7 +91,7 @@ export function createRecommendedDrawer(items) {
  * Recreates if items changed.
  * @returns {DrawerHandler|null}
  */
-export function getRecommendedDrawer() {
+export function getRecommendedDrawer(): DrawerHandler | null {
   // Return null if no items
   if (!cachedRecommended || cachedRecommended.length === 0) {
     return null;
@@ -114,7 +112,7 @@ export function getRecommendedDrawer() {
 /**
  * Reset the cached drawer (call when navigating away from watch page)
  */
-export function resetRecommendedDrawer() {
+export function resetRecommendedDrawer(): void {
   if (recommendedDrawer?.cleanup) {
     recommendedDrawer.cleanup();
   }

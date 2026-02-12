@@ -3,6 +3,7 @@
 
 import { createContentDrawer } from '../../../core/drawer';
 import { getDescription } from '../scraper';
+import type { DrawerHandler } from '../../../types';
 
 /**
  * Create description drawer for YouTube watch page.
@@ -11,7 +12,7 @@ import { getDescription } from '../scraper';
  *
  * @returns {DrawerHandler}
  */
-export function createDescriptionDrawer() {
+export function createDescriptionDrawer(): DrawerHandler {
   return createContentDrawer({
     id: 'description',
     getContent: () => getDescription(),
@@ -19,15 +20,14 @@ export function createDescriptionDrawer() {
   });
 }
 
-/** @type {DrawerHandler|null} Cached drawer instance */
-let descriptionDrawer = null;
+let descriptionDrawer: DrawerHandler | null = null;
 
 /**
  * Get or create the description drawer handler.
  * Caches the handler for reuse.
  * @returns {DrawerHandler}
  */
-export function getDescriptionDrawer() {
+export function getDescriptionDrawer(): DrawerHandler | null {
   if (!descriptionDrawer) {
     descriptionDrawer = createDescriptionDrawer();
   }
@@ -37,7 +37,7 @@ export function getDescriptionDrawer() {
 /**
  * Reset the cached drawer (call when navigating away from watch page)
  */
-export function resetDescriptionDrawer() {
+export function resetDescriptionDrawer(): void {
   if (descriptionDrawer && descriptionDrawer.cleanup) {
     descriptionDrawer.cleanup();
   }

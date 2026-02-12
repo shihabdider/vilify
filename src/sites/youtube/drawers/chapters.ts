@@ -4,6 +4,7 @@
 import { createListDrawer } from '../../../core/drawer';
 import { el, showMessage } from '../../../core/view';
 import { seekToChapter } from '../player';
+import type { ChaptersResult, DrawerHandler, Chapter } from '../../../types';
 
 /**
  * Create chapter picker drawer for YouTube watch page.
@@ -13,7 +14,7 @@ import { seekToChapter } from '../player';
  * @param {ChaptersResult} chaptersResult - Chapters data from state
  * @returns {DrawerHandler}
  */
-export function createChapterDrawer(chaptersResult) {
+export function createChapterDrawer(chaptersResult: ChaptersResult): DrawerHandler {
   return createListDrawer({
     id: 'chapters',
     
@@ -45,11 +46,9 @@ export function createChapterDrawer(chaptersResult) {
   });
 }
 
-/** @type {DrawerHandler|null} Cached drawer instance */
-let chapterDrawer = null;
+let chapterDrawer: DrawerHandler | null = null;
 
-/** @type {ChaptersResult|null} Cached chapters data */
-let cachedChapters = null;
+let cachedChapters: ChaptersResult | null = null;
 
 /**
  * Get or create the chapter drawer handler.
@@ -57,7 +56,7 @@ let cachedChapters = null;
  * @param {ChaptersResult} chaptersResult - Chapters data from state
  * @returns {DrawerHandler}
  */
-export function getChapterDrawer(chaptersResult) {
+export function getChapterDrawer(chaptersResult: ChaptersResult): DrawerHandler | null {
   // Recreate if chapters changed
   if (!chapterDrawer || chaptersResult !== cachedChapters) {
     if (chapterDrawer?.cleanup) {
@@ -72,7 +71,7 @@ export function getChapterDrawer(chaptersResult) {
 /**
  * Reset the cached drawer (call when navigating away from watch page)
  */
-export function resetChapterDrawer() {
+export function resetChapterDrawer(): void {
   if (chapterDrawer?.cleanup) {
     chapterDrawer.cleanup();
   }

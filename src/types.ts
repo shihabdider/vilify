@@ -186,10 +186,18 @@ export interface TranscriptSegment {
   duration: number;
 }
 
+export interface TranscriptLine {
+  time: number;
+  timeText: string;
+  duration: number;
+  text: string;
+}
+
 export interface TranscriptResult {
   status: 'loading' | 'loaded' | 'error';
   videoId: string;
   segments?: TranscriptSegment[];
+  lines?: TranscriptLine[];
   error?: string;
 }
 

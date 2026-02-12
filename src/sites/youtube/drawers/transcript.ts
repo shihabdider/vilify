@@ -4,13 +4,14 @@
 import { createListDrawer } from '../../../core/drawer';
 import { el, showMessage } from '../../../core/view';
 import { seekToChapter } from '../player';
+import type { TranscriptResult, DrawerHandler } from '../../../types';
 
 /**
  * Create transcript drawer for YouTube watch page.
  * @param {TranscriptResult} transcript - Transcript data
  * @returns {DrawerHandler}
  */
-export function createTranscriptDrawer(transcript) {
+export function createTranscriptDrawer(transcript: TranscriptResult): DrawerHandler {
   return createListDrawer({
     id: 'transcript',
     
@@ -41,18 +42,16 @@ export function createTranscriptDrawer(transcript) {
   });
 }
 
-/** @type {DrawerHandler|null} Cached drawer instance */
-let transcriptDrawer = null;
+let transcriptDrawer: DrawerHandler | null = null;
 
-/** @type {TranscriptResult|null} Cached transcript data */
-let cachedTranscript = null;
+let cachedTranscript: TranscriptResult | null = null;
 
 /**
  * Get or create the transcript drawer handler.
  * @param {TranscriptResult} transcript - Transcript data
  * @returns {DrawerHandler}
  */
-export function getTranscriptDrawer(transcript) {
+export function getTranscriptDrawer(transcript: TranscriptResult): DrawerHandler | null {
   // Recreate if transcript changed
   if (!transcriptDrawer || transcript !== cachedTranscript) {
     if (transcriptDrawer?.cleanup) {
@@ -67,7 +66,7 @@ export function getTranscriptDrawer(transcript) {
 /**
  * Reset the cached drawer
  */
-export function resetTranscriptDrawer() {
+export function resetTranscriptDrawer(): void {
   if (transcriptDrawer?.cleanup) {
     transcriptDrawer.cleanup();
   }

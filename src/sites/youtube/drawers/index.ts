@@ -4,6 +4,7 @@ import { getChapterDrawer, resetChapterDrawer } from './chapters';
 import { getDescriptionDrawer, resetDescriptionDrawer } from './description';
 import { getTranscriptDrawer, resetTranscriptDrawer } from './transcript';
 import { getRecommendedDrawer, resetRecommendedDrawer, setRecommendedItems } from './recommended';
+import type { YouTubeState, DrawerHandler } from '../../../types';
 
 // Re-export for external use
 export { 
@@ -22,7 +23,7 @@ export {
  * @param {YouTubeState|null} siteState - Site-specific state (for transcript/chapters)
  * @returns {DrawerHandler|null}
  */
-export function getYouTubeDrawerHandler(drawerState, siteState) {
+export function getYouTubeDrawerHandler(drawerState: any, siteState: YouTubeState): DrawerHandler | null {
   if (drawerState === 'chapters') {
     if (siteState?.chapters?.status === 'loaded') {
       return getChapterDrawer(siteState.chapters);
@@ -52,7 +53,7 @@ export function getYouTubeDrawerHandler(drawerState, siteState) {
 /**
  * Reset all YouTube drawers (call on navigation)
  */
-export function resetYouTubeDrawers() {
+export function resetYouTubeDrawers(): void {
   resetChapterDrawer();
   resetDescriptionDrawer();
   resetTranscriptDrawer();
