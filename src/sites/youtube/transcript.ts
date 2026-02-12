@@ -1,11 +1,29 @@
 // YouTube transcript fetching - DOM scraping approach
 
+import type { TranscriptSegment } from '../../types';
+
+/** A single transcript line as scraped from the DOM */
+interface TranscriptLine {
+  time: number;
+  timeText: string;
+  duration: number;
+  text: string;
+}
+
+/** Result of fetchTranscript — stored in site state */
+interface TranscriptFetchResult {
+  status: 'loaded' | 'unavailable';
+  videoId: string;
+  lines: TranscriptLine[];
+  language: string | null;
+}
+
 /**
  * Format seconds to timestamp string
  * @param {number} seconds - Time in seconds  
  * @returns {string} Formatted like '0:45' or '1:02:05'
  */
-export function formatTime(seconds) {
+export function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
@@ -21,7 +39,7 @@ export function formatTime(seconds) {
  * @param {string} timeStr - Time string like '0:45' or '1:02:05'
  * @returns {number} Time in seconds
  */
-function parseTimestamp(timeStr) {
+function parseTimestamp(timeStr: string): number {
   const parts = timeStr.split(':').map(p => parseInt(p, 10));
   if (parts.length === 3) {
     return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -37,7 +55,7 @@ function parseTimestamp(timeStr) {
  * @param {number} timeout - Max wait time in ms
  * @returns {Promise<Element|null>}
  */
-function waitForElement(selector, timeout = 5000) {
+function waitForElement(selector: string, timeout: number = 5000): Promise<Element | null> {
   return new Promise((resolve) => {
     const existing = document.querySelector(selector);
     if (existing) {
@@ -66,7 +84,7 @@ function waitForElement(selector, timeout = 5000) {
  * Check if transcript panel is already open
  * @returns {boolean}
  */
-function isTranscriptPanelOpen() {
+function isTranscriptPanelOpen(): boolean {
   const panel = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
   return panel && panel.getAttribute('visibility') === 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED';
 }
@@ -75,7 +93,7 @@ function isTranscriptPanelOpen() {
  * Scrape transcript lines from the DOM
  * @returns {Array<TranscriptLine>}
  */
-function scrapeTranscriptFromDOM() {
+function scrapeTranscriptFromDOM(): TranscriptLine[] {
   const lines = [];
   
   // Find transcript segments in the panel
@@ -117,7 +135,7 @@ function scrapeTranscriptFromDOM() {
  * Find and click the "Show transcript" button
  * @returns {Promise<boolean>} - Whether button was found and clicked
  */
-async function openTranscriptPanel() {
+async function openTranscriptPanel(): Promise<boolean> {
   // Check if already open
   if (isTranscriptPanelOpen()) {
     return true;
@@ -175,7 +193,7 @@ async function openTranscriptPanel() {
 /**
  * Close the transcript panel
  */
-function closeTranscriptPanel() {
+function closeTranscriptPanel(): void {
   const closeBtn = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"] #visibility-button button');
   if (closeBtn) {
     closeBtn.click();
@@ -186,7 +204,7 @@ function closeTranscriptPanel() {
  * Check if video has transcript available
  * @returns {boolean}
  */
-function hasTranscriptAvailable() {
+function hasTranscriptAvailable(): boolean {
   // Check for getTranscriptEndpoint in page data
   const scripts = document.querySelectorAll('script');
   for (const script of scripts) {
@@ -202,7 +220,7 @@ function hasTranscriptAvailable() {
  * @param {string} videoId - YouTube video ID
  * @returns {Promise<TranscriptResult>}
  */
-export async function fetchTranscript(videoId) {
+export async function fetchTranscript(videoId: string): Promise<TranscriptFetchResult> {
   try {
     console.log('[Vilify] Fetching transcript for', videoId);
     
