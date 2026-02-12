@@ -1,6 +1,28 @@
 // YouTube Initial Data Parser
 // Extracts ytInitialData and ytInitialPlayerResponse from page
 
+/** Result from parseInitialData when data is found */
+interface InitialDataSuccess {
+  ok: true;
+  data: any;
+  pageType: string;
+}
+
+/** Result from parseInitialData when data is not found */
+interface InitialDataFailure {
+  ok: false;
+  error: string;
+}
+
+type InitialDataResult = InitialDataSuccess | InitialDataFailure;
+
+declare global {
+  interface Window {
+    ytInitialData?: any;
+    ytInitialPlayerResponse?: any;
+  }
+}
+
 // =============================================================================
 // PAGE TYPE DETECTION
 // =============================================================================
@@ -14,7 +36,7 @@
  *   detectPageTypeFromData({ contents: { twoColumnWatchNextResults: {} } })
  *   // => 'watch'
  */
-export function detectPageTypeFromData(data) {
+export function detectPageTypeFromData(data: any): string {
   if (!data?.contents) return 'other';
   
   const contents = data.contents;
@@ -76,7 +98,7 @@ export function detectPageTypeFromData(data) {
  *   // => { ok: true, data: {...}, pageType: 'search' }
  *   // => { ok: false, error: 'ytInitialData not found' }
  */
-export function parseInitialData() {
+export function parseInitialData(): InitialDataResult {
   // Method 1: Check if YouTube has already parsed it
   if (typeof window !== 'undefined' && window.ytInitialData) {
     const data = window.ytInitialData;
@@ -138,7 +160,7 @@ export function parseInitialData() {
  *   // => { videoDetails: { videoId: 'abc', ... }, ... }
  *   // => null (if not on watch page)
  */
-export function parsePlayerResponse() {
+export function parsePlayerResponse(): any | null {
   // Method 1: Check if YouTube has already parsed it
   if (typeof window !== 'undefined' && window.ytInitialPlayerResponse) {
     return window.ytInitialPlayerResponse;

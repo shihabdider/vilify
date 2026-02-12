@@ -2,12 +2,17 @@
 // Captures ytInitialData and YouTube events, sends to content script via CustomEvent
 // This file must be built separately and runs directly in the page context
 
+// YouTube globals available in main world context
+declare const ytInitialData: any;
+declare const ytInitialPlayerResponse: any;
+declare const ytcfg: { get: (key: string) => any } | undefined;
+
 const BRIDGE_EVENT = '__vilify_data__';
 
 /**
  * Send data to content script via CustomEvent
  */
-function send(type, data) {
+function send(type: string, data: any): void {
   document.dispatchEvent(new CustomEvent(BRIDGE_EVENT, {
     detail: { type, data }
   }));
@@ -16,7 +21,7 @@ function send(type, data) {
 /**
  * Wait for ytInitialData to be available and send it
  */
-function waitForInitialData() {
+function waitForInitialData(): void {
   // Check if already available
   if (typeof ytInitialData !== 'undefined' && ytInitialData) {
     send('initialData', ytInitialData);
@@ -43,7 +48,7 @@ function waitForInitialData() {
 /**
  * Wait for ytInitialPlayerResponse to be available (watch pages)
  */
-function waitForPlayerResponse() {
+function waitForPlayerResponse(): void {
   if (typeof ytInitialPlayerResponse !== 'undefined' && ytInitialPlayerResponse) {
     send('playerResponse', ytInitialPlayerResponse);
     return;
@@ -109,14 +114,14 @@ window.addEventListener('state-navigateend', () => {
 /**
  * Intercept fetch requests to capture continuation data (lazy loaded videos)
  */
-function interceptFetch() {
+function interceptFetch(): void {
   const originalFetch = window.fetch;
   
   window.fetch = async function(...args) {
     const response = await originalFetch.apply(this, args);
     
     // Check if this is a browse API call (continuation/lazy load)
-    const url = args[0]?.url || args[0];
+    const url = (args[0] as any)?.url || args[0];
     if (typeof url === 'string' && url.includes('/youtubei/v1/browse')) {
       try {
         // Clone response to read body without consuming it
@@ -139,7 +144,7 @@ function interceptFetch() {
 /**
  * Get authorization header for YouTube API calls
  */
-function getAuthHeader() {
+function getAuthHeader(): Promise<string | null> {
   // YouTube uses SAPISIDHASH for auth
   const sapisid = document.cookie.match(/SAPISID=([^;]+)/)?.[1];
   if (!sapisid) return null;
@@ -167,7 +172,7 @@ function getAuthHeader() {
 /**
  * Get full YouTube API context from ytcfg (matching YouTube's format)
  */
-function getFullApiContext() {
+function getFullApiContext(): any {
   if (typeof ytcfg === 'undefined' || !ytcfg.get) {
     return null;
   }
@@ -216,7 +221,7 @@ function getFullApiContext() {
 /**
  * Add video to Watch Later playlist via YouTube API
  */
-async function addToWatchLater(videoId) {
+async function addToWatchLater(videoId: string): Promise<{ success: boolean; error?: string }> {
   const context = getFullApiContext();
   if (!context) {
     return { success: false, error: 'No API context' };
@@ -237,7 +242,7 @@ async function addToWatchLater(videoId) {
     clickTrackingParams = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(20))));
   }
   
-  const body = {
+  const body: Record<string, any> = {
     context,
     actions: [{
       addedVideoId: videoId,
@@ -310,7 +315,7 @@ async function addToWatchLater(videoId) {
  * Remove video from Watch Later playlist via YouTube API
  * @param {string} setVideoId - Playlist item ID (NOT the video ID)
  */
-async function removeFromWatchLater(setVideoId) {
+async function removeFromWatchLater(setVideoId: string): Promise<{ success: boolean; error?: string }> {
   const context = getFullApiContext();
   if (!context) {
     return { success: false, error: 'No API context' };
@@ -378,7 +383,7 @@ async function removeFromWatchLater(setVideoId) {
  * @param {string} videoId - Video ID to add back
  * @param {number} position - Position to insert at
  */
-async function undoRemoveFromWatchLater(videoId, position) {
+async function undoRemoveFromWatchLater(videoId: string, position: number): Promise<{ success: boolean; error?: string }> {
   const context = getFullApiContext();
   if (!context) {
     return { success: false, error: 'No API context' };
@@ -447,7 +452,7 @@ async function undoRemoveFromWatchLater(videoId, position) {
  * @param {string} videoId - Video ID to look up
  * @returns {{ setVideoId: string, position: number } | null}
  */
-function getPlaylistItemData(videoId) {
+function getPlaylistItemData(videoId: string): { setVideoId: string; position: number } | null {
   if (typeof ytInitialData === 'undefined' || !ytInitialData) {
     return null;
   }
@@ -481,8 +486,8 @@ function getPlaylistItemData(videoId) {
 /**
  * Listen for commands from content script
  */
-document.addEventListener('__vilify_command__', async (event) => {
-  const { command, data, requestId } = event.detail || {};
+document.addEventListener('__vilify_command__', async (event: Event) => {
+  const { command, data, requestId } = (event as CustomEvent).detail || {};
   console.log('[Vilify Bridge] Received command:', command, data);
   
   if (command === 'addToWatchLater' && data?.videoId) {

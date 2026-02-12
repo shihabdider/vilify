@@ -2,6 +2,9 @@
 // Public API for the hybrid data layer
 // Receives data from data-bridge.js (running in MAIN world)
 
+import type { ContentItem, VideoContext } from '../../../types';
+import type { RawVideo } from './extractors';
+import type { NavigationWatcherHandle } from './navigation';
 import { detectPageTypeFromData } from './initial-data';
 import { extractVideosFromData, extractVideosForPage, extractVideoContext } from './extractors';
 import { scrapeDOMVideos, scrapeDOMVideoContext, scrapeDOMRecommendations } from './dom-fallback';
@@ -14,20 +17,37 @@ import { createNavigationWatcher } from './navigation';
 const BRIDGE_EVENT = '__vilify_data__';
 
 // =============================================================================
+// DATA PROVIDER INTERFACE
+// =============================================================================
+
+/** Public interface for the YouTube data provider */
+export interface DataProvider {
+  getVideos: () => ContentItem[];
+  getVideoContext: () => VideoContext | null;
+  getRecommendations: () => ContentItem[];
+  getPageType: () => string;
+  waitForData: (timeout?: number) => Promise<void>;
+  waitForWatchData: (onReady: () => void, timeout?: number) => void;
+  startWatching: () => void;
+  stopWatching: () => void;
+  _getCachedData: () => { cachedInitialData: any; cachedPlayerResponse: any; cachedPageType: string | null };
+}
+
+// =============================================================================
 // NORMALIZATION
 // =============================================================================
 
 /**
  * Get thumbnail URL for a video ID
  */
-function getThumbnailUrl(videoId) {
+function getThumbnailUrl(videoId: string): string {
   return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
 }
 
 /**
  * Transform raw Video to ContentItem format expected by the UI
  */
-function toContentItem(video) {
+function toContentItem(video: RawVideo): ContentItem {
   const metaParts = [];
   if (video.channel) metaParts.push(video.channel);
   if (video.published) metaParts.push(video.published);
@@ -57,25 +77,25 @@ function toContentItem(video) {
 /**
  * Create the data provider facade
  */
-export function createDataProvider() {
+export function createDataProvider(): DataProvider {
   // Cached data from bridge
-  let cachedInitialData = null;
-  let cachedPlayerResponse = null;
-  let cachedPageType = null;
-  let cachedContinuationVideos = []; // Videos from lazy load continuations
+  let cachedInitialData: any = null;
+  let cachedPlayerResponse: any = null;
+  let cachedPageType: string | null = null;
+  let cachedContinuationVideos: RawVideo[] = []; // Videos from lazy load continuations
   
   // Callbacks waiting for data
-  let dataReadyCallbacks = [];
-  let bridgeListenerInstalled = false;
-  let navigationWatcher = null;
+  let dataReadyCallbacks: Array<() => void> = [];
+  let bridgeListenerInstalled: boolean = false;
+  let navigationWatcher: NavigationWatcherHandle | null = null;
   
   // Callbacks waiting for player response (watch pages)
-  let playerResponseCallbacks = [];
+  let playerResponseCallbacks: Array<() => void> = [];
   
   /**
    * Handle data from the MAIN world bridge
    */
-  function onBridgeData(event) {
+  function onBridgeData(event: any): void {
     const { type, data } = event.detail || {};
     
     if (type === 'initialData' && data) {
@@ -106,7 +126,7 @@ export function createDataProvider() {
   /**
    * Extract videos from continuation response
    */
-  function extractVideosFromContinuation(data) {
+  function extractVideosFromContinuation(data: any): RawVideo[] {
     const videos = [];
     
     // Handle onResponseReceivedActions format (common for browse continuations)
@@ -139,7 +159,7 @@ export function createDataProvider() {
   /**
    * Extract a video from various renderer types
    */
-  function extractVideoFromRenderer(item) {
+  function extractVideoFromRenderer(item: any): RawVideo | null {
     // Rich item renderer (home, channel)
     const richContent = item.richItemRenderer?.content;
     const renderer = richContent?.videoRenderer || 
@@ -165,7 +185,7 @@ export function createDataProvider() {
   /**
    * Notify all waiting callbacks that data is ready
    */
-  function notifyDataReady() {
+  function notifyDataReady(): void {
     const callbacks = dataReadyCallbacks;
     dataReadyCallbacks = [];
     for (const cb of callbacks) {
@@ -176,7 +196,7 @@ export function createDataProvider() {
   /**
    * Notify all waiting callbacks that player response is ready
    */
-  function notifyPlayerResponseReady() {
+  function notifyPlayerResponseReady(): void {
     const callbacks = playerResponseCallbacks;
     playerResponseCallbacks = [];
     for (const cb of callbacks) {
@@ -187,7 +207,7 @@ export function createDataProvider() {
   /**
    * Install bridge event listener
    */
-  function installBridgeListener() {
+  function installBridgeListener(): void {
     if (bridgeListenerInstalled) return;
     document.addEventListener(BRIDGE_EVENT, onBridgeData);
     bridgeListenerInstalled = true;
@@ -197,7 +217,7 @@ export function createDataProvider() {
    * Wait for data to be ready from bridge
    * @returns {Promise<void>}
    */
-  function waitForData(timeout = 5000) {
+  function waitForData(timeout: number = 5000): Promise<void> {
     // If we already have data, resolve immediately
     if (cachedInitialData) {
       return Promise.resolve();
@@ -224,7 +244,7 @@ export function createDataProvider() {
    * @param {Function} onReady - Callback when data is ready
    * @param {number} timeout - Timeout in ms
    */
-  function waitForWatchData(onReady, timeout = 2000) {
+  function waitForWatchData(onReady: () => void, timeout: number = 2000): void {
     // If we already have both, call immediately
     if (cachedInitialData && cachedPlayerResponse) {
       onReady();
@@ -257,7 +277,7 @@ export function createDataProvider() {
    * Combines initial bridge data with continuation data from lazy loading
    * @returns {Array<ContentItem>}
    */
-  function getVideos() {
+  function getVideos(): ContentItem[] {
     // Try bridge data first
     if (cachedInitialData) {
       const pageType = cachedPageType || 'other';
@@ -290,7 +310,7 @@ export function createDataProvider() {
   /**
    * Augment items with DOM-scraped duration if missing
    */
-  function augmentDuration(items) {
+  function augmentDuration(items: ContentItem[]): ContentItem[] {
     const domVideos = scrapeDOMVideos();
     const domMap = new Map(domVideos.map(v => [v.id, v]));
     
@@ -309,13 +329,13 @@ export function createDataProvider() {
   /**
    * Get video context for watch page
    */
-  function getVideoContext() {
+  function getVideoContext(): VideoContext | null {
     // Try extraction from bridge data
     if (cachedInitialData && cachedPlayerResponse) {
       const ctx = extractVideoContext(cachedInitialData, cachedPlayerResponse);
       if (ctx) {
         // Augment with live video element data
-        const videoEl = document.querySelector('video.html5-main-video');
+        const videoEl = document.querySelector('video.html5-main-video') as HTMLVideoElement | null;
         if (videoEl) {
           ctx.currentTime = videoEl.currentTime || 0;
           ctx.paused = videoEl.paused ?? true;
@@ -339,7 +359,7 @@ export function createDataProvider() {
    * Get recommended videos (watch page sidebar)
    * Uses extractVideosForPage with 'watch' page type
    */
-  function getRecommendations() {
+  function getRecommendations(): ContentItem[] {
     // Check if we're on watch page (from cache or URL)
     const isWatchPage = cachedPageType === 'watch' || window.location.pathname === '/watch';
     
@@ -357,14 +377,14 @@ export function createDataProvider() {
   /**
    * Get current page type
    */
-  function getPageType() {
+  function getPageType(): string {
     return cachedPageType || 'other';
   }
   
   /**
    * Clear cached data (called on navigation)
    */
-  function clearCache() {
+  function clearCache(): void {
     // Don't clear initial data - bridge will send new data
     // Reset page type so we re-detect, and clear continuation cache
     cachedPageType = null;
@@ -374,7 +394,7 @@ export function createDataProvider() {
   /**
    * Start watching for navigation
    */
-  function startWatching() {
+  function startWatching(): void {
     installBridgeListener();
     
     if (!navigationWatcher) {
@@ -387,7 +407,7 @@ export function createDataProvider() {
   /**
    * Stop watching
    */
-  function stopWatching() {
+  function stopWatching(): void {
     if (navigationWatcher) {
       navigationWatcher.stop();
       navigationWatcher = null;
@@ -419,12 +439,12 @@ export function createDataProvider() {
 // SINGLETON INSTANCE
 // =============================================================================
 
-let dataProviderInstance = null;
+let dataProviderInstance: DataProvider | null = null;
 
 /**
  * Get the singleton data provider instance
  */
-export function getDataProvider() {
+export function getDataProvider(): DataProvider {
   if (!dataProviderInstance) {
     dataProviderInstance = createDataProvider();
   }

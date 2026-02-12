@@ -1,6 +1,17 @@
 // Fetch Interceptor for YouTube API
 // Captures /youtubei/v1/ responses for fresh data on SPA navigation
 
+declare global {
+  interface Window {
+    __vilifyFetchInstalled?: boolean;
+  }
+}
+
+/** Handle returned by installFetchIntercept to uninstall */
+export interface FetchInterceptHandle {
+  uninstall: () => void;
+}
+
 /**
  * Install fetch interceptor for YouTube API calls.
  * Captures browse, search, next, and player responses.
@@ -14,7 +25,7 @@
  * });
  * // Later: intercept.uninstall();
  */
-export function installFetchIntercept(onData) {
+export function installFetchIntercept(onData: (endpoint: string, data: any) => void): FetchInterceptHandle {
   // Guard against double-installation
   if (window.__vilifyFetchInstalled) {
     console.log('[Vilify] Fetch intercept already installed');
@@ -27,7 +38,7 @@ export function installFetchIntercept(onData) {
     const response = await originalFetch.apply(this, args);
     
     // Extract URL from args (can be string or Request object)
-    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+    const url = typeof args[0] === 'string' ? args[0] : (args[0] as any)?.url;
     
     // Only intercept YouTube API calls
     if (url?.includes('/youtubei/v1/')) {

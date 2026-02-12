@@ -1,6 +1,11 @@
 // Navigation Watcher
 // Detects YouTube SPA navigation and triggers callbacks
 
+/** Handle returned by createNavigationWatcher to stop watching */
+export interface NavigationWatcherHandle {
+  stop: () => void;
+}
+
 /**
  * Create a navigation watcher that detects URL changes
  * @param {Function} callback - Called when URL changes
@@ -12,13 +17,13 @@
  *   });
  *   // Later: watcher.stop();
  */
-export function createNavigationWatcher(callback) {
-  let lastUrl = location.href;
-  let debounceTimer = null;
+export function createNavigationWatcher(callback: () => void): NavigationWatcherHandle {
+  let lastUrl: string = location.href;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const DEBOUNCE_MS = 100;
   
   // Debounced callback to handle rapid URL changes
-  function onUrlChange() {
+  function onUrlChange(): void {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
@@ -30,7 +35,7 @@ export function createNavigationWatcher(callback) {
   }
   
   // Method 1: Listen for popstate (back/forward)
-  function handlePopstate() {
+  function handlePopstate(): void {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       onUrlChange();
@@ -39,7 +44,7 @@ export function createNavigationWatcher(callback) {
   window.addEventListener('popstate', handlePopstate);
   
   // Method 2: Watch for YouTube's yt-navigate-finish event
-  function handleYtNavigate() {
+  function handleYtNavigate(): void {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       onUrlChange();

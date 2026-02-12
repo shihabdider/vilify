@@ -1,6 +1,22 @@
 // YouTube Data Extractors
 // Pure functions that extract Video from various YouTube renderer formats
 
+import type { Chapter, VideoContext } from '../../../types';
+
+/** Raw video data extracted from YouTube renderer objects, before normalization to ContentItem */
+export interface RawVideo {
+  videoId: string;
+  title: string | null;
+  channel: string | null;
+  channelUrl: string | null;
+  views: string | null;
+  published: string | null;
+  duration: string | null;
+  thumbnail: string | null;
+  _source?: string;
+  [key: string]: any;
+}
+
 // =============================================================================
 // HELPERS
 // =============================================================================
@@ -11,7 +27,7 @@
  * @param {string} path - Dot-separated path like 'a.b.c'
  * @returns {*}
  */
-function get(obj, path) {
+function get(obj: any, path: string): any {
   return path.split('.').reduce((o, k) => o?.[k], obj);
 }
 
@@ -20,7 +36,7 @@ function get(obj, path) {
  * @param {Object} textObj - { runs: [{text}] } or { simpleText: string }
  * @returns {string|null}
  */
-function getText(textObj) {
+function getText(textObj: any): string | null {
   if (!textObj) return null;
   if (typeof textObj === 'string') return textObj;
   if (textObj.simpleText) return textObj.simpleText;
@@ -38,7 +54,7 @@ function getText(textObj) {
  * @param {Array} thumbnails - Array of { url, width, height }
  * @returns {string|null}
  */
-function getBestThumbnail(thumbnails) {
+function getBestThumbnail(thumbnails: any[]): string | null {
   if (!thumbnails?.length) return null;
   // Prefer medium quality (mqdefault ~320px)
   const sorted = [...thumbnails].sort((a, b) => (a.width || 0) - (b.width || 0));
@@ -52,7 +68,7 @@ function getBestThumbnail(thumbnails) {
  * @param {number} seconds 
  * @returns {string}
  */
-function formatTimestamp(seconds) {
+function formatTimestamp(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
@@ -67,7 +83,7 @@ function formatTimestamp(seconds) {
  * @param {Object} renderer 
  * @returns {boolean}
  */
-function isShort(renderer) {
+function isShort(renderer: any): boolean {
   // Shorts have reelWatchEndpoint
   if (renderer.navigationEndpoint?.reelWatchEndpoint) return true;
   // Or have /shorts/ in the URL
@@ -85,7 +101,7 @@ function isShort(renderer) {
  * @param {Object} renderer - videoRenderer object
  * @returns {Video|null}
  */
-export function extractVideoRenderer(renderer) {
+export function extractVideoRenderer(renderer: any): RawVideo | null {
   const videoId = renderer.videoId;
   if (!videoId) return null;
   
@@ -123,7 +139,7 @@ export function extractVideoRenderer(renderer) {
  * @param {Object} renderer - compactVideoRenderer object
  * @returns {Video|null}
  */
-export function extractCompactVideoRenderer(renderer) {
+export function extractCompactVideoRenderer(renderer: any): RawVideo | null {
   const videoId = renderer.videoId;
   if (!videoId) return null;
   
@@ -154,7 +170,7 @@ export function extractCompactVideoRenderer(renderer) {
  * @param {Object} renderer - gridVideoRenderer object
  * @returns {Video|null}
  */
-export function extractGridVideoRenderer(renderer) {
+export function extractGridVideoRenderer(renderer: any): RawVideo | null {
   const videoId = renderer.videoId;
   if (!videoId) return null;
   
@@ -182,7 +198,7 @@ export function extractGridVideoRenderer(renderer) {
  * @param {Object} renderer - playlistVideoRenderer object
  * @returns {Video|null}
  */
-export function extractPlaylistVideoRenderer(renderer) {
+export function extractPlaylistVideoRenderer(renderer: any): RawVideo | null {
   const videoId = renderer.videoId;
   if (!videoId) return null;
   
@@ -213,7 +229,7 @@ export function extractPlaylistVideoRenderer(renderer) {
  * @param {Object} renderer - richItemRenderer object
  * @returns {Video|null}
  */
-export function extractRichItemRenderer(renderer) {
+export function extractRichItemRenderer(renderer: any): RawVideo | null {
   // richItemRenderer wraps content which contains the actual renderer
   const content = renderer.content;
   if (!content) return null;
@@ -241,7 +257,7 @@ export function extractRichItemRenderer(renderer) {
  * @param {Object} model - lockupViewModel object
  * @returns {Video|null}
  */
-export function extractLockupViewModel(model) {
+export function extractLockupViewModel(model: any): RawVideo | null {
   const contentId = model.contentId;
   if (!contentId) return null;
   
@@ -295,7 +311,7 @@ export function extractLockupViewModel(model) {
   // Recursive search for duration in badge view models
   const DURATION_PATTERN = /^\d+:\d{2}(:\d{2})?$/;
   
-  function findDurationInObject(obj, depth = 0) {
+  function findDurationInObject(obj: any, depth: number = 0): string | null {
     if (!obj || typeof obj !== 'object' || depth > 10) return null;
     
     // Check if this is a thumbnailBadgeViewModel with duration text
@@ -357,7 +373,7 @@ export function extractLockupViewModel(model) {
  * @param {Object} data - ytInitialData
  * @returns {Array<Chapter>}
  */
-export function extractChaptersFromData(data) {
+export function extractChaptersFromData(data: any): Chapter[] {
   const chapters = [];
   const panels = data?.engagementPanels || [];
   
@@ -404,7 +420,7 @@ export function extractChaptersFromData(data) {
  * @param {Object|null} playerResponse - ytInitialPlayerResponse
  * @returns {VideoContext|null}
  */
-export function extractVideoContext(initialData, playerResponse) {
+export function extractVideoContext(initialData: any, playerResponse: any): VideoContext | null {
   // Must be watch page
   if (!initialData?.contents?.twoColumnWatchNextResults) {
     return null;
@@ -471,7 +487,7 @@ export function extractVideoContext(initialData, playerResponse) {
  * @param {string} pageType - Current page type
  * @returns {Array<Video>}
  */
-export function extractVideosForPage(data, pageType) {
+export function extractVideosForPage(data: any, pageType: string): RawVideo[] {
   switch (pageType) {
     case 'home':
       return extractHomeVideos(data);
@@ -501,9 +517,9 @@ export function extractVideosForPage(data, pageType) {
  * @param {Object} data
  * @returns {Array<Video>}
  */
-function extractHomeVideos(data) {
+function extractHomeVideos(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   // Primary path for home page
   const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
@@ -534,9 +550,9 @@ function extractHomeVideos(data) {
  * @param {Object} data
  * @returns {Array<Video>}
  */
-function extractSearchVideos(data) {
+function extractSearchVideos(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   // Primary path for search
   const sections = get(data, 'contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents') || [];
@@ -557,9 +573,9 @@ function extractSearchVideos(data) {
  * @param {Object} data
  * @returns {Array<Video>}
  */
-function extractChannelVideos(data) {
+function extractChannelVideos(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
   
@@ -595,9 +611,9 @@ function extractChannelVideos(data) {
  * @param {Object} data
  * @returns {Array<Video>}
  */
-function extractSubscriptionsVideos(data) {
+function extractSubscriptionsVideos(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
   
@@ -623,9 +639,9 @@ function extractSubscriptionsVideos(data) {
  * @param {Object} data
  * @returns {Array<Video>}
  */
-function extractPlaylistVideos(data) {
+function extractPlaylistVideos(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
   
@@ -649,9 +665,9 @@ function extractPlaylistVideos(data) {
  * @param {Object} data
  * @returns {Array<Video>}
  */
-function extractHistoryVideos(data) {
+function extractHistoryVideos(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
   
@@ -675,7 +691,7 @@ function extractHistoryVideos(data) {
  * @param {Array<Video>} videos - Output array
  * @param {Set<string>} seen - Deduplication set
  */
-function extractFromContents(contents, videos, seen) {
+function extractFromContents(contents: any[], videos: RawVideo[], seen: Set<string>): void {
   for (const item of contents) {
     let video = null;
     
@@ -731,9 +747,9 @@ function extractFromContents(contents, videos, seen) {
  * @param {Object} data - ytInitialData
  * @returns {Array<Video>}
  */
-function extractWatchRecommendations(data) {
+function extractWatchRecommendations(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   // Primary path for watch page recommendations
   const secondary = get(data, 'contents.twoColumnWatchNextResults.secondaryResults.secondaryResults');
@@ -764,9 +780,9 @@ function extractWatchRecommendations(data) {
  * @param {Object} data - ytInitialData or any nested object
  * @returns {Array<Video>}
  */
-export function extractVideosFromData(data) {
+export function extractVideosFromData(data: any): RawVideo[] {
   const videos = [];
-  const seen = new Set();
+  const seen = new Set<string>();
   
   function walk(obj, depth = 0) {
     if (!obj || typeof obj !== 'object' || depth > 20) return;

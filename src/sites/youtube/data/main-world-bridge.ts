@@ -121,9 +121,9 @@ const MAIN_WORLD_SCRIPT = `
  *   data: The captured data
  * @returns {{ uninstall: () => void }}
  */
-export function installMainWorldBridge(onData) {
+export function installMainWorldBridge(onData: (type: string, data: any) => void): { uninstall: () => void } {
   // Listen for messages from main world
-  function handleBridgeEvent(event) {
+  function handleBridgeEvent(event: any): void {
     const { type, data } = event.detail || {};
     if (type && data) {
       onData(type, data);
@@ -134,7 +134,7 @@ export function installMainWorldBridge(onData) {
   
   // Inject script into main world
   // Must happen as early as possible to intercept ytInitialData
-  function injectScript() {
+  function injectScript(): boolean {
     const script = document.createElement('script');
     script.textContent = MAIN_WORLD_SCRIPT;
     

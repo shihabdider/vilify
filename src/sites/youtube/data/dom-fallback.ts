@@ -1,13 +1,14 @@
 // DOM Fallback Scraper
 // Wraps existing scraper.js functions with _source tagging
 
+import type { ContentItem, VideoContext } from '../../../types';
 import { getVideos as scrapeVideos, getVideoContext as scrapeVideoContext, getRecommendedVideos as scrapeRecommended } from '../scraper';
 
 /**
  * Scrape videos from DOM as fallback
  * @returns {Array<Video>}
  */
-export function scrapeDOMVideos() {
+export function scrapeDOMVideos(): ContentItem[] {
   const items = scrapeVideos();
   
   // Return items as-is since scraper.js already returns ContentItem format
@@ -19,7 +20,7 @@ export function scrapeDOMVideos() {
  * Scrape video context from DOM as fallback
  * @returns {VideoContext|null}
  */
-export function scrapeDOMVideoContext() {
+export function scrapeDOMVideoContext(): VideoContext | null {
   const ctx = scrapeVideoContext();
   if (!ctx) return null;
   
@@ -48,7 +49,7 @@ export function scrapeDOMVideoContext() {
  * Scrape recommendations from DOM as fallback
  * @returns {Array<ContentItem>}
  */
-export function scrapeDOMRecommendations() {
+export function scrapeDOMRecommendations(): ContentItem[] {
   const items = scrapeRecommended();
   
   // scraper.js already returns ContentItem format, just add _source tag
