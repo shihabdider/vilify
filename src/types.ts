@@ -1,0 +1,304 @@
+// Vilify Type Definitions
+// Central type file for gradual JS → TS migration
+// Phase 1: Loose types to get everything compiling
+// Phase 2: Strict types with proper narrowing
+
+// =============================================================================
+// CORE TYPES
+// =============================================================================
+
+export interface AppState {
+  core: AppCore;
+  ui: UIState;
+  site: any;
+  page: PageState | null;
+}
+
+export interface AppCore {
+  focusModeActive: boolean;
+  lastUrl: string;
+}
+
+export interface UIState {
+  drawer: string | null;
+  paletteQuery: string;
+  paletteSelectedIdx: number;
+  selectedIdx: number;
+  filterActive: boolean;
+  filterQuery: string;
+  searchActive: boolean;
+  searchQuery: string;
+  keySeq: string;
+  sort: SortConfig;
+  message: Message | null;
+  boundaryFlash: BoundaryFlash | null;
+  watchLaterAdded: Set<string>;
+  watchLaterRemoved: Map<string, WatchLaterRemoval>;
+  lastWatchLaterRemoval: WatchLaterRemoval | null;
+  dismissedVideos: Set<string>;
+  lastDismissal: { videoId: string } | null;
+}
+
+export interface SortConfig {
+  field: string | null;
+  direction: 'asc' | 'desc';
+}
+
+export interface Message {
+  text: string;
+  timestamp: number;
+}
+
+export interface BoundaryFlash {
+  edge: 'top' | 'bottom';
+  timestamp: number;
+}
+
+export interface WatchLaterRemoval {
+  videoId: string;
+  setVideoId: string;
+  position: number;
+}
+
+export interface KeyContext {
+  pageType: string | null;
+  filterActive: boolean;
+  searchActive: boolean;
+  drawer: string | null;
+}
+
+// =============================================================================
+// SITE TYPES
+// =============================================================================
+
+export interface SiteTheme {
+  bg1: string;
+  bg2: string;
+  bg3: string;
+  txt1: string;
+  txt2: string;
+  txt3: string;
+  txt4: string;
+  accent: string;
+  accentHover: string;
+}
+
+export interface SiteConfig {
+  name: string;
+  theme: SiteTheme;
+  pageConfigs: Record<string, PageConfig>;
+  getPageType: () => string;
+  scrape: (pageType: string) => ContentItem[];
+  render: (state: AppState, siteState: any, container: HTMLElement) => void;
+  getCommands?: (app: any) => any[];
+  getKeySequences?: (app: any, context: KeyContext) => Record<string, Function>;
+  getBlockedNativeKeys?: (context: KeyContext) => string[];
+  isNativeSearchInput?: (el: Element) => boolean;
+  createSiteState?: () => any;
+  getDrawerHandler?: (drawerState: any, siteState: any) => DrawerHandler | null;
+  onNavigate?: (oldUrl: string, newUrl: string, app: any) => void;
+  searchUrl?: (query: string) => string;
+  getSearchPlaceholder?: () => string;
+  getDrawerPlaceholder?: () => string | null;
+  [key: string]: any;
+}
+
+export interface PageConfig {
+  type: string;
+  hasList?: boolean;
+  hasGrid?: boolean;
+  gridColumns?: number;
+  [key: string]: any;
+}
+
+export interface DrawerHandler {
+  element: HTMLElement;
+  update?: (query: string) => void;
+  setQuery?: (query: string) => void;
+  navigateDrawer?: (direction: number) => void;
+  getSelected?: () => any;
+  cleanup?: () => void;
+  [key: string]: any;
+}
+
+export interface ContentItem {
+  title: string;
+  url: string;
+  id?: string;
+  meta?: string;
+  description?: string;
+  channel?: string;
+  channelUrl?: string;
+  thumbnail?: string;
+  duration?: string;
+  views?: string;
+  date?: string;
+  badges?: string[];
+  isLive?: boolean;
+  isShort?: boolean;
+  [key: string]: any;
+}
+
+// =============================================================================
+// PAGE STATE (union type)
+// =============================================================================
+
+export type PageState = ListPageState | WatchPageState;
+
+export interface ListPageState {
+  type: 'list';
+  videos: ContentItem[];
+}
+
+export interface WatchPageState {
+  type: 'watch';
+  videoContext: VideoContext | null;
+  recommended: ContentItem[];
+  chapters: Chapter[];
+}
+
+export interface VideoContext {
+  videoId: string;
+  title: string;
+  channelName: string;
+  channelUrl?: string;
+  subscriberCount?: string;
+  isSubscribed?: boolean;
+  viewCount?: string;
+  likeCount?: string;
+  publishDate?: string;
+  description?: string;
+  [key: string]: any;
+}
+
+export interface Chapter {
+  title: string;
+  time: number;
+  timeText: string;
+}
+
+// =============================================================================
+// YOUTUBE-SPECIFIC TYPES
+// =============================================================================
+
+export interface TranscriptSegment {
+  text: string;
+  start: number;
+  duration: number;
+}
+
+export interface TranscriptResult {
+  status: 'loading' | 'loaded' | 'error';
+  videoId: string;
+  segments?: TranscriptSegment[];
+  error?: string;
+}
+
+export interface ChaptersResult {
+  status: 'loading' | 'loaded' | 'error';
+  videoId: string;
+  chapters?: Chapter[];
+  error?: string;
+}
+
+export interface YouTubeState {
+  chapterQuery: string;
+  chapterSelectedIdx: number;
+  commentPage: number;
+  commentPageStarts: number[];
+  settingsApplied: boolean;
+  watchPageRetryCount: number;
+  commentLoadAttempts: number;
+  transcript: TranscriptResult | null;
+  chapters: ChaptersResult | null;
+}
+
+// =============================================================================
+// GOOGLE-SPECIFIC TYPES
+// =============================================================================
+
+export interface GoogleState {
+  [key: string]: any;
+}
+
+// =============================================================================
+// VIEW TREE TYPES
+// =============================================================================
+
+export interface StatusBarView {
+  mode: string;
+  inputVisible: boolean;
+  inputValue: string;
+  inputPlaceholder: string;
+  inputFocus: boolean;
+  hints: string | null;
+  sortLabel: string;
+  itemCount: number | null;
+  message: string | null;
+  boundaryFlash: BoundaryFlash | null;
+  keySeq: string;
+}
+
+export interface ContentView {
+  pageType: string | null;
+  items: ContentItem[];
+  selectedIdx: number;
+  renderFn: ((state: AppState, siteState: any, container: HTMLElement) => void) | null;
+  isWatchPage: boolean;
+}
+
+export interface DrawerView {
+  type: string;
+  handler: DrawerHandler | null;
+  query: string;
+  selectedIdx: number;
+}
+
+export interface ViewTree {
+  statusBar: StatusBarView;
+  content: ContentView;
+  drawer: DrawerView | null;
+}
+
+// =============================================================================
+// APP INTERFACE
+// =============================================================================
+
+export interface App {
+  getState: () => AppState;
+  getSiteState: () => any;
+  render: () => void;
+  openPalette: (mode?: string) => void;
+  openLocalFilter: () => void;
+  openDrawer: (drawerId: string) => void;
+  closeDrawer: () => void;
+  exitFocusMode: () => void;
+  executeSort: (field: string) => void;
+  [key: string]: any;
+}
+
+// =============================================================================
+// KEYBOARD TYPES
+// =============================================================================
+
+export interface KeyboardState {
+  keySeq: string;
+  keyTimer: number | null;
+}
+
+export interface KeyEventResult {
+  action: Function | null;
+  pendingAction: Function | null;
+  newSeq: string;
+  shouldPrevent: boolean;
+}
+
+// =============================================================================
+// SORT TYPES
+// =============================================================================
+
+export interface SortFieldDef {
+  name: string;
+  defaultDir: 'asc' | 'desc';
+  prefixes: string[];
+}

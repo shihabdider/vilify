@@ -5,7 +5,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // Main content script (runs in isolated world)
 const contentOptions = {
-  entryPoints: ['src/content.js'],
+  entryPoints: ['src/content.ts'],
   bundle: true,
   outfile: 'dist/content.js',
   format: 'iife',
@@ -16,7 +16,7 @@ const contentOptions = {
 
 // Data bridge script (runs in MAIN world)
 const bridgeOptions = {
-  entryPoints: ['src/sites/youtube/data-bridge.js'],
+  entryPoints: ['src/sites/youtube/data-bridge.ts'],
   bundle: true,
   outfile: 'dist/data-bridge.js',
   format: 'iife',

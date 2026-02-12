@@ -1,43 +1,53 @@
 # Iteration
 
-anchor: e174e9ae02fca7215aec9cec0899e29a7b1f0392
-started: 2026-02-11T11:51:00-05:00
+anchor: 3d7de2da46b83af1c67c190a1d4527a296fb2fe2
+started: 2026-02-11T23:46:00-05:00
 mode: data-definition-driven
-language: JavaScript
+language: JavaScript → TypeScript
 transparent: true
 
 ## Problem
 
-Refactor the keyboard engine to cleanly separate core vim-like sequence matching from site-specific bindings. Currently three separate binding mechanisms exist (hardcoded early-return keys, getKeySequences, getSingleKeyActions) which conflict with each other (the gh bug). YouTube-specific logic (watch page key blocking, search input detection) is baked into core/keyboard.js. The appCallbacks object (80 lines) is constructed inside the keyboard handler instead of being passed in.
+Convert the entire Vilify codebase from JavaScript to TypeScript. The project has 42 source files and 21 test files (~21K lines total) across src/core/, src/sites/google/, and src/sites/youtube/. The code already uses JSDoc type annotations extensively (AppState, UIState, SiteConfig, PageState, etc.), which should become proper TypeScript interfaces.
+
+Strategy: gradual — start with `strict: false` / `noImplicitAny: false`, get it compiling, tests passing.
 
 ## Data Definition Plan
 
-### New: KeyContext
-```
-KeyContext = { pageType: string|null, filterActive: bool, searchActive: bool, drawer: string|null }
-```
-Passed to getKeySequences so sites control which bindings are active per-context.
+### New: src/types.ts — Central type definitions file
+Extract all JSDoc type annotations into proper TypeScript interfaces/types:
 
-### New: normalizeKey(event) -> string|null
-Converts KeyboardEvent to engine key string:
-- Modifier-only → null
-- Ctrl+key → 'C-' + event.key  
-- Regular → event.key (case-sensitive; Shift naturally produces uppercase)
+**Core types:**
+- `AppState = { core: AppCore, ui: UIState, site: any, page: PageState | null }`
+- `AppCore = { focusModeActive: boolean, lastUrl: string }`
+- `UIState = { drawer, paletteQuery, paletteSelectedIdx, selectedIdx, filterActive, filterQuery, searchActive, searchQuery, keySeq, sort, message, boundaryFlash, watchLaterAdded, watchLaterRemoved, lastWatchLaterRemoval, dismissedVideos, lastDismissal }`
+- `SortConfig = { field: string | null, direction: 'asc' | 'desc' }`
+- `Message = { text: string, timestamp: number }`
+- `BoundaryFlash = { edge: 'top' | 'bottom', timestamp: number }`
+- `KeyContext = { pageType: string | null, filterActive: boolean, searchActive: boolean, drawer: string | null }`
 
-### Modified: handleKeyEvent(key, keySeq, sequences) 
-Takes normalized key string instead of event. No internal toLowerCase.
+**Site types:**
+- `SiteConfig` — the big interface (name, theme, pageConfigs, getKeySequences, etc.)
+- `SiteTheme = { bg1, bg2, bg3, txt1, txt2, txt3, txt4, accent, accentHover }`
+- `PageConfig = { scrape, render, ... }`
+- `DrawerHandler = { element, update?, setQuery?, navigateDrawer?, getSelected? }`
 
-### Modified: SiteConfig.getKeySequences(app, context) 
-Expanded to include ALL bindings (navigation, modifiers, sequences). Replaces getSingleKeyActions.
+**Content types:**
+- `ContentItem = { title, url, meta, description, ... }`
+- `PageState = ListPageState | WatchPageState`
+- `ListPageState = { type: 'list', videos: ContentItem[] }`
+- `WatchPageState = { type: 'watch', videoContext, recommended, chapters, ... }`
 
-### Removed: SiteConfig.getSingleKeyActions
-Merged into getKeySequences ('G' = Shift+G, 'C-f' = Ctrl+F).
+**YouTube-specific:**
+- `YouTubeState = { chapterQuery, chapterSelectedIdx, commentPage, ... transcript, chapters }`
+- `TranscriptResult`, `ChaptersResult`
 
-### New: SiteConfig.getBlockedNativeKeys(context) -> string[]
-Keys to preventDefault+stopPropagation (YouTube watch page native key suppression).
+**Google-specific:**
+- `GoogleState = {}`
 
-### New: SiteConfig.isNativeSearchInput(target) -> boolean
-Site-specific input detection (replaces hardcoded YouTube search selectors in core).
-
-### Modified: setupKeyboardEngine (renamed from setupKeyboardHandler)
-Simplified: input filtering + Escape stack + sequence engine. appCallbacks passed in from core/index.js.
+### Infrastructure changes:
+- Add `tsconfig.json` with loose settings
+- Add `typescript` and `@types/chrome` devDependencies
+- Update `build.js` entry points from .js to .ts
+- Rename all 63 .js files to .ts
+- Fix all import paths (remove .js extensions)
