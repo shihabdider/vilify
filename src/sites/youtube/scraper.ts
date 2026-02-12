@@ -151,28 +151,8 @@ function getWatchPageViews(): string | null {
   return null;
 }
 
-/**
- * Convert duration in seconds to human-readable format
- * @param {number} seconds
- * @returns {string} Like '1:05' or '1:01:01'
- * 
- * Examples:
- *   formatDuration(65) => '1:05'
- *   formatDuration(3661) => '1:01:01'
- *   formatDuration(0) => '0:00'
- */
-export function formatDuration(seconds: number | null | undefined): string {
-  if (!seconds || seconds <= 0) return '0:00';
-  
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
+/** @deprecated Use formatTimestamp from ./format directly */
+export { formatTimestamp as formatDuration } from './format';
 
 // =============================================================================
 // PAGE TYPE DETECTION

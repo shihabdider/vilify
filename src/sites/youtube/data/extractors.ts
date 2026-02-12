@@ -2,6 +2,7 @@
 // Pure functions that extract Video from various YouTube renderer formats
 
 import type { Chapter, VideoContext } from '../../../types';
+import { formatTimestamp } from '../format';
 
 /** Raw video data extracted from YouTube renderer objects, before normalization to ContentItem */
 export interface RawVideo {
@@ -63,20 +64,7 @@ function getBestThumbnail(thumbnails: any[]): string | null {
   return medium?.url || null;
 }
 
-/**
- * Format seconds to timestamp string
- * @param {number} seconds 
- * @returns {string}
- */
-function formatTimestamp(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+// formatTimestamp imported from ../format
 
 /**
  * Check if renderer is a Short (should be filtered out)
@@ -567,19 +555,47 @@ function extractSearchVideos(data: any): RawVideo[] {
 }
 
 /**
- * Extract videos from channel page.
- * Find "Videos" or "Home" tab, then extract from richGridRenderer.
+ * Shared helper: walk twoColumnBrowseResultsRenderer tabs and extract videos.
+ * Each page type provides a callback that extracts contents from each tab.
  * 
- * @param {Object} data
- * @returns {Array<Video>}
+ * @param data - ytInitialData
+ * @param extractTab - Callback that extracts videos from a single tab
+ * @returns Deduplicated array of RawVideo
  */
-function extractChannelVideos(data: any): RawVideo[] {
-  const videos = [];
+function extractFromTabs(
+  data: any,
+  extractTab: (tab: any, videos: RawVideo[], seen: Set<string>) => void
+): RawVideo[] {
+  const videos: RawVideo[] = [];
   const seen = new Set<string>();
   
   const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
   
   for (const tab of tabs) {
+    extractTab(tab, videos, seen);
+  }
+  
+  return videos;
+}
+
+/**
+ * Extract section list items from a tab and run extractFromContents on each section.
+ * Common pattern shared by playlist, history, and subscriptions extractors.
+ */
+function extractSectionItems(tab: any, videos: RawVideo[], seen: Set<string>): void {
+  const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
+  for (const section of sectionContents) {
+    const items = get(section, 'itemSectionRenderer.contents') || [];
+    extractFromContents(items, videos, seen);
+  }
+}
+
+/**
+ * Extract videos from channel page.
+ * Find "Videos" or "Home" tab, then extract from richGridRenderer.
+ */
+function extractChannelVideos(data: any): RawVideo[] {
+  return extractFromTabs(data, (tab, videos, seen) => {
     const tabTitle = get(tab, 'tabRenderer.title');
     const isSelected = get(tab, 'tabRenderer.selected');
     
@@ -590,62 +606,37 @@ function extractChannelVideos(data: any): RawVideo[] {
       extractFromContents(richContents, videos, seen);
       
       // Section list (alternate layout)
+      extractSectionItems(tab, videos, seen);
+      
+      // Shelf renderer (featured videos inside sections)
       const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
       for (const section of sectionContents) {
-        const items = get(section, 'itemSectionRenderer.contents') || [];
-        extractFromContents(items, videos, seen);
-        
-        // Shelf renderer (featured videos)
         const shelfItems = get(section, 'shelfRenderer.content.horizontalListRenderer.items') || [];
         extractFromContents(shelfItems, videos, seen);
       }
     }
-  }
-  
-  return videos;
+  });
 }
 
 /**
  * Extract videos from subscriptions page.
- * 
- * @param {Object} data
- * @returns {Array<Video>}
  */
 function extractSubscriptionsVideos(data: any): RawVideo[] {
-  const videos = [];
-  const seen = new Set<string>();
-  
-  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
-  
-  for (const tab of tabs) {
+  return extractFromTabs(data, (tab, videos, seen) => {
     // Rich grid layout
     const richContents = get(tab, 'tabRenderer.content.richGridRenderer.contents') || [];
     extractFromContents(richContents, videos, seen);
     
     // Section list layout
-    const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
-    for (const section of sectionContents) {
-      const items = get(section, 'itemSectionRenderer.contents') || [];
-      extractFromContents(items, videos, seen);
-    }
-  }
-  
-  return videos;
+    extractSectionItems(tab, videos, seen);
+  });
 }
 
 /**
  * Extract videos from playlist page.
- * 
- * @param {Object} data
- * @returns {Array<Video>}
  */
 function extractPlaylistVideos(data: any): RawVideo[] {
-  const videos = [];
-  const seen = new Set<string>();
-  
-  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
-  
-  for (const tab of tabs) {
+  return extractFromTabs(data, (tab, videos, seen) => {
     const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
     
     for (const section of sectionContents) {
@@ -654,33 +645,14 @@ function extractPlaylistVideos(data: any): RawVideo[] {
                            get(section, 'itemSectionRenderer.contents') || [];
       extractFromContents(playlistItems, videos, seen);
     }
-  }
-  
-  return videos;
+  });
 }
 
 /**
  * Extract videos from history/library pages.
- * 
- * @param {Object} data
- * @returns {Array<Video>}
  */
 function extractHistoryVideos(data: any): RawVideo[] {
-  const videos = [];
-  const seen = new Set<string>();
-  
-  const tabs = get(data, 'contents.twoColumnBrowseResultsRenderer.tabs') || [];
-  
-  for (const tab of tabs) {
-    const sectionContents = get(tab, 'tabRenderer.content.sectionListRenderer.contents') || [];
-    
-    for (const section of sectionContents) {
-      const items = get(section, 'itemSectionRenderer.contents') || [];
-      extractFromContents(items, videos, seen);
-    }
-  }
-  
-  return videos;
+  return extractFromTabs(data, extractSectionItems);
 }
 
 /**
@@ -773,6 +745,16 @@ function extractWatchRecommendations(data: any): RawVideo[] {
 // RECURSIVE VIDEO EXTRACTION (FALLBACK)
 // =============================================================================
 
+/** Map of renderer key → extractor function for recursive fallback extraction */
+const rendererExtractors: [string, (r: any) => RawVideo | null][] = [
+  ['videoRenderer', extractVideoRenderer],
+  ['compactVideoRenderer', extractCompactVideoRenderer],
+  ['gridVideoRenderer', extractGridVideoRenderer],
+  ['playlistVideoRenderer', extractPlaylistVideoRenderer],
+  ['richItemRenderer', extractRichItemRenderer],
+  ['lockupViewModel', extractLockupViewModel],
+];
+
 /**
  * Recursively extract all videos from ytInitialData.
  * Used as fallback when page-specific extractor doesn't match.
@@ -781,59 +763,26 @@ function extractWatchRecommendations(data: any): RawVideo[] {
  * @returns {Array<Video>}
  */
 export function extractVideosFromData(data: any): RawVideo[] {
-  const videos = [];
+  const videos: RawVideo[] = [];
   const seen = new Set<string>();
   
-  function walk(obj, depth = 0) {
+  function walk(obj: any, depth = 0) {
     if (!obj || typeof obj !== 'object' || depth > 20) return;
     
-    // Check for renderer types
-    if (obj.videoRenderer) {
-      const video = extractVideoRenderer(obj.videoRenderer);
-      if (video && !seen.has(video.videoId)) {
-        seen.add(video.videoId);
-        videos.push(video);
+    // Check all renderer types
+    for (const [key, extractor] of rendererExtractors) {
+      if (obj[key]) {
+        const video = extractor(obj[key]);
+        if (video && !seen.has(video.videoId)) {
+          seen.add(video.videoId);
+          videos.push(video);
+        }
       }
     }
     
-    if (obj.compactVideoRenderer) {
-      const video = extractCompactVideoRenderer(obj.compactVideoRenderer);
-      if (video && !seen.has(video.videoId)) {
-        seen.add(video.videoId);
-        videos.push(video);
-      }
-    }
-    
-    if (obj.gridVideoRenderer) {
-      const video = extractGridVideoRenderer(obj.gridVideoRenderer);
-      if (video && !seen.has(video.videoId)) {
-        seen.add(video.videoId);
-        videos.push(video);
-      }
-    }
-    
-    if (obj.playlistVideoRenderer) {
-      const video = extractPlaylistVideoRenderer(obj.playlistVideoRenderer);
-      if (video && !seen.has(video.videoId)) {
-        seen.add(video.videoId);
-        videos.push(video);
-      }
-    }
-    
-    if (obj.richItemRenderer) {
-      const video = extractRichItemRenderer(obj.richItemRenderer);
-      if (video && !seen.has(video.videoId)) {
-        seen.add(video.videoId);
-        videos.push(video);
-      }
-    }
-    
-    if (obj.lockupViewModel) {
-      const video = extractLockupViewModel(obj.lockupViewModel);
-      if (video && !seen.has(video.videoId)) {
-        seen.add(video.videoId);
-        videos.push(video);
-      }
+    // Skip shorts
+    if (obj.shortsLockupViewModel) {
+      // Intentionally empty — shorts are filtered out
     }
     
     // Recurse into arrays and objects

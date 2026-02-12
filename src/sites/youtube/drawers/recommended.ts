@@ -1,15 +1,11 @@
 // YouTube recommended videos drawer
-// Uses core's createListDrawer factory
+// Uses core's createListDrawer factory + createCachedDrawer for instance caching
 
-import { createListDrawer } from '../../../core/drawer';
+import { createListDrawer, createCachedDrawer } from '../../../core/drawer';
 import { el } from '../../../core/view';
 import type { ContentItem, DrawerHandler } from '../../../types';
 
 let cachedRecommended: ContentItem[] = [];
-
-let recommendedDrawer: DrawerHandler | null = null;
-
-let drawerItems: ContentItem[] | null = null;
 
 /**
  * Update the cached recommended items.
@@ -86,6 +82,8 @@ export function createRecommendedDrawer(items: ContentItem[]): DrawerHandler {
   });
 }
 
+const cached = createCachedDrawer(createRecommendedDrawer);
+
 /**
  * Get or create the recommended drawer handler.
  * Recreates if items changed.
@@ -97,26 +95,13 @@ export function getRecommendedDrawer(): DrawerHandler | null {
     return null;
   }
   
-  // Recreate if items changed
-  if (!recommendedDrawer || drawerItems !== cachedRecommended) {
-    if (recommendedDrawer?.cleanup) {
-      recommendedDrawer.cleanup();
-    }
-    recommendedDrawer = createRecommendedDrawer(cachedRecommended);
-    drawerItems = cachedRecommended;
-  }
-  
-  return recommendedDrawer;
+  return cached.get(cachedRecommended);
 }
 
 /**
  * Reset the cached drawer (call when navigating away from watch page)
  */
 export function resetRecommendedDrawer(): void {
-  if (recommendedDrawer?.cleanup) {
-    recommendedDrawer.cleanup();
-  }
-  recommendedDrawer = null;
-  drawerItems = null;
+  cached.reset();
   cachedRecommended = [];
 }

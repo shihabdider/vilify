@@ -1,7 +1,7 @@
 // YouTube transcript drawer
-// Uses core's createListDrawer factory
+// Uses core's createListDrawer factory + createCachedDrawer for instance caching
 
-import { createListDrawer } from '../../../core/drawer';
+import { createListDrawer, createCachedDrawer } from '../../../core/drawer';
 import { el, showMessage } from '../../../core/view';
 import { seekToChapter } from '../player';
 import type { TranscriptResult, DrawerHandler } from '../../../types';
@@ -42,34 +42,18 @@ export function createTranscriptDrawer(transcript: TranscriptResult): DrawerHand
   });
 }
 
-let transcriptDrawer: DrawerHandler | null = null;
-
-let cachedTranscript: TranscriptResult | null = null;
+const cached = createCachedDrawer(createTranscriptDrawer);
 
 /**
  * Get or create the transcript drawer handler.
- * @param {TranscriptResult} transcript - Transcript data
- * @returns {DrawerHandler}
  */
-export function getTranscriptDrawer(transcript: TranscriptResult): DrawerHandler | null {
-  // Recreate if transcript changed
-  if (!transcriptDrawer || transcript !== cachedTranscript) {
-    if (transcriptDrawer?.cleanup) {
-      transcriptDrawer.cleanup();
-    }
-    transcriptDrawer = createTranscriptDrawer(transcript);
-    cachedTranscript = transcript;
-  }
-  return transcriptDrawer;
+export function getTranscriptDrawer(transcript: TranscriptResult): DrawerHandler {
+  return cached.get(transcript);
 }
 
 /**
  * Reset the cached drawer
  */
 export function resetTranscriptDrawer(): void {
-  if (transcriptDrawer?.cleanup) {
-    transcriptDrawer.cleanup();
-  }
-  transcriptDrawer = null;
-  cachedTranscript = null;
+  cached.reset();
 }

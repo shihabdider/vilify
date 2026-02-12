@@ -531,3 +531,51 @@ export function closeDrawer(): void {
     clear(drawerContainer);
   }
 }
+
+// =============================================================================
+// CACHED DRAWER FACTORY
+// =============================================================================
+
+/**
+ * Create a cached drawer that automatically recreates when its data changes.
+ * Eliminates the boilerplate of managing drawer instance + cached data + reset.
+ *
+ * @param createDrawer - Factory function that creates a DrawerHandler from data
+ * @returns Object with get(data), reset(), and the cached handler
+ *
+ * Example:
+ *   const cached = createCachedDrawer(createChapterDrawer);
+ *   // Later:
+ *   const handler = cached.get(chaptersResult);  // creates or reuses
+ *   cached.reset();                                // on navigation
+ */
+export function createCachedDrawer<T>(
+  createDrawer: (data: T) => DrawerHandler
+): {
+  get: (data: T) => DrawerHandler;
+  reset: () => void;
+} {
+  let drawer: DrawerHandler | null = null;
+  let cachedData: T | null = null;
+  
+  return {
+    get(data: T): DrawerHandler {
+      if (!drawer || data !== cachedData) {
+        if (drawer?.cleanup) {
+          drawer.cleanup();
+        }
+        drawer = createDrawer(data);
+        cachedData = data;
+      }
+      return drawer;
+    },
+    
+    reset(): void {
+      if (drawer?.cleanup) {
+        drawer.cleanup();
+      }
+      drawer = null;
+      cachedData = null;
+    }
+  };
+}

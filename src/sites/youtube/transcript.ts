@@ -1,6 +1,7 @@
 // YouTube transcript fetching - DOM scraping approach
 
 import type { TranscriptSegment } from '../../types';
+import { formatTimestamp } from './format';
 
 /** A single transcript line as scraped from the DOM */
 interface TranscriptLine {
@@ -18,21 +19,8 @@ interface TranscriptFetchResult {
   language: string | null;
 }
 
-/**
- * Format seconds to timestamp string
- * @param {number} seconds - Time in seconds  
- * @returns {string} Formatted like '0:45' or '1:02:05'
- */
-export function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+/** @deprecated Use formatTimestamp from ./format directly */
+export { formatTimestamp as formatTime } from './format';
 
 /**
  * Parse timestamp string to seconds

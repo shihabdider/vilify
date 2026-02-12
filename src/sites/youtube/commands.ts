@@ -6,6 +6,7 @@ import * as player from './player';
 import { getYouTubePageType } from './scraper';
 import { getDataProvider } from './data/index';
 import { showMessage } from '../../core/view';
+import { formatTimestamp } from './format';
 
 /** Get video context using DataProvider */
 function getVideoContext(): Record<string, any> | null {
@@ -55,21 +56,7 @@ async function copyToClipboard(text: string, message?: string): Promise<void> {
   }
 }
 
-/**
- * Format seconds to timestamp string
- * @param {number} seconds - Time in seconds
- * @returns {string} Formatted timestamp like '1:23' or '1:23:45'
- */
-function formatTimestamp(seconds: number): string {
-  if (!seconds || !isFinite(seconds)) return '0:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+// formatTimestamp imported from ./format
 
 // =============================================================================
 // COPY ACTIONS
