@@ -1,6 +1,7 @@
 // State management - Core state functions for Vilify
 // Following HTDP design from .design/DATA.md and .design/WORLD.md
 
+import type { AppState, UIState, AppCore, SortConfig, SiteConfig, ContentItem, PageState, Message, BoundaryFlash, WatchLaterRemoval } from '../types';
 import { sortItems } from './sort';
 
 // =============================================================================
@@ -13,7 +14,7 @@ import { sortItems } from './sort';
  *
  * @returns {UIState} Initial UI state
  */
-function createUIState() {
+function createUIState(): UIState {
   return {
     drawer: null,           // DrawerType: null | 'palette' | site-specific string
     paletteQuery: '',
@@ -41,7 +42,7 @@ function createUIState() {
  *
  * @returns {AppCore} Initial core state
  */
-function createAppCore() {
+function createAppCore(): AppCore {
   return {
     focusModeActive: false,
     lastUrl: ''
@@ -73,7 +74,7 @@ function createAppCore() {
  * createAppState({ name: 'google' })
  *   => { core: { ... }, ui: { ... }, site: null, page: null }
  */
-export function createAppState(config = null) {
+export function createAppState(config?: SiteConfig | null): AppState {
   // Template: Compound - construct all fields
   // config is optional Compound - access createSiteState if exists
   return {
@@ -102,7 +103,7 @@ export function createAppState(config = null) {
  * getMode({ ui: { drawer: null, searchActive: true } })                         => 'SEARCH'
  * getMode({ ui: { drawer: 'chapters' } })                                       => 'CHAPTERS'
  */
-export function getMode(state) {
+export function getMode(state: AppState): string {
   // Template: Compound - access drawer, filterActive, searchActive
   const { drawer, filterActive, searchActive } = state.ui;
 
@@ -149,7 +150,7 @@ export function getMode(state) {
  * getVisibleItems({ ui: { sort: { field: 'date', direction: 'desc' } } }, items)
  *   => items sorted by date descending
  */
-export function getVisibleItems(state, items) {
+export function getVisibleItems(state: AppState, items: ContentItem[]): ContentItem[] {
   // Template: items is List → filter then map/sort
   // state is Compound → access filterActive, filterQuery, sort
   
@@ -218,7 +219,7 @@ export function getVisibleItems(state, items) {
  * // Empty list
  * onNavigate(state, 'down', 0)  => { state: { ui: { selectedIdx: 0 } }, boundary: null }
  */
-export function onNavigate(state, direction, itemCount, step = 1) {
+export function onNavigate(state: AppState, direction: string, itemCount: number, step: number = 1): { state: AppState, boundary: 'top' | 'bottom' | null } {
   // Template: direction is Enumeration → case per value
   // itemCount is Atomic → use directly
   // state is Compound → access ui.selectedIdx
@@ -309,7 +310,7 @@ export function onNavigate(state, direction, itemCount, step = 1) {
  * onFilterToggle({ ui: { filterActive: true, filterQuery: 'test' } })
  *   => { ui: { filterActive: false, filterQuery: '' } }
  */
-export function onFilterToggle(state) {
+export function onFilterToggle(state: AppState): AppState {
   // Template: Compound → access filterActive, filterQuery
   const isActive = state.ui.filterActive;
   
@@ -336,7 +337,7 @@ export function onFilterToggle(state) {
  * onFilterChange({ ui: { filterQuery: '' } }, 'test')
  *   => { ui: { filterQuery: 'test', selectedIdx: 0 } }
  */
-export function onFilterChange(state, query) {
+export function onFilterChange(state: AppState, query: string): AppState {
   // Template: query is Atomic → use directly
   return {
     ...state,
@@ -364,7 +365,7 @@ export function onFilterChange(state, query) {
  * onDrawerOpen({ ui: { drawer: null } }, 'chapters')
  *   => { ui: { drawer: 'chapters' } }
  */
-export function onDrawerOpen(state, drawerType) {
+export function onDrawerOpen(state: AppState, drawerType: string): AppState {
   // Template: drawerType is Atomic → use directly
   const updates = { drawer: drawerType };
   
@@ -391,7 +392,7 @@ export function onDrawerOpen(state, drawerType) {
  * onDrawerClose({ ui: { drawer: 'palette' } })
  *   => { ui: { drawer: null, paletteQuery: '', paletteSelectedIdx: 0 } }
  */
-export function onDrawerClose(state) {
+export function onDrawerClose(state: AppState): AppState {
   return {
     ...state,
     ui: {
@@ -419,7 +420,7 @@ export function onDrawerClose(state) {
  * onKeySeqUpdate({ ui: { keySeq: 'g' } }, 'h')
  *   => { ui: { keySeq: 'gh' } }
  */
-export function onKeySeqUpdate(state, key) {
+export function onKeySeqUpdate(state: AppState, key: string): AppState {
   const newSeq = state.ui.keySeq + key;
   return { ...state, ui: { ...state.ui, keySeq: newSeq } };
 }
@@ -435,7 +436,7 @@ export function onKeySeqUpdate(state, key) {
  * onKeySeqClear({ ui: { keySeq: 'gh' } })
  *   => { ui: { keySeq: '' } }
  */
-export function onKeySeqClear(state) {
+export function onKeySeqClear(state: AppState): AppState {
   return { ...state, ui: { ...state.ui, keySeq: '' } };
 }
 
@@ -457,7 +458,7 @@ export function onKeySeqClear(state) {
  * onSortChange(state, null, 'desc')
  *   => { ui: { sort: { field: null, direction: 'desc' }, selectedIdx: 0 } }
  */
-export function onSortChange(state, field, direction) {
+export function onSortChange(state: AppState, field: string | null, direction: 'asc' | 'desc'): AppState {
   return {
     ...state,
     ui: {
@@ -480,7 +481,7 @@ export function onSortChange(state, field, direction) {
  * onShowMessage(state, 'Copied!')
  *   => { ui: { message: { text: 'Copied!', timestamp: <now> } } }
  */
-export function onShowMessage(state, text) {
+export function onShowMessage(state: AppState, text: string): AppState {
   const message = { text, timestamp: Date.now() };
   return { ...state, ui: { ...state.ui, message } };
 }
@@ -497,7 +498,7 @@ export function onShowMessage(state, text) {
  * onBoundaryHit(state, 'top')
  *   => { ui: { boundaryFlash: { edge: 'top', timestamp: <now> } } }
  */
-export function onBoundaryHit(state, edge) {
+export function onBoundaryHit(state: AppState, edge: 'top' | 'bottom'): AppState {
   const boundaryFlash = { edge, timestamp: Date.now() };
   return { ...state, ui: { ...state.ui, boundaryFlash } };
 }
@@ -514,7 +515,7 @@ export function onBoundaryHit(state, edge) {
  * onWatchLaterAdd(state, 'abc123')
  *   => { ui: { watchLaterAdded: Set(['abc123']) } }
  */
-export function onWatchLaterAdd(state, videoId) {
+export function onWatchLaterAdd(state: AppState, videoId: string): AppState {
   const newSet = new Set(state.ui.watchLaterAdded);
   newSet.add(videoId);
   return { ...state, ui: { ...state.ui, watchLaterAdded: newSet } };
@@ -534,7 +535,7 @@ export function onWatchLaterAdd(state, videoId) {
  * onWatchLaterRemove(state, 'abc123', 'PLAYLIST_ITEM_ID', 2)
  *   => { ui: { watchLaterRemoved: Map([['abc123', { setVideoId, position }]]), lastWatchLaterRemoval: {...} } }
  */
-export function onWatchLaterRemove(state, videoId, setVideoId, position) {
+export function onWatchLaterRemove(state: AppState, videoId: string, setVideoId: string, position: number): AppState {
   const newMap = new Map(state.ui.watchLaterRemoved);
   newMap.set(videoId, { setVideoId, position });
   return { 
@@ -559,7 +560,7 @@ export function onWatchLaterRemove(state, videoId, setVideoId, position) {
  * onWatchLaterUndoRemove(state, 'abc123')
  *   => { ui: { watchLaterRemoved: Map([]) } }
  */
-export function onWatchLaterUndoRemove(state, videoId) {
+export function onWatchLaterUndoRemove(state: AppState, videoId: string): AppState {
   const newMap = new Map(state.ui.watchLaterRemoved);
   newMap.delete(videoId);
   return { 
@@ -586,7 +587,7 @@ export function onWatchLaterUndoRemove(state, videoId) {
  * onDismissVideo(state, 'abc123')
  *   => { ui: { dismissedVideos: Set(['abc123']), lastDismissal: { videoId: 'abc123' } } }
  */
-export function onDismissVideo(state, videoId) {
+export function onDismissVideo(state: AppState, videoId: string): AppState {
   const newSet = new Set(state.ui.dismissedVideos);
   newSet.add(videoId);
   return { ...state, ui: { ...state.ui, dismissedVideos: newSet, lastDismissal: { videoId } } };
@@ -604,7 +605,7 @@ export function onDismissVideo(state, videoId) {
  * onUndoDismissVideo(state, 'abc123')
  *   => { ui: { dismissedVideos: Set([]), lastDismissal: null } }
  */
-export function onUndoDismissVideo(state, videoId) {
+export function onUndoDismissVideo(state: AppState, videoId: string): AppState {
   const newSet = new Set(state.ui.dismissedVideos);
   newSet.delete(videoId);
   return { ...state, ui: { ...state.ui, dismissedVideos: newSet, lastDismissal: null } };
@@ -619,7 +620,7 @@ export function onUndoDismissVideo(state, videoId) {
  * @param {number} flashTimeout - Boundary flash duration in ms (default 150)
  * @returns {AppState} New state with expired flashes cleared
  */
-export function onClearFlash(state, messageTimeout = 2000, flashTimeout = 150) {
+export function onClearFlash(state: AppState, messageTimeout: number = 2000, flashTimeout: number = 150): AppState {
   const now = Date.now();
   
   const { message, boundaryFlash } = state.ui;
@@ -640,7 +641,7 @@ export function onClearFlash(state, messageTimeout = 2000, flashTimeout = 150) {
  * @param {AppState} state - Current state
  * @returns {AppState} New state with searchActive toggled
  */
-export function onSearchToggle(state) {
+export function onSearchToggle(state: AppState): AppState {
   const isActive = state.ui.searchActive;
   
   return {
@@ -661,7 +662,7 @@ export function onSearchToggle(state) {
  * @param {string} query - New search query
  * @returns {AppState} New state with updated searchQuery
  */
-export function onSearchChange(state, query) {
+export function onSearchChange(state: AppState, query: string): AppState {
   return { ...state, ui: { ...state.ui, searchQuery: query } };
 }
 
@@ -673,7 +674,7 @@ export function onSearchChange(state, query) {
  * @param {string} query - New palette query
  * @returns {AppState} New state with updated paletteQuery and reset selection
  */
-export function onPaletteQueryChange(state, query) {
+export function onPaletteQueryChange(state: AppState, query: string): AppState {
   return {
     ...state,
     ui: { ...state.ui, paletteQuery: query, paletteSelectedIdx: 0 }
@@ -689,7 +690,7 @@ export function onPaletteQueryChange(state, query) {
  * @param {number} itemCount - Number of items in palette
  * @returns {{ state: AppState, boundary: 'top' | 'bottom' | null }}
  */
-export function onPaletteNavigate(state, direction, itemCount) {
+export function onPaletteNavigate(state: AppState, direction: string, itemCount: number): { state: AppState, boundary: 'top' | 'bottom' | null } {
   const currentIdx = state.ui.paletteSelectedIdx;
   const maxIdx = Math.max(0, itemCount - 1);
   
@@ -731,7 +732,7 @@ export function onPaletteNavigate(state, direction, itemCount) {
  * @param {SiteConfig|null} config - Site config for recreating site state if needed
  * @returns {AppState} New state with page reset
  */
-export function onUrlChange(state, newUrl, config = null) {
+export function onUrlChange(state: AppState, newUrl: string, config?: SiteConfig | null): AppState {
   return {
     ...state,
     core: { ...state.core, lastUrl: newUrl },
@@ -771,7 +772,7 @@ export function onUrlChange(state, newUrl, config = null) {
  * onPageUpdate(state, { type: 'watch', videoContext: null, recommended: [], chapters: [] })
  *   => { ...state, page: { type: 'watch', ... } }
  */
-export function onPageUpdate(state, pageState) {
+export function onPageUpdate(state: AppState, pageState: PageState): AppState {
   // Template: pageState is Compound → use directly
   return {
     ...state,
@@ -803,7 +804,7 @@ export function onPageUpdate(state, pageState) {
  * onListItemsUpdate({ page: null }, [video1])
  *   => { page: null }
  */
-export function onListItemsUpdate(state, videos) {
+export function onListItemsUpdate(state: AppState, videos: ContentItem[]): AppState {
   // Template: state.page is Itemization → check type discriminator
   
   // Only update if we have a list page
@@ -829,7 +830,7 @@ export function onListItemsUpdate(state, videos) {
  * @param {Array} items - New items (stored in page state if needed)
  * @returns {AppState} State (potentially with page.items updated)
  */
-export function onItemsUpdate(state, items) {
+export function onItemsUpdate(state: AppState, items: ContentItem[]): AppState {
   // Delegate to onListItemsUpdate for list pages
   return onListItemsUpdate(state, items);
 }
@@ -859,7 +860,7 @@ export function onItemsUpdate(state, items) {
  * onSelect(state, [], false)
  *   => { action: null, url: null }
  */
-export function onSelect(state, visibleItems, shiftKey = false) {
+export function onSelect(state: AppState, visibleItems: ContentItem[], shiftKey: boolean = false): { action: 'navigate' | 'newTab' | null, url: string | null } {
   // Template: visibleItems is List → access by index
   // state is Compound → access selectedIdx
   // shiftKey is Boolean → case per value
