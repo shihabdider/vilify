@@ -2,6 +2,7 @@
 // Custom item renderer for YouTube video listings with two-column layout
 
 import { el } from '../../core/view';
+import type { ContentItem, WatchLaterRemoval } from '../../types';
 
 // =============================================================================
 // CSS STYLES
@@ -56,7 +57,7 @@ let stylesInjected = false;
  * Inject YouTube item styles
  * [I/O]
  */
-export function injectYouTubeItemStyles() {
+export function injectYouTubeItemStyles(): void {
   if (stylesInjected) return;
   
   const styleEl = document.createElement('style');
@@ -89,7 +90,7 @@ export function injectYouTubeItemStyles() {
  * renderYouTubeItem({ title: 'Video', meta: 'Channel · 2d ago', data: { viewCount: '1M views', duration: '12:34' } }, true, new Set(), new Map(), new Set())
  * // Returns element with two-column layout
  */
-export function renderYouTubeItem(item, isSelected, watchLaterAdded = new Set(), watchLaterRemoved = new Map(), dismissedVideos = new Set()) {
+export function renderYouTubeItem(item: ContentItem, isSelected: boolean, watchLaterAdded: Set<string> = new Set(), watchLaterRemoved: Map<string, WatchLaterRemoval> = new Map(), dismissedVideos: Set<string> = new Set()): HTMLElement {
   // Handle group headers
   if ('group' in item && item.group) {
     return el('div', { class: 'vilify-group-header' }, [item.group]);
