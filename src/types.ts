@@ -86,28 +86,43 @@ export interface SiteTheme {
 export interface SiteConfig {
   name: string;
   theme: SiteTheme;
-  pageConfigs: Record<string, PageConfig>;
+  matches?: string[];
+  logo?: string | null;
   getPageType: () => string;
-  scrape: (pageType: string) => ContentItem[];
-  render: (state: AppState, siteState: any, container: HTMLElement) => void;
-  getCommands?: (app: any) => any[];
+  getItems?: () => ContentItem[];
+  createPageState?: () => any;
+  pages?: Record<string, PageConfig>;
+  getCommands?: (ctx: any) => any[];
   getKeySequences?: (app: any, context: KeyContext) => Record<string, Function>;
   getBlockedNativeKeys?: (context: KeyContext) => string[];
   isNativeSearchInput?: (el: Element) => boolean;
   createSiteState?: () => any;
-  getDrawerHandler?: (drawerState: any, siteState: any) => DrawerHandler | null;
+  getDrawerHandler?: (drawerState: any, siteState?: any) => DrawerHandler | null;
   onNavigate?: (oldUrl: string, newUrl: string, app: any) => void;
   searchUrl?: (query: string) => string;
-  getSearchPlaceholder?: () => string;
-  getDrawerPlaceholder?: () => string | null;
+  searchPlaceholder?: string;
+  addToWatchLater?: (videoId: string) => Promise<boolean>;
+  getPlaylistItemData?: (videoId: string) => Promise<{ setVideoId: string; position: number } | null>;
+  removeFromWatchLater?: (setVideoId: string) => Promise<boolean>;
+  undoRemoveFromWatchLater?: (videoId: string, position: number) => Promise<boolean>;
+  dismissVideo?: (videoId: string) => Promise<boolean>;
+  clickUndoDismiss?: () => Promise<boolean>;
+  getDescription?: () => string;
+  getChapters?: () => Chapter[];
+  seekToChapter?: (chapter: Chapter) => void;
+  getPageCache?: (url: string) => ContentItem[] | null;
+  setPageCache?: (url: string, items: ContentItem[]) => void;
   [key: string]: any;
 }
 
 export interface PageConfig {
-  type: string;
-  hasList?: boolean;
-  hasGrid?: boolean;
+  render?: (state: AppState, siteState: any, container: HTMLElement) => void;
+  onEnter?: (ctx: any) => void | Promise<void>;
+  onLeave?: () => void;
+  waitForContent?: () => boolean;
   gridColumns?: number;
+  nextCommentPage?: () => void;
+  prevCommentPage?: () => void;
   [key: string]: any;
 }
 

@@ -1,6 +1,7 @@
 // YouTube site configuration
 // Following HTDP design from .design/DATA.md and .design/BLUEPRINT.md
 
+import type { SiteConfig, SiteTheme, YouTubeState, AppState, ContentItem, PageConfig, App, KeyContext, DrawerHandler } from '../../types';
 import { getYouTubePageType, getDescription, getChapters, extractVideoId } from './scraper';
 import { getDataProvider } from './data/index';
 import { getYouTubeCommands, getYouTubeKeySequences, getYouTubeBlockedNativeKeys, addToWatchLater, getPlaylistItemData, removeFromWatchLater, undoRemoveFromWatchLater, dismissVideo, clickUndoDismiss } from './commands';
@@ -30,7 +31,7 @@ import { getPageItems } from '../../core/view-tree';
  * YouTube theme - Solarized Dark with YouTube red accent
  * @type {SiteTheme}
  */
-const youtubeTheme = {
+const youtubeTheme: SiteTheme = {
   bg1: '#002b36',
   bg2: '#073642',
   bg3: '#0a4a5c',
@@ -58,7 +59,7 @@ const youtubeTheme = {
  *        commentPage: 0, commentPageStarts: [0],
  *        settingsApplied: false, watchPageRetryCount: 0, commentLoadAttempts: 0 }
  */
-function createYouTubeState() {
+function createYouTubeState(): YouTubeState {
   // Template: Compound - construct all fields per YouTubeState definition
   return {
     chapterQuery: '',
@@ -92,7 +93,7 @@ const WATCH_RETRY_DELAY = 500;
  * @param {YouTubeState} siteState - YouTube state
  * @param {HTMLElement} container - Container to render into
  */
-function renderYouTubeListing(state, siteState, container) {
+function renderYouTubeListing(state: AppState, siteState: YouTubeState, container: HTMLElement): void {
   injectYouTubeItemStyles();
   
   // Use state.page.videos (same source as handleSelect) so sort/filter
@@ -115,12 +116,12 @@ function renderYouTubeListing(state, siteState, container) {
 }
 
 /** Current watch page retry timer */
-let watchRetryTimer = null;
+let watchRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Clear any pending watch page retry
  */
-function clearWatchRetry() {
+function clearWatchRetry(): void {
   if (watchRetryTimer) {
     clearTimeout(watchRetryTimer);
     watchRetryTimer = null;
@@ -131,7 +132,7 @@ function clearWatchRetry() {
  * Render watch page with retry logic for async metadata loading
  * [I/O]
  */
-function renderWatchWithRetry(state, siteState, container, retryCount = 0) {
+function renderWatchWithRetry(state: AppState, siteState: YouTubeState, container: HTMLElement, retryCount: number = 0): void {
   injectWatchStyles();
   document.body.classList.add('vilify-watch-page');
   
@@ -176,7 +177,7 @@ function renderWatchWithRetry(state, siteState, container, retryCount = 0) {
  * Used for home, search, subscriptions, channel, playlist, etc.
  * @type {PageConfig}
  */
-const listingPageConfig = {
+const listingPageConfig: PageConfig = {
   render: renderYouTubeListing,
   // No special lifecycle needed for listing pages
 };
@@ -185,7 +186,7 @@ const listingPageConfig = {
  * Watch page config with lifecycle hooks.
  * @type {PageConfig}
  */
-const watchPageConfig = {
+const watchPageConfig: PageConfig = {
   render: (state, siteState, container) => {
     renderWatchWithRetry(state, siteState, container, 0);
   },
@@ -272,7 +273,7 @@ const watchPageConfig = {
  * Defines theme, page detection, scrapers, commands, and page configs.
  * @type {SiteConfig}
  */
-export const youtubeConfig = {
+export const youtubeConfig: SiteConfig = {
   name: 'youtube',
   matches: ['*://www.youtube.com/*', '*://youtube.com/*'],
   theme: youtubeTheme,

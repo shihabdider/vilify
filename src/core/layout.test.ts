@@ -36,10 +36,7 @@ function makeConfig(overrides: Partial<SiteConfig> = {}): SiteConfig {
   return {
     name: 'test',
     theme: makeTheme(),
-    pageConfigs: {},
     getPageType: () => 'home',
-    scrape: () => [],
-    render: () => {},
     ...overrides,
   };
 }
