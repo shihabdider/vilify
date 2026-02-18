@@ -67,7 +67,7 @@ export function toStatusBarView(state: AppState, drawerPlaceholder?: string | nu
     inputValue = paletteQuery;
     inputPlaceholder = 'Command...';
     inputFocus = true;
-    hints = '↑↓ navigate ↵ select esc close';
+    hints = '^n ^p scroll esc close';
   } else if (mode === 'DESCRIPTION') {
     hints = 'j k scroll esc close';
   } else if (isSiteDrawer) {
@@ -76,6 +76,12 @@ export function toStatusBarView(state: AppState, drawerPlaceholder?: string | nu
     inputPlaceholder = drawerPlaceholder || `Filter ${mode.toLowerCase()}...`;
     inputFocus = true;
     hints = '↑↓ navigate ↵ select esc close';
+  } else if (mode === 'NORMAL') {
+    // Show key hints on listing pages (no leader prefix)
+    const pageType = state.page?.type;
+    if (pageType === 'list') {
+      hints = 'j k gg G /';
+    }
   }
   
   return {
@@ -233,11 +239,18 @@ export function toDrawerView(state: AppState, config: SiteConfig, context: any =
   }
   
   if (drawer === 'palette') {
-    // Command palette
+    // Command palette — only show commandline commands (keys containing ':')
     const commands = context.commands || [];
+    const cmdOnly = commands.filter((c: any) => c.group || (c.keys && c.keys.includes(':')));
     const query = paletteQuery.startsWith(':') ? paletteQuery.slice(1) : paletteQuery;
-    const filteredCommands = filterItems(commands, query);
-    
+    const filteredCommands = filterItems(cmdOnly, query);
+    const actionable = filteredCommands.filter((c: any) => !c.group);
+
+    // Hide palette when no commands match the query
+    if (actionable.length === 0 && query) {
+      return null;
+    }
+
     return {
       type: 'palette',
       visible: true,

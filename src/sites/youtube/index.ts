@@ -32,15 +32,19 @@ import { getPageItems } from '../../core/view-tree';
  * @type {SiteTheme}
  */
 const youtubeTheme: SiteTheme = {
-  bg1: '#002b36',
-  bg2: '#073642',
-  bg3: '#0a4a5c',
-  txt1: '#f1f1f1',
-  txt2: '#aaaaaa',
-  txt3: '#717171',
-  txt4: '#3ea6ff',
-  accent: '#ff0000',
-  accentHover: '#cc0000',
+  bg1: '#1F1F28',
+  bg2: '#2A2A37',
+  bg3: '#363646',
+  txt1: '#DCD7BA',
+  txt2: '#C8C093',
+  txt3: '#727169',
+  txt4: '#7E9CD8',
+  accent: '#C34043',
+  accentHover: '#E82424',
+  modeNormal: '#268BD2',
+  modeSearch: '#859900',
+  modeCommand: '#CB4B16',
+  modeFilter: '#D33682',
 };
 
 // =============================================================================
@@ -95,23 +99,23 @@ const WATCH_RETRY_DELAY = 500;
  */
 function renderYouTubeListing(state: AppState, siteState: YouTubeState, container: HTMLElement): void {
   injectYouTubeItemStyles();
-  
+
   // Use state.page.videos (same source as handleSelect) so sort/filter
   // produces identical ordering for both visual display and item selection.
   // Previously this called dp.getVideos() directly, which could diverge from
   // state.page.videos when continuation data arrived between content polls.
   const allItems = getPageItems(state);
   const items = getVisibleItems(state, allItems);
-  
+
   const { sort, selectedIdx, watchLaterAdded, watchLaterRemoved, dismissedVideos } = state.ui;
-  
+
   // Update sort indicator and count in status bar
   updateSortIndicator(getSortLabel(sort.field, sort.direction));
   updateItemCount(items.length);
-  
+
   // Custom renderer that includes watch later status and dismissed status
   const renderer = (item, isSelected) => renderYouTubeItem(item, isSelected, watchLaterAdded, watchLaterRemoved, dismissedVideos);
-  
+
   renderListing(items, selectedIdx, container, renderer);
 }
 

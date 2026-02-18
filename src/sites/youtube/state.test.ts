@@ -1,6 +1,6 @@
 // Tests for YouTube state transitions
 import { describe, it, expect } from 'vitest';
-import type { YouTubeState, TranscriptResult, ChaptersResult, ContentItem, VideoContext, Chapter } from '../../types';
+import type { YouTubeState, TranscriptResult, ChaptersResult, ContentItem, VideoContext } from '../../types';
 import {
   createListPageState,
   createWatchPageState,
@@ -9,7 +9,7 @@ import {
   onTranscriptClear,
   onChaptersRequest,
   onChaptersLoad,
-  onChaptersClear
+  onChaptersClear,
 } from './state';
 
 /** Helper: create a full YouTubeState with overrides for relevant fields */
@@ -389,7 +389,7 @@ describe('onChaptersClear', () => {
       chapters: { status: 'loaded', videoId: 'abc', chapters: [] }
     });
     const result = onChaptersClear(state);
-    
+
     expect(result.commentPage).toBe(2);
     expect(result.transcript!.status).toBe('loaded');
     expect(result.chapters).toBeNull();

@@ -6,7 +6,7 @@ import type { ContentItem, VideoContext } from '../../../types';
 import type { RawVideo } from './extractors';
 import type { NavigationWatcherHandle } from './navigation';
 import { detectPageTypeFromData } from './initial-data';
-import { extractVideosFromData, extractVideosForPage, extractVideoContext } from './extractors';
+import { extractVideosFromData, extractVideosForPage, extractVideoContext, extractRichItemRenderer, extractLockupViewModel } from './extractors';
 import { scrapeDOMVideos, scrapeDOMVideoContext, scrapeDOMRecommendations } from './dom-fallback';
 import { createNavigationWatcher } from './navigation';
 
@@ -28,6 +28,7 @@ export interface DataProvider {
   getPageType: () => string;
   waitForData: (timeout?: number) => Promise<void>;
   waitForWatchData: (onReady: () => void, timeout?: number) => void;
+  fetchMore: () => Promise<boolean>;
   startWatching: () => void;
   stopWatching: () => void;
   _getCachedData: () => { cachedInitialData: any; cachedPlayerResponse: any; cachedPageType: string | null };
@@ -160,15 +161,23 @@ export function createDataProvider(): DataProvider {
    * Extract a video from various renderer types
    */
   function extractVideoFromRenderer(item: any): RawVideo | null {
-    // Rich item renderer (home, channel)
-    const richContent = item.richItemRenderer?.content;
-    const renderer = richContent?.videoRenderer || 
-                     item.gridVideoRenderer || 
+    // richItemRenderer wraps videoRenderer or lockupViewModel (home page 2024+)
+    if (item.richItemRenderer) {
+      return extractRichItemRenderer(item.richItemRenderer);
+    }
+
+    // Direct lockupViewModel (newer YouTube responses)
+    if (item.lockupViewModel) {
+      return extractLockupViewModel(item.lockupViewModel);
+    }
+
+    // Legacy renderer types
+    const renderer = item.gridVideoRenderer ||
                      item.videoRenderer ||
                      item.compactVideoRenderer;
-    
+
     if (!renderer?.videoId) return null;
-    
+
     return {
       videoId: renderer.videoId,
       title: renderer.title?.runs?.[0]?.text || renderer.title?.simpleText || '',
@@ -418,9 +427,40 @@ export function createDataProvider(): DataProvider {
     }
   }
   
+  /**
+   * Fetch more videos via continuation token (data bridge command).
+   * Waits for the continuation data to arrive via the bridge event.
+   * @returns {Promise<boolean>} True if new videos were loaded
+   */
+  function fetchMore(): Promise<boolean> {
+    const beforeCount = cachedContinuationVideos.length;
+
+    // Fire the command (don't need to track response)
+    document.dispatchEvent(new CustomEvent('__vilify_command__', {
+      detail: { command: 'fetchContinuation', requestId: 'cont' }
+    }));
+
+    // Poll until new videos arrive or timeout
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        if (cachedContinuationVideos.length > beforeCount) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - start > 5000) {
+          resolve(false);
+          return;
+        }
+        setTimeout(check, 100);
+      };
+      setTimeout(check, 200);
+    });
+  }
+
   // Auto-start
   startWatching();
-  
+
   return {
     getVideos,
     getVideoContext,
@@ -428,6 +468,7 @@ export function createDataProvider(): DataProvider {
     getPageType,
     waitForData,
     waitForWatchData,
+    fetchMore,
     startWatching,
     stopWatching,
     // For debugging

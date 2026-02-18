@@ -7,6 +7,7 @@ import {
   setInputCallbacks,
   injectFocusModeStyles,
   applyTheme,
+  applyFont,
   renderFocusMode,
   updateStatusBar,
   updateSortIndicator,
@@ -26,9 +27,9 @@ import { createAppState } from './state';
 
 function makeTheme(): SiteTheme {
   return {
-    bg1: '#002b36', bg2: '#073642', bg3: '#0a4a5c',
-    txt1: '#f1f1f1', txt2: '#aaaaaa', txt3: '#717171', txt4: '#3ea6ff',
-    accent: '#ff0000', accentHover: '#cc0000',
+    bg1: '#1F1F28', bg2: '#2A2A37', bg3: '#363646',
+    txt1: '#DCD7BA', txt2: '#C8C093', txt3: '#727169', txt4: '#7E9CD8',
+    accent: '#C34043', accentHover: '#E82424',
   };
 }
 
@@ -94,9 +95,51 @@ describe('applyTheme', () => {
     const theme = makeTheme();
     applyTheme(theme);
     const root = document.documentElement;
-    expect(root.style.getPropertyValue('--bg-1')).toBe('#002b36');
-    expect(root.style.getPropertyValue('--accent')).toBe('#ff0000');
-    expect(root.style.getPropertyValue('--txt-4')).toBe('#3ea6ff');
+    expect(root.style.getPropertyValue('--bg-1')).toBe('#1F1F28');
+    expect(root.style.getPropertyValue('--accent')).toBe('#C34043');
+    expect(root.style.getPropertyValue('--txt-4')).toBe('#7E9CD8');
+  });
+});
+
+// =============================================================================
+// applyFont
+// =============================================================================
+describe('applyFont', () => {
+  afterEach(() => {
+    document.documentElement.style.removeProperty('--font-mono');
+  });
+
+  it('sets --font-mono CSS variable on document root', () => {
+    applyFont('JetBrains Mono');
+    const root = document.documentElement;
+    const value = root.style.getPropertyValue('--font-mono');
+    expect(value).toBe("'JetBrains Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace");
+  });
+
+  it('works with the default font SF Mono', () => {
+    applyFont('SF Mono');
+    const root = document.documentElement;
+    const value = root.style.getPropertyValue('--font-mono');
+    expect(value).toBe("'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace");
+  });
+
+  it('handles an unknown font name gracefully', () => {
+    applyFont('Nonexistent Font');
+    const root = document.documentElement;
+    const value = root.style.getPropertyValue('--font-mono');
+    expect(value).toBe("'Nonexistent Font', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace");
+  });
+
+  it('handles empty string font name', () => {
+    applyFont('');
+    const root = document.documentElement;
+    const value = root.style.getPropertyValue('--font-mono');
+    expect(value).toBe("'', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace");
+  });
+
+  it('returns void', () => {
+    const result = applyFont('Fira Code');
+    expect(result).toBeUndefined();
   });
 });
 
@@ -132,7 +175,7 @@ describe('renderFocusMode', () => {
     const config = makeConfig();
     const state = makeState();
     renderFocusMode(config, state);
-    expect(document.documentElement.style.getPropertyValue('--bg-1')).toBe('#002b36');
+    expect(document.documentElement.style.getPropertyValue('--bg-1')).toBe('#1F1F28');
   });
 });
 
@@ -220,15 +263,15 @@ describe('updateItemCount', () => {
     removeFocusMode();
   });
 
-  it('shows count in brackets for positive number', () => {
+  it('shows position/count for positive number', () => {
     updateItemCount(42);
-    const el = document.getElementById('vilify-status-count');
-    expect(el?.textContent).toBe('[42]');
+    const el = document.getElementById('vilify-status-position');
+    expect(el?.textContent).toBe('1/42');
   });
 
   it('shows empty for zero', () => {
     updateItemCount(0);
-    const el = document.getElementById('vilify-status-count');
+    const el = document.getElementById('vilify-status-position');
     expect(el?.textContent).toBe('');
   });
 });

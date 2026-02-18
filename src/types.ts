@@ -81,6 +81,10 @@ export interface SiteTheme {
   txt4: string;
   accent: string;
   accentHover: string;
+  modeNormal: string;
+  modeSearch: string;
+  modeCommand: string;
+  modeFilter: string;
 }
 
 export interface SiteConfig {

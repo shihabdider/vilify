@@ -38,6 +38,10 @@ const googleTheme: SiteTheme = {
   txt4: '#4285F4',     // Google Blue for links
   accent: '#4285F4',   // Google Blue accent
   accentHover: '#3367D6',
+  modeNormal: '#34A853',  // Google Green
+  modeSearch: '#4285F4',  // Google Blue
+  modeCommand: '#FBBC04', // Google Yellow
+  modeFilter: '#EA4335',  // Google Red
 };
 
 // =============================================================================

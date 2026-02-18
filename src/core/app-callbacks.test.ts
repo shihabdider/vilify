@@ -16,11 +16,13 @@ vi.mock('./layout', () => ({
   updateStatusBar: vi.fn(),
   updateSortIndicator: vi.fn(),
   updateItemCount: vi.fn(),
+  updateCursorPosition: vi.fn(),
   removeFocusMode: vi.fn(),
 }));
 vi.mock('./palette', () => ({
   injectPaletteStyles: vi.fn(),
   filterItems: vi.fn(() => []),
+  filterColonCommands: vi.fn(() => []),
   openPalette: vi.fn((state) => state),
   closePalette: vi.fn((state) => state),
   renderPalette: vi.fn(),

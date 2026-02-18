@@ -106,8 +106,8 @@ describe('getYouTubeKeySequences - always available', () => {
 
   it('has / on watch page → openRecommended', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('/');
-    seq['/']();
+    expect(seq).toHaveProperty('\\/');
+    seq['\\/']();
     expect(app.openRecommended).toHaveBeenCalled();
   });
 
@@ -142,14 +142,15 @@ describe('getYouTubeKeySequences - always available', () => {
   });
 
   // g-prefixed navigation sequences
+  // gh, gs, gw are now unprefixed on watch page; gy, gl keep \\ prefix
   const gNavTests = [
-    ['gh', '/'],
-    ['gs', '/feed/subscriptions'],
-    ['gy', '/feed/history'],
-    ['gl', '/feed/library'],
-    ['gw', '/playlist?list=WL'],
+    ['gh', '/', false],
+    ['gs', '/feed/subscriptions', false],
+    ['gy', '/feed/history', true],
+    ['gl', '/feed/library', true],
+    ['gw', '/playlist?list=WL', false],
   ];
-  for (const [key, _path] of gNavTests) {
+  for (const [key, _path, keepPrefix] of gNavTests) {
     it(`has ${key} navigation sequence on listing page`, () => {
       const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
       expect(seq).toHaveProperty(key);
@@ -158,7 +159,8 @@ describe('getYouTubeKeySequences - always available', () => {
 
     it(`has ${key} navigation sequence on watch page`, () => {
       const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-      expect(seq).toHaveProperty(key);
+      const watchKey = keepPrefix ? '\\' + key : key;
+      expect(seq).toHaveProperty(watchKey);
     });
   }
 });
@@ -323,29 +325,23 @@ describe('getYouTubeKeySequences - watch page', () => {
 
   it('has C-f → nextCommentPage', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['C-f']();
+    seq['\\cn']();
     expect(app.nextCommentPage).toHaveBeenCalled();
   });
 
   it('has C-b → prevCommentPage', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['C-b']();
+    seq['\\cp']();
     expect(app.prevCommentPage).toHaveBeenCalled();
-  });
-
-  it('has space → togglePlayPause', () => {
-    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq[' ']();
-    expect(player.togglePlayPause).toHaveBeenCalled();
   });
 
   it('does not have C-f on listing page', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
-    expect(seq).not.toHaveProperty('C-f');
+    expect(seq).not.toHaveProperty('\\cn');
   });
 
-  it('does not have space on listing page', () => {
-    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+  it('does not have space in sequences (YouTube native handles it)', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
     expect(seq).not.toHaveProperty(' ');
   });
 });
@@ -367,51 +363,51 @@ describe('getYouTubeKeySequences - watch page with video context', () => {
 
   it('has gc → navigateTo(channelUrl + /videos)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('gc');
+    expect(seq).toHaveProperty('\\gc');
   });
 
   it('has g1 → setPlaybackRate(1)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['g1']();
+    seq['\\g1']();
     expect(player.setPlaybackRate).toHaveBeenCalledWith(1);
   });
 
   it('has g2 → setPlaybackRate(2)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['g2']();
+    seq['\\g2']();
     expect(player.setPlaybackRate).toHaveBeenCalledWith(2);
   });
 
   it('has yy → copyVideoUrl', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('yy');
+    expect(seq).toHaveProperty('\\yy');
   });
 
   it('has yt → copyVideoTitle', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('yt');
+    expect(seq).toHaveProperty('\\yt');
   });
 
   it('has Y → copyVideoUrlAtTime', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('Y');
+    expect(seq).toHaveProperty('\\Y');
   });
 
   it('has zo → openDrawer("description")', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['zo']();
+    seq['\\zo']();
     expect(app.openDrawer).toHaveBeenCalledWith('description');
   });
 
   it('has zc → closeDrawer', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['zc']();
+    seq['\\zc']();
     expect(app.closeDrawer).toHaveBeenCalled();
   });
 
   it('has f → openDrawer("chapters")', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['f']();
+    seq['\\f']();
     expect(app.openDrawer).toHaveBeenCalledWith('chapters');
   });
 
@@ -422,25 +418,25 @@ describe('getYouTubeKeySequences - watch page with video context', () => {
 
   it('has m → toggleMute', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['m']();
+    seq['\\m']();
     expect(player.toggleMute).toHaveBeenCalled();
   });
 
   it('has c → toggleCaptions', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['c']();
+    seq['\\c']();
     expect(player.toggleCaptions).toHaveBeenCalled();
   });
 
   it('has h → seekRelative(-10)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['h']();
+    seq['\\h']();
     expect(player.seekRelative).toHaveBeenCalledWith(-10);
   });
 
   it('has l → seekRelative(10)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['l']();
+    seq['\\l']();
     expect(player.seekRelative).toHaveBeenCalledWith(10);
   });
 
@@ -453,18 +449,18 @@ describe('getYouTubeKeySequences - watch page with video context', () => {
   it('does NOT have ctx-dependent keys without video context', () => {
     mockNoVideoContext();
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).not.toHaveProperty('gc');
-    expect(seq).not.toHaveProperty('g1');
-    expect(seq).not.toHaveProperty('yy');
-    expect(seq).not.toHaveProperty('Y');
+    expect(seq).not.toHaveProperty('\\gc');
+    expect(seq).not.toHaveProperty('\\g1');
+    expect(seq).not.toHaveProperty('\\yy');
+    expect(seq).not.toHaveProperty('\\Y');
     expect(seq).not.toHaveProperty('ms');
-    expect(seq).not.toHaveProperty('f');
+    expect(seq).not.toHaveProperty('\\f');
   });
 
   it('does not have gc when channelUrl is missing', () => {
     mockVideoContext({ channelUrl: null });
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).not.toHaveProperty('gc');
+    expect(seq).not.toHaveProperty('\\gc');
   });
 });
 
@@ -498,8 +494,8 @@ describe('getYouTubeKeySequences - null app safety', () => {
 
   it('handles null app gracefully for watch page bindings', () => {
     const seq = getYouTubeKeySequences(null, makeContext({ pageType: 'watch' }));
-    expect(() => seq['C-f']()).not.toThrow();
-    expect(() => seq['C-b']()).not.toThrow();
+    expect(() => seq['\\cn']()).not.toThrow();
+    expect(() => seq['\\cp']()).not.toThrow();
   });
 });
 
@@ -509,7 +505,7 @@ describe('getYouTubeKeySequences - null app safety', () => {
 describe('getYouTubeBlockedNativeKeys', () => {
   it('returns full blocked keys list on watch page', () => {
     const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'watch' }));
-    expect(result).toEqual(['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h']);
+    expect(result).toEqual(['\\', 'g', 'm', 't', ' ']);
   });
 
   it('returns empty array on home page', () => {
@@ -534,7 +530,7 @@ describe('getYouTubeBlockedNativeKeys', () => {
       searchActive: true,
       drawer: 'settings',
     }));
-    expect(result).toEqual(['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h']);
+    expect(result).toEqual(['\\', 'g', 'm', 't', ' ']);
   });
 });
 

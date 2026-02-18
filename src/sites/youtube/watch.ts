@@ -291,34 +291,34 @@ function renderVideoInfoBox(ctx: VideoContext, siteState: YouTubeState | null = 
   const actionChildren = [
     // Row 1
     el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
-      el('kbd', {}, ['ms']),
+      el('kbd', {}, ['\\ms']),
       subText
     ]),
     el('span', { class: wlClass, id: 'vilify-wl-action' }, [
-      el('kbd', {}, ['mw']),
+      el('kbd', {}, ['\\mw']),
       wlText
     ]),
     // Empty cell to complete row 1
     el('span', {}, []),
     // Row 2: f (always), t (conditional), zo (always)
     el('span', { class: 'vilify-action-hint' }, [
-      el('kbd', {}, ['f']),
+      el('kbd', {}, ['\\f']),
       'ch'
     ]),
   ];
-  
+
   if (siteState?.transcript?.status === 'loaded') {
     actionChildren.push(
       el('span', { class: 'vilify-action-hint' }, [
-        el('kbd', {}, ['t']),
+        el('kbd', {}, ['\\t']),
         'transcript'
       ])
     );
   }
-  
+
   actionChildren.push(
     el('span', { class: 'vilify-action-hint' }, [
-      el('kbd', {}, ['zo']),
+      el('kbd', {}, ['\\zo']),
       'desc'
     ])
   );
@@ -395,9 +395,9 @@ function renderCommentsBox(commentsResult: CommentsResult, state: YouTubeState):
   
   // Create pagination
   const paginationEl = el('div', { class: 'vilify-comments-pagination', id: 'vilify-comments-pagination' }, [
-    el('kbd', {}, ['^b']),
+    el('kbd', {}, ['\\cp']),
     el('span', { class: 'vilify-comments-page-info' }, ['1 / 1']),
-    el('kbd', {}, ['^f'])
+    el('kbd', {}, ['\\cn'])
   ]);
   paginationEl.style.display = 'none';
   
@@ -860,7 +860,7 @@ export function updateSubscribeButton(isSubscribed: boolean): void {
   if (actionEl) {
     // Update text (preserve kbd)
     actionEl.innerHTML = '';
-    actionEl.appendChild(el('kbd', {}, ['ms']));
+    actionEl.appendChild(el('kbd', {}, ['\\ms']));
     actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
   }
 }

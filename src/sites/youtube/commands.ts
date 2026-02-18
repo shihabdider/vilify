@@ -6,6 +6,8 @@ import * as player from './player';
 import { getYouTubePageType } from './scraper';
 import { getDataProvider } from './data/index';
 import { showMessage } from '../../core/view';
+import { COLORSCHEMES, FONTS, fontToKey, loadSettings, saveSettings, getTheme } from '../../core/settings';
+import { applyTheme, applyFont } from '../../core/layout';
 import { formatTimestamp } from './format';
 
 /** Get video context using DataProvider */
@@ -231,14 +233,14 @@ export function getYouTubeCommands(app: App): any[] {
     label: 'History',
     icon: '⏱',
     action: () => navigateTo('/feed/history'),
-    keys: 'G Y',
+    keys: pageType === 'watch' ? '\\ G Y' : 'G Y',
   });
   commands.push({
     type: 'command',
     label: 'Library',
     icon: '📚',
     action: () => navigateTo('/feed/library'),
-    keys: 'G L',
+    keys: pageType === 'watch' ? '\\ G L' : 'G L',
   });
   commands.push({
     type: 'command',
@@ -254,7 +256,7 @@ export function getYouTubeCommands(app: App): any[] {
     label: 'Open search',
     icon: '🔍',
     action: () => app?.openSearch?.(),
-    keys: 'I',
+    keys: pageType === 'watch' ? '\\ I' : 'I',
   });
   if (pageType !== 'watch') {
     commands.push({
@@ -323,15 +325,70 @@ export function getYouTubeCommands(app: App): any[] {
     label: 'Command palette',
     icon: '⌘',
     action: () => app?.openPalette?.('command'),
-    keys: ':',
+    keys: pageType === 'watch' ? '\\ :' : ':',
   });
   commands.push({
     type: 'command',
     label: 'Exit focus mode',
     icon: '>',
     action: () => app?.exitFocusMode?.(),
-    keys: ':q',
+    keys: pageType === 'watch' ? '\\:q' : ':q',
   });
+  commands.push({
+    type: 'command',
+    label: 'Settings',
+    icon: '⚙',
+    action: () => app?.openSettings?.(),
+    keys: ':settings',
+  });
+
+  // --- Colorscheme command (visible entry that opens colorscheme picker) ---
+  commands.push({
+    type: 'command',
+    label: 'Change colorscheme',
+    icon: '\uD83C\uDFA8',
+    action: () => app?.typeCommand?.(':colorscheme '),
+    keys: ':colorscheme',
+  });
+
+  // --- Colorscheme commands (hidden, shown when typing ':colo ') ---
+  commands.push({ group: 'Colorscheme' });
+  for (const name of Object.keys(COLORSCHEMES)) {
+    commands.push({
+      type: 'command',
+      label: name,
+      icon: '\uD83C\uDFA8',
+      hidden: true,
+      action: () => {
+        const settings = loadSettings();
+        settings.colorscheme = name;
+        saveSettings(settings);
+        applyTheme(getTheme(name));
+        showMessage(`Colorscheme: ${name}`);
+      },
+      keys: `:colo ${name}`,
+    });
+  }
+
+  // --- Font commands ---
+  commands.push({ group: 'Font' });
+  for (const font of FONTS) {
+    const key = fontToKey(font);
+    commands.push({
+      type: 'command',
+      label: font,
+      icon: '\uD83D\uDD24',
+      hidden: true,
+      action: () => {
+        const settings = loadSettings();
+        settings.font = font;
+        saveSettings(settings);
+        applyFont(font);
+        showMessage(`Font: ${font}`);
+      },
+      keys: `:set guifont=${key}`,
+    });
+  }
 
   // --- List navigation (listing pages only) ---
   if (pageType !== 'watch') {
@@ -361,21 +418,20 @@ export function getYouTubeCommands(app: App): any[] {
       label: ctx.paused ? 'Play' : 'Pause',
       icon: ctx.paused ? '▶' : '⏸',
       action: player.togglePlayPause,
-      keys: 'Space',
     });
     commands.push({
       type: 'command',
       label: 'Skip back 10s',
       icon: '⏪',
       action: () => player.seekRelative(-10),
-      keys: 'h',
+      keys: '\\ h',
     });
     commands.push({
       type: 'command',
       label: 'Skip forward 10s',
       icon: '⏩',
       action: () => player.seekRelative(10),
-      keys: 'l',
+      keys: '\\ l',
     });
     commands.push({
       type: 'command',
@@ -405,7 +461,7 @@ export function getYouTubeCommands(app: App): any[] {
       label: 'Speed 1x',
       icon: '⏱',
       action: () => player.setPlaybackRate(1),
-      keys: 'G 1',
+      keys: '\\ G 1',
     });
     commands.push({
       type: 'command',
@@ -424,7 +480,7 @@ export function getYouTubeCommands(app: App): any[] {
       label: 'Speed 2x',
       icon: '🚀',
       action: () => player.setPlaybackRate(2),
-      keys: 'G 2',
+      keys: '\\ G 2',
     });
 
     // View
@@ -434,7 +490,7 @@ export function getYouTubeCommands(app: App): any[] {
       label: 'Toggle fullscreen',
       icon: '⛶',
       action: player.toggleFullscreen,
-      keys: 'F',
+      keys: '\\ F',
     });
     commands.push({
       type: 'command',
@@ -447,49 +503,49 @@ export function getYouTubeCommands(app: App): any[] {
       label: 'Toggle captions',
       icon: '💬',
       action: player.toggleCaptions,
-      keys: 'c',
+      keys: '\\ c',
     });
     commands.push({
       type: 'command',
       label: 'Toggle mute',
       icon: ctx.muted ? '🔇' : '🔊',
       action: player.toggleMute,
-      keys: 'm',
+      keys: '\\ m',
     });
     commands.push({
       type: 'command',
       label: 'Show description',
       icon: '📖',
       action: () => app?.openDrawer?.('description'),
-      keys: 'Z O',
+      keys: '\\ Z O',
     });
     commands.push({
       type: 'command',
       label: 'Close description',
       icon: '📕',
       action: () => app?.closeDrawer?.(),
-      keys: 'Z C',
+      keys: '\\ Z C',
     });
     commands.push({
       type: 'command',
       label: 'Jump to chapter',
       icon: '📑',
       action: () => app?.openDrawer?.('chapters'),
-      keys: 'F',
+      keys: '\\ F',
     });
     commands.push({
       type: 'command',
       label: 'Next comment page',
       icon: '💬',
       action: () => app?.nextCommentPage?.(),
-      keys: 'Ctrl+F',
+      keys: '\\cn',
     });
     commands.push({
       type: 'command',
       label: 'Prev comment page',
       icon: '💬',
       action: () => app?.prevCommentPage?.(),
-      keys: 'Ctrl+B',
+      keys: '\\cp',
     });
 
     // Watch Later
@@ -509,7 +565,7 @@ export function getYouTubeCommands(app: App): any[] {
       label: 'Copy video URL',
       icon: '🔗',
       action: () => copyVideoUrl(ctx),
-      keys: 'Y Y',
+      keys: '\\ Y Y',
     });
     commands.push({
       type: 'command',
@@ -517,21 +573,21 @@ export function getYouTubeCommands(app: App): any[] {
       icon: '⏱',
       action: () => copyVideoUrlAtTime(ctx),
       meta: formatTimestamp(ctx.currentTime),
-      keys: '⇧Y',
+      keys: '\\ ⇧Y',
     });
     commands.push({
       type: 'command',
       label: 'Copy video title',
       icon: '📝',
       action: () => copyVideoTitle(ctx),
-      keys: 'Y T',
+      keys: '\\ Y T',
     });
     commands.push({
       type: 'command',
       label: 'Copy title + URL',
       icon: '📋',
       action: () => copyVideoTitleAndUrl(ctx),
-      keys: 'Y A',
+      keys: '\\ Y A',
     });
 
     // Channel
@@ -549,7 +605,7 @@ export function getYouTubeCommands(app: App): any[] {
         label: `Go to ${ctx.channelName || 'channel'} videos`,
         icon: '👤',
         action: () => navigateTo(ctx.channelUrl + '/videos'),
-        keys: 'G C',
+        keys: '\\ G C',
       });
     }
   }
@@ -590,38 +646,30 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
   const ctx = getVideoContext();
   const pageType = context?.pageType;
 
-  // (1) Always-available bindings
-  const sequences = {
-    '/': () => {
-      if (pageType === 'watch') {
-        app?.openRecommended?.();
-      } else {
-        app?.openLocalFilter?.();
-      }
-    },
-    ':': () => app?.openPalette?.('command'),
-    'i': () => app?.openSearch?.(),
+  const sequences: Record<string, Function> = {};
+
+  // (1) Listing pages: direct keys (no leader prefix)
+  if (pageType !== 'watch') {
+    sequences['/'] = () => app?.openLocalFilter?.();
+    sequences[':'] = () => app?.openPalette?.('command');
+    sequences['i'] = () => app?.openSearch?.();
 
     // g-prefixed navigation
-    'gh': () => navigateTo('/'),
-    'gs': () => navigateTo('/feed/subscriptions'),
-    'gy': () => navigateTo('/feed/history'),
-    'gl': () => navigateTo('/feed/library'),
-    'gw': () => navigateTo('/playlist?list=WL'),
+    sequences['gh'] = () => navigateTo('/');
+    sequences['gs'] = () => navigateTo('/feed/subscriptions');
+    sequences['gy'] = () => navigateTo('/feed/history');
+    sequences['gl'] = () => navigateTo('/feed/library');
+    sequences['gw'] = () => navigateTo('/playlist?list=WL');
 
-    'gg': () => app?.goToTop?.(),
-    'mw': () => app?.addToWatchLater?.(),
-  };
+    sequences['gg'] = () => app?.goToTop?.();
+    sequences['mw'] = () => app?.addToWatchLater?.();
 
-  // (2) Listing pages (pageType !== 'watch')
-  if (pageType !== 'watch') {
     sequences['ArrowDown'] = () => app?.navigate?.('down');
     sequences['ArrowUp'] = () => app?.navigate?.('up');
     sequences['Enter'] = () => app?.select?.(false);
     sequences['G'] = () => app?.goToBottom?.();
     sequences['dd'] = () => app?.removeFromWatchLater?.();
 
-    // (3) Listing + !filterActive + !searchActive
     if (!context?.filterActive && !context?.searchActive) {
       sequences['j'] = () => app?.navigate?.('down');
       sequences['k'] = () => app?.navigate?.('up');
@@ -631,36 +679,50 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
     }
   }
 
-  // (4) Watch page basics
+  // (2) Watch page: \ leader prefix on most custom bindings
   if (pageType === 'watch') {
-    sequences['C-f'] = () => app?.nextCommentPage?.();
-    sequences['C-b'] = () => app?.prevCommentPage?.();
-    sequences[' '] = () => player.togglePlayPause();
+    sequences['\\/'] = () => app?.openRecommended?.();
+    sequences['\\:'] = () => app?.openPalette?.('command');
+    sequences['\\i'] = () => app?.openSearch?.();
+
+    sequences['gh'] = () => navigateTo('/');
+    sequences['gs'] = () => navigateTo('/feed/subscriptions');
+    sequences['\\gy'] = () => navigateTo('/feed/history');
+    sequences['\\gl'] = () => navigateTo('/feed/library');
+    sequences['gw'] = () => navigateTo('/playlist?list=WL');
+
+    sequences['\\gg'] = () => app?.goToTop?.();
+    sequences['mw'] = () => app?.addToWatchLater?.();
+
+    sequences['\\cn'] = () => app?.nextCommentPage?.();
+    sequences['\\cp'] = () => app?.prevCommentPage?.();
+    // Space: NOT in sequences — YouTube's own capture-phase handler toggles play/pause.
+    // Space IS in blockedKeys to preventDefault (prevent page scroll).
   }
 
-  // (5) Watch page with video context
+  // (3) Watch page with video context (\ leader prefix)
   if (ctx) {
     if (ctx.channelUrl) {
-      sequences['gc'] = () => navigateTo(ctx.channelUrl + '/videos');
+      sequences['\\gc'] = () => navigateTo(ctx.channelUrl + '/videos');
     }
 
-    sequences['g1'] = () => player.setPlaybackRate(1);
-    sequences['g2'] = () => player.setPlaybackRate(2);
+    sequences['\\g1'] = () => player.setPlaybackRate(1);
+    sequences['\\g2'] = () => player.setPlaybackRate(2);
 
-    sequences['yy'] = () => copyVideoUrl(ctx);
-    sequences['yt'] = () => copyVideoTitle(ctx);
-    sequences['Y'] = () => copyVideoUrlAtTime(ctx);
+    sequences['\\yy'] = () => copyVideoUrl(ctx);
+    sequences['\\yt'] = () => copyVideoTitle(ctx);
+    sequences['\\Y'] = () => copyVideoUrlAtTime(ctx);
 
-    sequences['zo'] = () => app?.openDrawer?.('description');
-    sequences['zc'] = () => app?.closeDrawer?.();
-    sequences['f'] = () => app?.openDrawer?.('chapters');
+    sequences['\\zo'] = () => app?.openDrawer?.('description');
+    sequences['\\zc'] = () => app?.closeDrawer?.();
+    sequences['\\f'] = () => app?.openDrawer?.('chapters');
 
     sequences['ms'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
 
-    sequences['m'] = player.toggleMute;
-    sequences['c'] = player.toggleCaptions;
-    sequences['h'] = () => player.seekRelative(-10);
-    sequences['l'] = () => player.seekRelative(10);
+    sequences['\\m'] = player.toggleMute;
+    sequences['\\c'] = player.toggleCaptions;
+    sequences['\\h'] = () => player.seekRelative(-10);
+    sequences['\\l'] = () => player.seekRelative(10);
     sequences['t'] = () => app?.openTranscriptDrawer?.();
   }
 
@@ -684,8 +746,13 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
  */
 export function getYouTubeBlockedNativeKeys(context: KeyContext): string[] {
   if (context.pageType === 'watch') {
-    return ['f', 'm', 'c', 't', 'j', 'k', 'l', ' ', 'h'];
+    // Watch page: block \ (leader key prefix) and direct prefix keys
+    // g - prefix for gh, gs, gw navigation
+    // m - prefix for ms, mw; also YouTube native mute
+    // t - our transcript binding; also YouTube native theater mode
+    return ['\\', 'g', 'm', 't', ' '];
   }
+  // Listing pages: no leader prefix, block keys YouTube would intercept
   return [];
 }
 

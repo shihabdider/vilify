@@ -3,20 +3,39 @@
 
 import { el, clear } from './view';
 import { getMode } from './state';
+import { openSettingsWindow } from './settings-window';
+import { getFontFamily } from './settings';
 import type { SiteConfig, SiteTheme, AppState, ContentItem } from '../types';
 
-// Main CSS for focus mode - Solarized Dark theme with TUI aesthetic
+/**
+ * Return '#000000' or '#FFFFFF' for readable text on the given background.
+ * Uses YIQ perceived-brightness formula.
+ * [PURE]
+ */
+function contrastText(hex: string): string {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#000000' : '#FFFFFF';
+}
+
+// Main CSS for focus mode - Kanagawa theme with TUI aesthetic
 const FOCUS_MODE_CSS = `
   :root {
-    --bg-1: #002b36;
-    --bg-2: #073642;
-    --bg-3: #0a4a5c;
-    --txt-1: #f1f1f1;
-    --txt-2: #aaaaaa;
-    --txt-3: #717171;
-    --txt-4: #3ea6ff;
-    --accent: #ff0000;
-    --accent-hover: #cc0000;
+    --bg-1: #1F1F28;
+    --bg-2: #2A2A37;
+    --bg-3: #363646;
+    --txt-1: #DCD7BA;
+    --txt-2: #C8C093;
+    --txt-3: #727169;
+    --txt-4: #7E9CD8;
+    --accent: #C34043;
+    --accent-hover: #E82424;
+    --mode-normal: #268BD2;
+    --mode-search: #859900;
+    --mode-command: #CB4B16;
+    --mode-filter: #D33682;
     --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
   }
 
@@ -36,40 +55,186 @@ const FOCUS_MODE_CSS = `
     flex-direction: column;
     font-size: 14px;
     line-height: 1.5;
+    border: 2px solid var(--bg-3);
   }
 
-  /* Status bar at bottom */
-  .vilify-status-bar {
-    height: 32px;
-    padding: 0 16px;
-    border-top: 1px solid var(--bg-3);
+  /* Tab bar at top */
+  .vilify-tab-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border-bottom: 1px solid var(--bg-3);
+    padding: 0;
+    flex-shrink: 0;
+    font-size: 13px;
+    background: var(--bg-1);
+  }
+  .vilify-tab-bar-left {
+    display: flex;
+    align-items: center;
+  }
+  .vilify-tab-bar-right {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 11px;
+    color: var(--txt-3);
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .vilify-tab-bar-right kbd {
+    background: transparent;
+    border: 1px solid var(--bg-3);
+    padding: 1px 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--txt-4);
+  }
+  .vilify-tab-bar-right .vilify-hint-sep {
+    color: var(--bg-3);
+    margin: 0 2px;
+  }
+  .vilify-tab {
+    padding: 6px 16px;
+    color: var(--txt-3);
+    border-right: 1px solid var(--bg-3);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .vilify-tab:hover {
+    color: var(--txt-2);
+    background: var(--bg-2);
+  }
+  .vilify-tab.active {
+    color: var(--txt-1);
+    background: var(--bg-2);
+  }
+  .vilify-tab kbd {
+    background: transparent;
+    border: 1px solid var(--bg-3);
+    padding: 0px 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--txt-4);
+    margin-right: 2px;
+  }
+  .vilify-tab.active kbd {
+    border-color: var(--txt-3);
+    color: var(--txt-4);
+  }
+  /* Settings gear - nearly invisible until hovered */
+  .vilify-settings-btn {
+    color: var(--txt-4);
+    cursor: pointer;
+    padding: 4px 6px;
+    font-size: 18px;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  .vilify-settings-btn:hover {
+    color: var(--txt-3);
+  }
+
+  /* Status bar at bottom - powerline/lualine style */
+  .vilify-status-bar {
+    height: 28px;
+    padding: 0;
+    border-top: 1px solid var(--bg-3);
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
     font-size: 12px;
     flex-shrink: 0;
-    background: var(--bg-1);
+    background: var(--bg-2);
   }
 
   .vilify-status-left {
+    height: 100%;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     flex: 1;
+    min-width: 0;
   }
 
   .vilify-status-right {
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+
+  /* Powerline segment base */
+  .vilify-pl-seg {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Powerline arrow separator */
+  .vilify-pl-arrow {
+    display: flex;
+    align-items: stretch;
+    font-size: 0;
+    line-height: 0;
+    width: 0;
+    overflow: visible;
+  }
+  .vilify-pl-arrow svg {
+    height: 28px;
+    width: 14px;
+    display: block;
+  }
+
+  /* Mode badge - leftmost segment */
+  .vilify-mode-badge {
+    background: var(--mode-normal);
+    color: var(--mode-normal-text, #FFFFFF);
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
     display: flex;
     align-items: center;
   }
+  .vilify-mode-badge.mode-search { background: var(--mode-search); color: var(--mode-search-text, #FFFFFF); }
+  .vilify-mode-badge.mode-command { background: var(--mode-command); color: var(--mode-command-text, #FFFFFF); }
+  .vilify-mode-badge.mode-filter { background: var(--mode-filter); color: var(--mode-filter-text, #FFFFFF); }
 
-  .vilify-mode-badge {
+  /* Page type segment (gray) */
+  .vilify-pl-pagetype {
+    background: var(--bg-3);
+    color: var(--txt-1);
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  /* Middle section (lighter bg) */
+  .vilify-pl-middle {
     background: var(--bg-2);
-    border: 1px solid var(--bg-3);
-    color: var(--txt-2);
-    padding: 2px 8px;
+    color: var(--txt-3);
+    flex: 1;
+    min-width: 0;
     font-size: 11px;
-    text-transform: uppercase;
-    font-family: var(--font-mono);
+  }
+
+  /* Position segment (gray, right side) */
+  .vilify-pl-position {
+    background: var(--bg-3);
+    color: var(--txt-1);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Browser segment (mode-colored, rightmost) */
+  .vilify-pl-browser {
+    background: var(--mode-normal);
+    color: var(--mode-normal-text, #FFFFFF);
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .vilify-status-input {
@@ -81,7 +246,7 @@ const FOCUS_MODE_CSS = `
     margin-left: 8px;
     outline: none;
     flex: 1;
-    max-width: 400px;
+    min-width: 0;
     display: none;
   }
 
@@ -95,6 +260,7 @@ const FOCUS_MODE_CSS = `
 
   .vilify-status-message {
     color: var(--txt-3);
+    font-size: 11px;
   }
 
   .vilify-status-sort {
@@ -104,6 +270,11 @@ const FOCUS_MODE_CSS = `
     padding: 2px 6px;
     background: var(--bg-2);
     border: 1px solid var(--bg-3);
+  }
+  .vilify-status-sort::before {
+    content: 'sort:';
+    color: var(--txt-3);
+    opacity: 0.7;
   }
 
   .vilify-status-count {
@@ -124,6 +295,7 @@ const FOCUS_MODE_CSS = `
     margin: 0 2px;
     font-family: var(--font-mono);
     font-size: 10px;
+    color: var(--txt-2);
   }
 
   /* Content area */
@@ -159,9 +331,10 @@ const FOCUS_MODE_CSS = `
   /* Video items */
   .vilify-item {
     display: flex;
-    padding: 12px 24px;
+    align-items: center;
+    padding: 8px 24px;
     cursor: pointer;
-    max-width: 900px;
+    max-width: 1000px;
     margin: 0 auto;
   }
 
@@ -171,13 +344,11 @@ const FOCUS_MODE_CSS = `
 
   .vilify-item.selected {
     background: var(--bg-2);
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
   }
 
   .vilify-thumb {
-    width: 160px;
-    height: 90px;
+    width: 120px;
+    height: 68px;
     margin-right: 16px;
     object-fit: cover;
     background: var(--bg-2);
@@ -199,8 +370,8 @@ const FOCUS_MODE_CSS = `
 
   .vilify-item-title {
     color: var(--txt-2);
-    font-size: 14px;
-    margin-bottom: 4px;
+    font-size: 13px;
+    margin-bottom: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -222,6 +393,15 @@ const FOCUS_MODE_CSS = `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Tilde filler for empty rows (vim-style) */
+  .vilify-tilde-filler {
+    color: var(--txt-4);
+    font-size: 14px;
+    padding: 4px 24px;
+    user-select: none;
+    opacity: 0.5;
   }
 
   /* TUI box pattern */
@@ -367,6 +547,34 @@ export function applyTheme(theme: SiteTheme): void {
   root.style.setProperty('--txt-4', theme.txt4);
   root.style.setProperty('--accent', theme.accent);
   root.style.setProperty('--accent-hover', theme.accentHover);
+  root.style.setProperty('--mode-normal', theme.modeNormal);
+  root.style.setProperty('--mode-search', theme.modeSearch);
+  root.style.setProperty('--mode-command', theme.modeCommand);
+  root.style.setProperty('--mode-filter', theme.modeFilter);
+  root.style.setProperty('--mode-normal-text', contrastText(theme.modeNormal));
+  root.style.setProperty('--mode-search-text', contrastText(theme.modeSearch));
+  root.style.setProperty('--mode-command-text', contrastText(theme.modeCommand));
+  root.style.setProperty('--mode-filter-text', contrastText(theme.modeFilter));
+}
+
+/**
+ * Apply font to the entire page + vilify UI.
+ * Sets --font-mono CSS variable and overrides all page elements.
+ * [I/O]
+ */
+export function applyFont(font: string): void {
+  const family = getFontFamily(font);
+  const root = document.documentElement;
+  root.style.setProperty('--font-mono', family);
+
+  // Apply to entire website — inject/update a global override style
+  let fontStyle = document.getElementById('vilify-font-override');
+  if (!fontStyle) {
+    fontStyle = document.createElement('style');
+    fontStyle.id = 'vilify-font-override';
+    document.head.appendChild(fontStyle);
+  }
+  fontStyle.textContent = `* { font-family: ${family} !important; }`;
 }
 
 /**
@@ -376,15 +584,16 @@ export function applyTheme(theme: SiteTheme): void {
 export function renderFocusMode(config: SiteConfig, state: AppState): void {
   injectFocusModeStyles();
 
-  if (config.theme) {
-    applyTheme(config.theme);
-  }
+  // Theme is applied by init() from saved settings — not here.
 
   // Remove existing focus mode container if present
   const existing = document.getElementById('vilify-focus');
   if (existing) {
     existing.remove();
   }
+
+  // Create tab bar
+  const tabBar = createTabBar(config);
 
   // Create content area
   const content = el('div', { id: 'vilify-content' }, []);
@@ -394,6 +603,7 @@ export function renderFocusMode(config: SiteConfig, state: AppState): void {
 
   // Create main container
   const container = el('div', { id: 'vilify-focus' }, [
+    tabBar,
     content,
     statusBar
   ]);
@@ -403,12 +613,129 @@ export function renderFocusMode(config: SiteConfig, state: AppState): void {
 }
 
 /**
+ * Create tab bar element for navigation.
+ * [PURE - creates DOM element]
+ */
+function createTabBar(config: SiteConfig): HTMLElement {
+  const pageType = config?.getPageType?.() ?? 'other';
+
+  const tabs = [
+    { label: 'Home', shortcut: 'gh', type: 'home', path: '/' },
+    { label: 'Subscriptions', shortcut: 'gs', type: 'subscriptions', path: '/feed/subscriptions' },
+    { label: 'Watch Later', shortcut: 'gw', type: 'playlist', path: '/playlist?list=WL' },
+    { label: 'History', shortcut: 'gy', type: 'history', path: '/feed/history' },
+  ];
+
+  const tabElements = tabs.map(tab => {
+    const isActive = pageType === tab.type ||
+      (tab.type === 'playlist' && location.pathname === '/playlist' && location.search.includes('list=WL'));
+    const classes = isActive ? 'vilify-tab active' : 'vilify-tab';
+    const tabEl = el('span', { class: classes }, [
+      el('kbd', {}, [tab.shortcut]),
+      ' ' + tab.label
+    ]);
+    tabEl.addEventListener('click', () => {
+      window.location.href = tab.path;
+    });
+    return tabEl;
+  });
+
+  const leftDiv = el('div', { class: 'vilify-tab-bar-left' }, tabElements);
+
+  // Right side: navigation hints + settings gear
+  const isListPage = pageType !== 'watch';
+  const hintChildren: (HTMLElement | string)[] = [];
+
+  if (isListPage) {
+    hintChildren.push(
+      el('kbd', {}, ['j']), el('kbd', {}, ['k']), 'move',
+      el('kbd', {}, ['gg']), 'top', el('kbd', {}, ['G']), 'bottom',
+      el('kbd', {}, ['↵']), 'play',
+      el('kbd', {}, ['dd']), 'dismiss', el('kbd', {}, ['mw']), 'watch later',
+      el('kbd', {}, ['i']), 'search', el('kbd', {}, ['/']), 'filter', el('kbd', {}, [':']), 'cmd',
+    );
+  } else {
+    hintChildren.push(
+      el('kbd', {}, ['space']), 'play/pause',
+      el('span', { class: 'vilify-hint-sep' }, ['│']),
+      el('kbd', {}, ['\\h']), el('kbd', {}, ['\\l']), 'seek',
+      el('span', { class: 'vilify-hint-sep' }, ['│']),
+      el('kbd', {}, ['\\i']), 'search', el('kbd', {}, ['\\:']), 'cmd',
+    );
+  }
+
+  const hintsDiv = el('div', { class: 'vilify-tab-bar-right' }, hintChildren);
+
+  // Settings gear (nearly invisible)
+  const settingsBtn = el('span', { class: 'vilify-settings-btn', title: ':settings' }, ['⚙']);
+  settingsBtn.addEventListener('click', () => openSettingsWindow());
+  hintsDiv.appendChild(settingsBtn);
+
+  return el('div', { class: 'vilify-tab-bar' }, [leftDiv, hintsDiv]);
+}
+
+/**
+ * Create a powerline arrow SVG separator.
+ * @param {string} fromColor - CSS color of left segment
+ * @param {string} toColor - CSS color of right segment
+ * @param {'right'|'left'} direction - Arrow direction
+ */
+function plArrow(fromColor: string, toColor: string, direction: 'right' | 'left' = 'right'): HTMLElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 14 28');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.height = '28px';
+  svg.style.width = '14px';
+  svg.style.display = 'block';
+
+  // Background fill (right-side color)
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('x', '0');
+  bg.setAttribute('y', '0');
+  bg.setAttribute('width', '14');
+  bg.setAttribute('height', '28');
+  bg.setAttribute('fill', toColor);
+  svg.appendChild(bg);
+
+  // Diagonal slant shape (left-side color)
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  if (direction === 'right') {
+    // Slant: top-left to bottom-right diagonal
+    path.setAttribute('d', 'M0,0 L14,28 L0,28 Z');
+    path.setAttribute('fill', fromColor);
+  } else {
+    // Slant: top-right to bottom-left diagonal
+    path.setAttribute('d', 'M0,28 L14,0 L14,28 Z');
+    path.setAttribute('fill', toColor);
+    bg.setAttribute('fill', fromColor);
+  }
+  svg.appendChild(path);
+
+  const wrapper = el('span', { class: 'vilify-pl-arrow' }, []);
+  wrapper.appendChild(svg);
+  return wrapper;
+}
+
+/**
+ * Get the CSS color value for the current mode.
+ */
+function getModeColor(mode: string): string {
+  const styles = getComputedStyle(document.documentElement);
+  switch (mode) {
+    case 'SEARCH': return styles.getPropertyValue('--mode-search').trim() || '#859900';
+    case 'COMMAND': return styles.getPropertyValue('--mode-command').trim() || '#CB4B16';
+    case 'FILTER': return styles.getPropertyValue('--mode-filter').trim() || '#D33682';
+    default: return styles.getPropertyValue('--mode-normal').trim() || '#268BD2';
+  }
+}
+
+/**
  * Create the status bar element with mode badge and input field.
  * [PURE - but attaches event listeners]
  */
 function createStatusBar(state: AppState): HTMLElement {
   const mode = getMode(state);
-  
+
   // Mode badge
   const modeBadge = el('span', { class: 'vilify-mode-badge' }, [mode]);
 
@@ -437,12 +764,50 @@ function createStatusBar(state: AppState): HTMLElement {
     }
   });
 
+  // Track Ctrl-x prefix for Ctrl-x Ctrl-o omnicompletion
+  let ctrlXPending = false;
+
   input.addEventListener('keydown', (e) => {
     e.stopPropagation(); // Prevent keyboard handler from intercepting
-    
+
     const currentMode = document.querySelector('.vilify-mode-badge')?.textContent;
-    
-    if (e.key === 'Escape') {
+
+    // Ctrl-x Ctrl-o omnicompletion sequence (command mode only)
+    if (e.ctrlKey && currentMode === 'COMMAND') {
+      if (e.key === 'x') {
+        e.preventDefault();
+        ctrlXPending = true;
+        return;
+      }
+      if (e.key === 'o' && ctrlXPending) {
+        e.preventDefault();
+        ctrlXPending = false;
+        if (inputCallbacks?.onOmniComplete) {
+          inputCallbacks.onOmniComplete();
+        }
+        return;
+      }
+    }
+    // Any non-Ctrl-x key resets the Ctrl-x prefix
+    if (ctrlXPending && !(e.ctrlKey && e.key === 'x')) {
+      ctrlXPending = false;
+    }
+
+    if ((e.key === 'n' && e.ctrlKey && currentMode === 'COMMAND') ||
+        (e.key === 'Tab' && !e.shiftKey && currentMode === 'COMMAND')) {
+      e.preventDefault();
+      if (inputCallbacks?.onCommandNavigate) {
+        inputCallbacks.onCommandNavigate('down');
+      }
+      return;
+    } else if ((e.key === 'p' && e.ctrlKey && currentMode === 'COMMAND') ||
+               (e.key === 'Tab' && e.shiftKey && currentMode === 'COMMAND')) {
+      e.preventDefault();
+      if (inputCallbacks?.onCommandNavigate) {
+        inputCallbacks.onCommandNavigate('up');
+      }
+      return;
+    } else if (e.key === 'Escape') {
       e.preventDefault();
       if (inputCallbacks?.onEscape) {
         inputCallbacks.onEscape();
@@ -460,12 +825,9 @@ function createStatusBar(state: AppState): HTMLElement {
         inputCallbacks.onDrawerSubmit(e.target.value, e.shiftKey, currentMode);
       }
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      // Allow arrow keys for palette/filter navigation
+      // Allow arrow keys for filter/drawer navigation (not command palette)
       const direction = e.key === 'ArrowDown' ? 'down' : 'up';
-      if (currentMode === 'COMMAND' && inputCallbacks?.onCommandNavigate) {
-        e.preventDefault();
-        inputCallbacks.onCommandNavigate(direction);
-      } else if (currentMode === 'FILTER' && inputCallbacks?.onFilterNavigate) {
+      if (currentMode === 'FILTER' && inputCallbacks?.onFilterNavigate) {
         e.preventDefault();
         inputCallbacks.onFilterNavigate(direction);
       } else if (inputCallbacks?.onDrawerNavigate) {
@@ -479,17 +841,48 @@ function createStatusBar(state: AppState): HTMLElement {
   // Sort indicator (shown when sort is active)
   const sortIndicator = el('span', { class: 'vilify-status-sort', id: 'vilify-status-sort', style: 'display: none' }, []);
 
-  // Item count
-  const countIndicator = el('span', { class: 'vilify-status-count', id: 'vilify-status-count' }, []);
-
   // Hints area (shown when drawer is open)
   const hints = el('span', { class: 'vilify-status-hints', id: 'vilify-status-hints' }, []);
 
   // Message area
   const message = el('span', { class: 'vilify-status-message', id: 'vilify-status-message' }, []);
 
-  const leftDiv = el('div', { class: 'vilify-status-left' }, [modeBadge, sortIndicator, countIndicator, input]);
-  const rightDiv = el('div', { class: 'vilify-status-right' }, [hints, message]);
+  // Page type segment (gray section after mode badge)
+  const pageTypeSeg = el('span', { class: 'vilify-pl-seg vilify-pl-pagetype', id: 'vilify-status-pagetype' }, []);
+
+  // Middle section (lighter bg - holds sort, input, hints, message)
+  const middleSeg = el('span', { class: 'vilify-pl-seg vilify-pl-middle' }, [sortIndicator, input, hints, message]);
+
+  // Position segment (cursor position like "3/21")
+  const positionSeg = el('span', { class: 'vilify-pl-seg vilify-pl-position', id: 'vilify-status-position' }, []);
+
+  // Browser segment (mode-colored, rightmost)
+  const ua = navigator.userAgent;
+  const browser = /Edg\//i.test(ua) ? 'EDGE'
+    : /OPR\//i.test(ua) ? 'OPERA'
+    : /Vivaldi\//i.test(ua) ? 'VIVALDI'
+    : /Brave/.test(ua) ? 'BRAVE'
+    : /YaBrowser\//i.test(ua) ? 'YANDEX'
+    : 'CHROME';
+  const browserSeg = el('span', { class: 'vilify-pl-seg vilify-pl-browser', id: 'vilify-status-browser' }, [browser]);
+
+  // Build powerline: [mode][▶][pagetype][▶][middle...][◀][position][◀][browser]
+  // Colors for initial arrows (NORMAL mode)
+  const modeColor = getModeColor(mode);
+  const grayColor = '#363646';  // --bg-3
+  const midColor = '#2A2A37';   // --bg-2
+
+  const arrow1 = plArrow(modeColor, grayColor, 'right');
+  arrow1.id = 'vilify-pl-arrow1';
+  const arrow2 = plArrow(grayColor, midColor, 'right');
+  arrow2.id = 'vilify-pl-arrow2';
+  const arrow3 = plArrow(midColor, grayColor, 'left');
+  arrow3.id = 'vilify-pl-arrow3';
+  const arrow4 = plArrow(grayColor, modeColor, 'left');
+  arrow4.id = 'vilify-pl-arrow4';
+
+  const leftDiv = el('div', { class: 'vilify-status-left' }, [modeBadge, arrow1, pageTypeSeg, arrow2, middleSeg]);
+  const rightDiv = el('div', { class: 'vilify-status-right' }, [arrow3, positionSeg, arrow4, browserSeg]);
 
   return el('div', { class: 'vilify-status-bar' }, [leftDiv, rightDiv]);
 }
@@ -506,10 +899,34 @@ function createStatusBar(state: AppState): HTMLElement {
 export function updateStatusBar(state: AppState, focusInput: boolean = false, drawerPlaceholder: string | null = null, searchPlaceholder: string | null = null): void {
   const mode = getMode(state);
   
-  // Update mode badge
+  // Update mode badge text and color class
+  const modeClass = mode === 'SEARCH' ? 'mode-search'
+    : mode === 'COMMAND' ? 'mode-command'
+    : mode === 'FILTER' ? 'mode-filter'
+    : null;
+
   const badge = document.querySelector('.vilify-mode-badge');
   if (badge) {
     badge.textContent = mode;
+    badge.classList.remove('mode-search', 'mode-command', 'mode-filter');
+    if (modeClass) badge.classList.add(modeClass);
+  }
+
+  // Update powerline arrows to match mode color
+  const modeColor = getModeColor(mode);
+  const grayColor = '#363646';
+  const midColor = '#2A2A37';
+
+  const a1 = document.getElementById('vilify-pl-arrow1');
+  if (a1) { a1.innerHTML = ''; a1.appendChild(plArrow(modeColor, grayColor, 'right').firstChild!); }
+  const a4 = document.getElementById('vilify-pl-arrow4');
+  if (a4) { a4.innerHTML = ''; a4.appendChild(plArrow(grayColor, modeColor, 'left').firstChild!); }
+
+  // Update browser segment to match mode color
+  const browserSeg = document.getElementById('vilify-status-browser');
+  if (browserSeg) {
+    browserSeg.style.background = modeColor;
+    browserSeg.style.color = contrastText(modeColor);
   }
 
   // Check if this is a site-specific drawer mode (not NORMAL, COMMAND, FILTER, SEARCH)
@@ -586,6 +1003,9 @@ export function updateSortIndicator(sortLabel: string): void {
   }
 }
 
+// Track last known position for updateItemCount fallback
+let lastCursorPos = 1;
+
 /**
  * Update item count in status bar.
  * [I/O]
@@ -593,9 +1013,21 @@ export function updateSortIndicator(sortLabel: string): void {
  * @param {number} count - Number of items
  */
 export function updateItemCount(count: number): void {
-  const countEl = document.getElementById('vilify-status-count');
-  if (countEl) {
-    countEl.textContent = count > 0 ? `[${count}]` : '';
+  const posEl = document.getElementById('vilify-status-position');
+  if (posEl) {
+    posEl.textContent = count > 0 ? `${lastCursorPos}/${count}` : '';
+  }
+}
+
+/**
+ * Update cursor position display in status bar.
+ * [I/O]
+ */
+export function updateCursorPosition(pos: number, total: number): void {
+  lastCursorPos = pos;
+  const posEl = document.getElementById('vilify-status-position');
+  if (posEl) {
+    posEl.textContent = total > 0 ? `${pos}/${total}` : '';
   }
 }
 
@@ -603,7 +1035,7 @@ export function updateItemCount(count: number): void {
  * Render a list of content items with selection state.
  * [I/O]
  */
-export function renderListing(items: ContentItem[], selectedIdx: number, container: HTMLElement | null = null, renderItem: ((item: ContentItem, isSelected: boolean) => HTMLElement) | null = null): void {
+export function renderListing(items: ContentItem[], selectedIdx: number, container: HTMLElement | null = null, renderItem: ((item: ContentItem, isSelected: boolean, index: number) => HTMLElement) | null = null): void {
   const targetContainer = container || document.getElementById('vilify-content');
   if (!targetContainer) {
     return;
@@ -620,10 +1052,13 @@ export function renderListing(items: ContentItem[], selectedIdx: number, contain
   items.forEach((item, index) => {
     const isSelected = index === selectedIdx;
     const renderer = renderItem || renderDefaultItem;
-    const itemEl = renderer(item, isSelected);
+    const itemEl = renderer(item, isSelected, index);
     itemEl.setAttribute('data-index', String(index));
     targetContainer.appendChild(itemEl);
   });
+
+  // Add tilde fillers to fill remaining space (vim-style)
+  addTildeFillers(targetContainer);
 
   const selectedEl = targetContainer.querySelector('.vilify-item.selected');
   if (selectedEl) {
@@ -632,10 +1067,33 @@ export function renderListing(items: ContentItem[], selectedIdx: number, contain
 }
 
 /**
+ * Add tilde filler rows to fill remaining vertical space (vim-style ~).
+ * [I/O]
+ */
+function addTildeFillers(container: HTMLElement): void {
+  // Use requestAnimationFrame to measure after layout
+  requestAnimationFrame(() => {
+    const containerHeight = container.clientHeight;
+    const contentHeight = container.scrollHeight;
+    const rowHeight = 84; // Approximate height of one item row
+
+    if (contentHeight < containerHeight) {
+      const remainingHeight = containerHeight - contentHeight;
+      const tildeCount = Math.floor(remainingHeight / (rowHeight * 0.3));
+
+      for (let i = 0; i < tildeCount; i++) {
+        const tilde = el('div', { class: 'vilify-tilde-filler' }, ['~']);
+        container.appendChild(tilde);
+      }
+    }
+  });
+}
+
+/**
  * Default item renderer for ContentItem.
  * [PURE]
  */
-export function renderDefaultItem(item: ContentItem, isSelected: boolean): HTMLElement {
+export function renderDefaultItem(item: ContentItem, isSelected: boolean, _index?: number): HTMLElement {
   // Check for group header
   if ('group' in item && item.group) {
     return el('div', { class: 'vilify-group-header' }, [item.group]);
@@ -686,7 +1144,7 @@ function renderCommandItem(cmd: any, isSelected: boolean): HTMLElement {
   const classes = isSelected ? 'vilify-item selected' : 'vilify-item';
   const children = [];
 
-  if (cmd.icon) {
+  if (cmd.icon && !cmd.hidden) {
     const icon = el('span', { class: 'vilify-item-icon' }, [cmd.icon + ' ']);
     children.push(icon);
   }
@@ -697,7 +1155,7 @@ function renderCommandItem(cmd: any, isSelected: boolean): HTMLElement {
   const spacer = el('span', { style: 'flex: 1' }, []);
   children.push(spacer);
 
-  if (cmd.keys) {
+  if (cmd.keys && !cmd.hidden) {
     const keys = el('kbd', {}, [cmd.keys]);
     children.push(keys);
   }

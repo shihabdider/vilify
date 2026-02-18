@@ -4,8 +4,8 @@
 
 import type { StatusBarView, ContentView, DrawerView, ViewTree } from '../types';
 import { el, clear } from './view';
-import { renderListing, renderDefaultItem, updateSortIndicator, updateItemCount } from './layout';
-import { renderPalette, showPalette, hidePalette } from './palette';
+import { renderListing, renderDefaultItem, updateSortIndicator, updateItemCount, updateCursorPosition } from './layout';
+import { renderPalette, showPalette, hidePalette, updatePalettePosition } from './palette';
 import { renderDrawer, closeDrawer } from './drawer';
 import { statusBarViewEqual, contentViewChanged, drawerViewChanged } from './view-tree';
 
@@ -63,8 +63,12 @@ export function applyStatusBar(view: StatusBarView, prev?: StatusBarView | null)
     // Value - only update if different (avoid cursor jump)
     if (input.value !== view.inputValue) {
       input.value = view.inputValue;
+      // Reposition palette when command input text changes
+      if (view.mode === 'COMMAND') {
+        updatePalettePosition();
+      }
     }
-    
+
     // Focus
     if (view.inputFocus && view.inputVisible) {
       input.focus();
@@ -86,12 +90,24 @@ export function applyStatusBar(view: StatusBarView, prev?: StatusBarView | null)
   if (hints && (!prev || prev.hints !== view.hints)) {
     if (view.hints) {
       // Convert plain text hints to HTML with kbd tags
+      // Handle \-prefixed keys (watch page) and bare keys (listing page)
       hints.innerHTML = view.hints
+        .replace(/\^n/g, '<kbd>^n</kbd>')
+        .replace(/\^p/g, '<kbd>^p</kbd>')
         .replace(/↑↓/g, '<kbd>↑↓</kbd>')
         .replace(/↵/g, '<kbd>↵</kbd>')
         .replace(/esc/g, '<kbd>esc</kbd>')
+        .replace(/\\(\S+)/g, '<kbd>\\$1</kbd>')
+        .replace(/\bgg\b/g, '<kbd>gg</kbd>')
+        .replace(/\bG\b/g, '<kbd>G</kbd>')
         .replace(/\bj\b/g, '<kbd>j</kbd>')
-        .replace(/\bk\b/g, '<kbd>k</kbd>');
+        .replace(/\bk\b/g, '<kbd>k</kbd>')
+        .replace(/\//g, (match, offset, str) => {
+          // Don't re-wrap if already inside a kbd tag
+          const before = str.substring(Math.max(0, offset - 5), offset);
+          if (before.includes('<kbd>')) return match;
+          return '<kbd>/</kbd>';
+        });
     } else {
       hints.innerHTML = '';
     }
@@ -121,6 +137,7 @@ export function applyContent(view: ContentView, prev?: ContentView | null, conte
     // Just update selection if only selectedIdx changed
     if (view.selectedIdx !== prev.selectedIdx) {
       updateSelection(targetContainer, view.selectedIdx);
+      updateCursorPosition(view.selectedIdx + 1, view.items.length);
     }
     return;
   }

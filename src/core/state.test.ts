@@ -597,21 +597,21 @@ describe('onPaletteNavigate', () => {
     expect(result.state.ui.paletteSelectedIdx).toBe(1);
   });
 
-  it('hits bottom boundary', () => {
+  it('wraps to top when navigating down past last item', () => {
     const state = createAppState();
     state.ui.paletteSelectedIdx = 4;
     const result = onPaletteNavigate(state, 'down', 5);
-    
-    expect(result.state.ui.paletteSelectedIdx).toBe(4);
-    expect(result.boundary).toBe('bottom');
+
+    expect(result.state.ui.paletteSelectedIdx).toBe(0);
+    expect(result.boundary).toBe(null);
   });
 
-  it('hits top boundary', () => {
+  it('wraps to bottom when navigating up past first item', () => {
     const state = createAppState();
     const result = onPaletteNavigate(state, 'up', 5);
-    
-    expect(result.state.ui.paletteSelectedIdx).toBe(0);
-    expect(result.boundary).toBe('top');
+
+    expect(result.state.ui.paletteSelectedIdx).toBe(4);
+    expect(result.boundary).toBe(null);
   });
 });
 

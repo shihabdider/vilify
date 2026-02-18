@@ -396,6 +396,89 @@ function getPlaylistItemData(videoId: string): { setVideoId: string; position: n
 }
 
 /**
+ * Extract the continuation token from ytInitialData (for "load more" on list pages).
+ * Recursively searches for continuationItemRenderer anywhere in the data tree.
+ */
+function getContinuationToken(): string | null {
+  if (typeof ytInitialData === 'undefined' || !ytInitialData) {
+    console.log('[Vilify Bridge] getContinuationToken: no ytInitialData');
+    return null;
+  }
+
+  // Recursive search for continuationItemRenderer → token
+  function findToken(obj: any, depth: number): string | null {
+    if (!obj || typeof obj !== 'object' || depth > 12) return null;
+
+    // Found a continuationItemRenderer — extract token from known paths
+    if (obj.continuationItemRenderer) {
+      const cir = obj.continuationItemRenderer;
+      const token =
+        cir.continuationEndpoint?.continuationCommand?.token ||
+        cir.continuationEndpoint?.getCommand?.token ||
+        cir.button?.buttonRenderer?.command?.continuationCommand?.token;
+      if (token) return token;
+    }
+
+    // Recurse into arrays and objects
+    if (Array.isArray(obj)) {
+      // Search from end — continuation is usually the last item
+      for (let i = obj.length - 1; i >= 0; i--) {
+        const t = findToken(obj[i], depth + 1);
+        if (t) return t;
+      }
+    } else {
+      for (const key of Object.keys(obj)) {
+        const t = findToken(obj[key], depth + 1);
+        if (t) return t;
+      }
+    }
+    return null;
+  }
+
+  return findToken(ytInitialData.contents, 0);
+}
+
+/**
+ * Fetch continuation data using a continuation token via YouTube's browse API.
+ */
+async function fetchContinuation(): Promise<{ success: boolean; count?: number }> {
+  const token = getContinuationToken();
+  if (!token) {
+    console.log('[Vilify Bridge] No continuation token found');
+    return { success: false };
+  }
+
+  const context = getFullApiContext();
+  if (!context) return { success: false };
+
+  const apiKey = typeof ytcfg !== 'undefined' && ytcfg.get ? ytcfg.get('INNERTUBE_API_KEY') : null;
+  const url = `https://www.youtube.com/youtubei/v1/browse?prettyPrint=false${apiKey ? `&key=${apiKey}` : ''}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context, continuation: token }),
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+
+    // Send continuation data through the same channel as intercepted fetches
+    if (data?.onResponseReceivedActions || data?.continuationContents) {
+      send('continuationData', data);
+      console.log('[Vilify Bridge] Fetched continuation data');
+      return { success: true };
+    }
+
+    return { success: false };
+  } catch (e) {
+    console.error('[Vilify Bridge] Continuation fetch error:', e);
+    return { success: false };
+  }
+}
+
+/**
  * Listen for commands from content script
  */
 document.addEventListener('__vilify_command__', async (event: Event) => {
@@ -426,6 +509,13 @@ document.addEventListener('__vilify_command__', async (event: Event) => {
     }));
   }
   
+  if (command === 'fetchContinuation') {
+    const result = await fetchContinuation();
+    document.dispatchEvent(new CustomEvent('__vilify_response__', {
+      detail: { requestId, result }
+    }));
+  }
+
   if (command === 'undoRemoveFromWatchLater' && data?.videoId !== undefined) {
     const result = await undoRemoveFromWatchLater(data.videoId, data.position);
     console.log('[Vilify Bridge] Undo result:', result);

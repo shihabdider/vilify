@@ -699,13 +699,13 @@ export function onPaletteNavigate(state: AppState, direction: string, itemCount:
   
   if (direction === 'down') {
     if (currentIdx >= maxIdx) {
-      boundary = 'bottom';
+      newIdx = 0; // wrap to top
     } else {
       newIdx = currentIdx + 1;
     }
   } else if (direction === 'up') {
     if (currentIdx <= 0) {
-      boundary = 'top';
+      newIdx = maxIdx; // wrap to bottom
     } else {
       newIdx = currentIdx - 1;
     }

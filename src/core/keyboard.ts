@@ -4,6 +4,7 @@
 import type { KeyEventResult, KeyboardState } from '../types';
 import { isInputElement, showMessage } from './view';
 import { removeFocusMode } from './layout';
+import { isSettingsOpen } from './settings-window';
 
 /**
  * Returns initial keyboard state.
@@ -144,6 +145,9 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
   }
 
   function handler(event) {
+    // 0. Settings window absorbs all keys
+    if (isSettingsOpen()) return;
+
     const state = getState();
     const { drawer, filterActive, searchActive } = state.ui;
     const focusModeActive = state.core.focusModeActive;
@@ -209,10 +213,10 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     const sequences = config.getKeySequences(appCallbacks, context);
     const blockedKeys = config.getBlockedNativeKeys?.(context) ?? [];
 
-    // 8. Block native keys
+    // 8. Block native keys (stopImmediatePropagation prevents same-element listeners too)
     if (blockedKeys.includes(key)) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     }
 
     // 9. Clear existing timeout
@@ -228,7 +232,7 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     // 11. For any match (exact, pending, or prefix): block event
     if (result.shouldPrevent) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     }
 
     // 12. Execute action or handle pending/timeout

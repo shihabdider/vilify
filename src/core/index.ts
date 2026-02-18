@@ -34,15 +34,18 @@ import { el, clear, updateListSelection, showMessage, flashBoundary, navigateLis
 import { injectLoadingStyles, showLoadingScreen, hideLoadingScreen } from './loading';
 import { setupNavigationObserver } from './navigation';
 import { setupKeyboardEngine } from './keyboard';
-import { injectFocusModeStyles, applyTheme, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, updateSortIndicator, updateItemCount, removeFocusMode } from './layout';
+import { injectFocusModeStyles, applyTheme, applyFont, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, updateSortIndicator, updateItemCount, updateCursorPosition, removeFocusMode } from './layout';
+import { loadSettings, saveSettings, getTheme, getFontFamily, COLORSCHEMES, keyToFont } from './settings';
+import { openSettingsWindow } from './settings-window';
 import { parseSortCommand, getSortLabel, getDefaultDirection, toggleDirection, SORT_FIELDS } from './sort';
-import { injectPaletteStyles, filterItems, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette';
+import { injectPaletteStyles, filterItems, filterColonCommands, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions';
 
 import { injectDrawerStyles, renderDrawer, handleDrawerKey, closeDrawer } from './drawer';
 import { toView, toStatusBarView, toContentView, toDrawerView, getPageItems } from './view-tree';
 import { applyView, applyStatusBar, applyContent, applyDrawer, resetViewState } from './apply-view';
 import { pollPageContent } from './poll-content';
+
 
 // =============================================================================
 // CONSTANTS
@@ -115,6 +118,9 @@ export function createApp(config: SiteConfig): App {
 
   /** @type {MutationObserver|null} Navigation observer */
   let navigationObserver = null;
+
+  /** Whether omnicompletion popup is active (Ctrl-x Ctrl-o) */
+  let omniCompleteActive = false;
 
   // ==========================================================================
   // CONTENT POLLING
@@ -248,9 +254,22 @@ export function createApp(config: SiteConfig): App {
                              isSiteDrawer;
     updateStatusBar(state, shouldFocusInput, statusBarView.inputPlaceholder, config.searchPlaceholder);
 
+    // Update page type indicator
+    const pageTypeEl = document.getElementById('vilify-status-pagetype');
+    if (pageTypeEl) pageTypeEl.textContent = pageType.toUpperCase();
+
     // Apply content view
     updateSortIndicator(statusBarView.sortLabel);
     updateItemCount(contentView.items.length);
+    updateCursorPosition(contentView.selectedIdx + 1, contentView.items.length);
+
+    // On watch pages with chapters, override position segment to show chapter count
+    if (pageType === 'watch' && state.page?.type === 'watch' && state.page.chapters.length > 0) {
+      const posEl = document.getElementById('vilify-status-position');
+      if (posEl) {
+        posEl.textContent = `chapters: ${state.page.chapters.length}`;
+      }
+    }
 
     // Render content based on computed view type
     if (contentView.type === 'custom' && contentView.render) {
@@ -304,17 +323,27 @@ export function createApp(config: SiteConfig): App {
               }
               render();
             },
+            openSettings: () => openSettingsWindow(),
           })
         : [];
 
-      // Filter commands by query
-      const query = state.ui.paletteQuery.startsWith(':')
-        ? state.ui.paletteQuery.slice(1)
-        : state.ui.paletteQuery;
-      const filtered = filterItems(commands, query);
+      // Only show autocomplete popup when omnicompletion is active (Ctrl-x Ctrl-o)
+      if (omniCompleteActive) {
+        const query = state.ui.paletteQuery.startsWith(':')
+          ? state.ui.paletteQuery.slice(1)
+          : state.ui.paletteQuery;
+        const filtered = filterColonCommands(commands, query);
 
-      renderPalette(filtered, state.ui.paletteSelectedIdx);
-      showPalette();
+        const actionable = filtered.filter(c => !c.group);
+        if (actionable.length > 0) {
+          renderPalette(filtered, state.ui.paletteSelectedIdx);
+          showPalette();
+        } else {
+          hidePalette();
+        }
+      } else {
+        hidePalette();
+      }
     } else {
       hidePalette();
     }
@@ -424,27 +453,81 @@ export function createApp(config: SiteConfig): App {
   }
 
   function handleCommandChange(value) {
+    // Close palette when ':' prefix is deleted
+    if (!value || (!value.startsWith(':') && state.ui.paletteQuery.startsWith(':'))) {
+      omniCompleteActive = false;
+      state = onDrawerClose(state);
+      render();
+      return;
+    }
+    // Dismiss omnicompletion popup when user continues typing
+    omniCompleteActive = false;
+
+    // Auto-activate omnicompletion when user types ':colo ', ':colorscheme ', or ':set guifont='
+    const trimmedLower = value.toLowerCase();
+    if (trimmedLower === ':colo ' || trimmedLower === ':colorscheme ' || trimmedLower === ':set guifont=') {
+      omniCompleteActive = true;
+      state = onPaletteQueryChange(state, value);
+      state = { ...state, ui: { ...state.ui, paletteSelectedIdx: 0 } };
+      render();
+      return;
+    }
+
     state = onPaletteQueryChange(state, value);
     render();
   }
 
   function handleCommandSubmit(value, shiftKey) {
+    // If omnicompletion is active, use autocomplete-first logic
+    if (omniCompleteActive) {
+      const commands = config.getCommands
+        ? config.getCommands({ state, siteState, navigateTo, copyToClipboard, openSettings: () => openSettingsWindow() })
+        : [];
+
+      const query = value.startsWith(':') ? value.slice(1) : value;
+      const filtered = filterColonCommands(commands, query);
+      const actionable = filtered.filter((c) => !c.group);
+      const item = actionable[state.ui.paletteSelectedIdx];
+
+      if (item?.keys) {
+        const cmdName = item.keys.startsWith(':') ? item.keys.slice(1) : item.keys;
+        if (query.toLowerCase() !== cmdName.toLowerCase()) {
+          // Autocomplete: fill the command key into the input
+          state = onPaletteQueryChange(state, ':' + cmdName);
+          render();
+          return;
+        }
+
+        // Exact match — execute the command's action
+        if (item.action) {
+          omniCompleteActive = false;
+          state = onDrawerClose(state);
+          state = { ...state, ui: { ...state.ui, filterActive: false, filterQuery: '' } };
+          item.action();
+          render();
+          return;
+        }
+      }
+    }
+
+    // Direct command execution — no autocomplete interference
+
     // Check for :q exit command
     if (value.trim().toLowerCase() === ':q') {
       state = onDrawerClose(state);
       state = { ...state, core: { ...state.core, focusModeActive: false } };
-      
+
       stopContentPolling();
       removeFocusMode();
       document.body.classList.remove('vilify-watch-page', 'vilify-loading');
       hideLoadingScreen();
-      
+
       const drawers = document.querySelectorAll(
         '.vilify-drawer, #vilify-drawer-container, ' +
         '#vilify-loading-overlay, .vilify-overlay'
       );
       drawers.forEach(el => el.remove());
-      
+
       showMessage('Focus mode off (refresh to re-enable)');
       return;
     }
@@ -453,7 +536,7 @@ export function createApp(config: SiteConfig): App {
     const sortMatch = value.trim().match(/^:?sort\s*(.*)$/i);
     if (sortMatch !== null) {
       const sortArg = sortMatch[1].trim();
-      
+
       if (!sortArg) {
         state = onDrawerClose(state);
         state = onSortChange(state, null, 'desc');
@@ -461,11 +544,11 @@ export function createApp(config: SiteConfig): App {
         render();
         return;
       }
-      
+
       const parsed = parseSortCommand(sortArg);
       if (parsed) {
         state = onDrawerClose(state);
-        
+
         if (state.ui.sort.field === parsed.field && !parsed.reverse) {
           const newDir = toggleDirection(state.ui.sort.direction);
           state = onSortChange(state, parsed.field, newDir);
@@ -474,7 +557,7 @@ export function createApp(config: SiteConfig): App {
           const newDir = parsed.reverse ? toggleDirection(defaultDir) : defaultDir;
           state = onSortChange(state, parsed.field, newDir);
         }
-        
+
         const label = getSortLabel(state.ui.sort.field, state.ui.sort.direction);
         showMessage(`Sorted by ${label}`);
         render();
@@ -485,24 +568,84 @@ export function createApp(config: SiteConfig): App {
       }
     }
 
-    // Execute selected command
-    const commands = config.getCommands
-      ? config.getCommands({ state, siteState, navigateTo, copyToClipboard })
-      : [];
+    // Check for :colorscheme / :colo command
+    const coloMatch = value.trim().match(/^:?(?:colorscheme|colo)\s*(.*)$/i);
+    if (coloMatch !== null) {
+      const coloArg = coloMatch[1].trim();
 
-    const query = value.startsWith(':') ? value.slice(1) : value;
-    const filtered = filterItems(commands, query);
-    const actionable = filtered.filter((c) => !c.group);
-    const item = actionable[state.ui.paletteSelectedIdx];
-
-    if (item?.action) {
-      state = onDrawerClose(state);
-      state = onFilterToggle(state);
-      if (!state.ui.filterActive) {
-        state = onFilterToggle(state);
+      if (!coloArg) {
+        // No argument — show current colorscheme name (like vim)
+        const settings = loadSettings();
+        state = onDrawerClose(state);
+        showMessage(settings.colorscheme);
+        render();
+        return;
       }
+
+      // Find matching colorscheme (case-insensitive)
+      const schemeKeys = Object.keys(COLORSCHEMES);
+      const coloFound = schemeKeys.find(k => k.toLowerCase() === coloArg.toLowerCase());
+      if (coloFound) {
+        state = onDrawerClose(state);
+        const settings = loadSettings();
+        settings.colorscheme = coloFound;
+        saveSettings(settings);
+        applyTheme(getTheme(coloFound));
+        showMessage(`Colorscheme: ${coloFound}`);
+        render();
+        return;
+      } else {
+        showMessage(`Unknown colorscheme: ${coloArg}`);
+        return;
+      }
+    }
+
+    // Check for :set guifont command
+    const fontMatch = value.trim().match(/^:?set\s+guifont(?:=(.*))?$/i);
+    if (fontMatch !== null) {
+      const fontArg = fontMatch[1];
+
+      if (fontArg === undefined) {
+        // No '=' at all — show current font (like vim :set guifont)
+        const settings = loadSettings();
+        state = onDrawerClose(state);
+        showMessage(settings.font);
+        render();
+        return;
+      }
+
+      if (fontArg.trim() === '') {
+        // Has '=' but empty — user wants autocomplete, do nothing (omnicomplete handles it)
+        return;
+      }
+
+      // Has argument — find and apply font
+      const found = keyToFont(fontArg.trim());
+      if (found) {
+        state = onDrawerClose(state);
+        const settings = loadSettings();
+        settings.font = found;
+        saveSettings(settings);
+        applyFont(found);
+        showMessage(`Font: ${found}`);
+        render();
+        return;
+      } else {
+        showMessage(`Unknown font: ${fontArg.trim()}`);
+        return;
+      }
+    }
+
+    // Fallback: exact match against command keys (e.g. :settings)
+    const allCommands = config.getCommands
+      ? config.getCommands({ state, siteState, navigateTo, copyToClipboard, openSettings: () => openSettingsWindow() })
+      : [];
+    const typed = value.trim().toLowerCase();
+    const match = allCommands.find(c => c.keys && c.keys.toLowerCase() === typed);
+    if (match?.action) {
+      state = onDrawerClose(state);
       state = { ...state, ui: { ...state.ui, filterActive: false, filterQuery: '' } };
-      item.action();
+      match.action();
       render();
     }
   }
@@ -513,7 +656,7 @@ export function createApp(config: SiteConfig): App {
       : [];
 
     const query = state.ui.paletteQuery.startsWith(':') ? state.ui.paletteQuery.slice(1) : state.ui.paletteQuery;
-    const filtered = filterItems(commands, query);
+    const filtered = filterColonCommands(commands, query);
     const actionable = filtered.filter((c) => !c.group);
     const count = actionable.length;
 
@@ -530,6 +673,7 @@ export function createApp(config: SiteConfig): App {
   }
 
   function handleInputEscape() {
+    omniCompleteActive = false;
     if (state.ui.drawer === 'palette') {
       state = onDrawerClose(state);
     } else if (state.ui.drawer !== null) {
@@ -587,28 +731,75 @@ export function createApp(config: SiteConfig): App {
     render();
   }
 
+  /** Whether a fetchMore request is in flight */
+  let isLoadingMore = false;
+
   /**
-   * Trigger YouTube's lazy loading by scrolling continuation element into view.
+   * Trigger lazy loading via YouTube browse API continuation.
+   * Falls back to DOM scrolling if the API approach fails.
    * [I/O]
    */
-  function triggerLazyLoad() {
+  async function triggerLazyLoad() {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+    showMessage('Loading more...');
+
+    try {
+      if (config.name === 'youtube') {
+        const { getDataProvider } = await import('../sites/youtube/data/index');
+        const dp = getDataProvider();
+        const success = await dp.fetchMore();
+
+        if (success) {
+          if (config.createPageState) {
+            const pageState = config.createPageState();
+            state = onListItemsUpdate(state, pageState.videos || []);
+          }
+          render();
+          isLoadingMore = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('[Vilify] triggerLazyLoad error:', e);
+    }
+
+    // Fallback: scroll YouTube's continuation element into view
+    triggerLazyLoadDOM();
+    isLoadingMore = false;
+  }
+
+  /**
+   * Fallback: trigger lazy loading by scrolling continuation element into view.
+   * [I/O]
+   */
+  function triggerLazyLoadDOM() {
     const continuationSelectors = [
       'ytd-continuation-item-renderer',
       '#continuations ytd-continuation-item-renderer',
       'ytd-rich-grid-renderer ytd-continuation-item-renderer',
       'ytd-section-list-renderer ytd-continuation-item-renderer',
     ];
-    
+
+    document.body.classList.remove('vilify-focus-mode');
+
     for (const selector of continuationSelectors) {
       const continuation = document.querySelector(selector);
       if (continuation) {
         continuation.scrollIntoView({ behavior: 'instant', block: 'center' });
-        showMessage('Loading more...');
+        setTimeout(() => {
+          document.body.classList.add('vilify-focus-mode');
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        }, 300);
         return;
       }
     }
-    
+
     window.scrollBy({ top: window.innerHeight, behavior: 'instant' });
+    setTimeout(() => {
+      document.body.classList.add('vilify-focus-mode');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 300);
   }
 
   function handleSelect(shiftKey) {
@@ -1087,10 +1278,10 @@ export function createApp(config: SiteConfig): App {
 
       siteState = state.site;
 
-      // Apply site theme
-      if (config.theme) {
-        applyTheme(config.theme);
-      }
+      // Apply saved settings (colorscheme + font), fallback to site theme
+      const savedSettings = loadSettings();
+      applyTheme(getTheme(savedSettings.colorscheme));
+      document.documentElement.style.setProperty('--font-mono', getFontFamily(savedSettings.font));
 
       // Set up input callbacks
       setInputCallbacks({
@@ -1102,6 +1293,11 @@ export function createApp(config: SiteConfig): App {
         onCommandChange: handleCommandChange,
         onCommandSubmit: handleCommandSubmit,
         onCommandNavigate: handleCommandNavigate,
+        onOmniComplete: () => {
+          omniCompleteActive = true;
+          state = { ...state, ui: { ...state.ui, paletteSelectedIdx: 0 } };
+          render();
+        },
         onDrawerChange: handleDrawerChange,
         onDrawerSubmit: handleDrawerSubmit,
         onDrawerNavigate: handleDrawerNavigate,
@@ -1116,7 +1312,14 @@ export function createApp(config: SiteConfig): App {
         render: render,
         onDrawerKey: handleSiteDrawerKey,
         openPalette: (mode) => {
+          omniCompleteActive = true;
           state = { ...state, ui: { ...state.ui, drawer: 'palette', paletteQuery: mode === 'command' ? ':' : '', paletteSelectedIdx: 0 } };
+          render();
+        },
+        typeCommand: (text) => {
+          omniCompleteActive = true;
+          state = onPaletteQueryChange(state, text);
+          state = { ...state, ui: { ...state.ui, paletteSelectedIdx: 0 } };
           render();
         },
         openRecommended: () => {
@@ -1128,12 +1331,20 @@ export function createApp(config: SiteConfig): App {
           render();
         },
         openSearch: (initialQuery) => {
+          // Pre-fill with current search query from URL when on search page
+          let query = initialQuery || '';
+          if (!query) {
+            const pt = config.getPageType?.() ?? 'other';
+            if (pt === 'search') {
+              query = new URLSearchParams(location.search).get('search_query') || '';
+            }
+          }
           const siteStateVal = siteState;
           const hasSuggestDrawer = config.getDrawerHandler?.('suggest', siteStateVal);
           if (hasSuggestDrawer) {
-            state = { ...state, ui: { ...state.ui, drawer: 'suggest', searchQuery: initialQuery || '' } };
+            state = { ...state, ui: { ...state.ui, drawer: 'suggest', searchQuery: query } };
           } else {
-            state = { ...state, ui: { ...state.ui, searchActive: true, searchQuery: initialQuery || '' } };
+            state = { ...state, ui: { ...state.ui, searchActive: true, searchQuery: query } };
           }
           render();
         },
@@ -1202,6 +1413,7 @@ export function createApp(config: SiteConfig): App {
         undoWatchLaterRemoval: handleUndoWatchLaterRemoval,
         nextCommentPage: handleNextCommentPage,
         prevCommentPage: handlePrevCommentPage,
+        openSettings: () => openSettingsWindow(),
       };
 
       // Set up keyboard handling (returns cleanup function)

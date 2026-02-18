@@ -22,15 +22,15 @@ describe('youtubeConfig type annotations', () => {
 
   it('has a valid SiteTheme', () => {
     const theme: SiteTheme = youtubeConfig.theme;
-    expect(theme.bg1).toBe('#002b36');
-    expect(theme.bg2).toBe('#073642');
-    expect(theme.bg3).toBe('#0a4a5c');
-    expect(theme.txt1).toBe('#f1f1f1');
-    expect(theme.txt2).toBe('#aaaaaa');
-    expect(theme.txt3).toBe('#717171');
-    expect(theme.txt4).toBe('#3ea6ff');
-    expect(theme.accent).toBe('#ff0000');
-    expect(theme.accentHover).toBe('#cc0000');
+    expect(theme.bg1).toBe('#1F1F28');
+    expect(theme.bg2).toBe('#2A2A37');
+    expect(theme.bg3).toBe('#363646');
+    expect(theme.txt1).toBe('#DCD7BA');
+    expect(theme.txt2).toBe('#C8C093');
+    expect(theme.txt3).toBe('#727169');
+    expect(theme.txt4).toBe('#7E9CD8');
+    expect(theme.accent).toBe('#C34043');
+    expect(theme.accentHover).toBe('#E82424');
   });
 });
 

@@ -88,8 +88,8 @@ describe('renderVideoInfoBox - action hint grid', () => {
   it('row 1: ms then mw then empty cell', () => {
     renderVideoInfo(makeCtx(), container);
     const cells = container.querySelector('.vilify-watch-actions').children;
-    expect(cells[0].querySelector('kbd').textContent).toBe('ms');
-    expect(cells[1].querySelector('kbd').textContent).toBe('mw');
+    expect(cells[0].querySelector('kbd').textContent).toBe('\\ms');
+    expect(cells[1].querySelector('kbd').textContent).toBe('\\mw');
     // Third cell is empty spacer
     expect(cells[2].textContent.trim()).toBe('');
   });
@@ -97,22 +97,22 @@ describe('renderVideoInfoBox - action hint grid', () => {
   it('row 2 without transcript: f then zo (slides left)', () => {
     renderVideoInfo(makeCtx(), container);
     const cells = container.querySelector('.vilify-watch-actions').children;
-    expect(cells[3].querySelector('kbd').textContent).toBe('f');
-    expect(cells[4].querySelector('kbd').textContent).toBe('zo');
+    expect(cells[3].querySelector('kbd').textContent).toBe('\\f');
+    expect(cells[4].querySelector('kbd').textContent).toBe('\\zo');
   });
 
   it('preserves vilify-sub-action id on ms hint', () => {
     renderVideoInfo(makeCtx(), container);
     const subAction = container.querySelector('#vilify-sub-action');
     expect(subAction).not.toBeNull();
-    expect(subAction.querySelector('kbd').textContent).toBe('ms');
+    expect(subAction.querySelector('kbd').textContent).toBe('\\ms');
   });
 
   it('preserves vilify-wl-action id on mw hint', () => {
     renderVideoInfo(makeCtx(), container);
     const wlAction = container.querySelector('#vilify-wl-action');
     expect(wlAction).not.toBeNull();
-    expect(wlAction.querySelector('kbd').textContent).toBe('mw');
+    expect(wlAction.querySelector('kbd').textContent).toBe('\\mw');
   });
 
   it('vilify-wl-added class not set by default', () => {

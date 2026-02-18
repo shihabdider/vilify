@@ -3,7 +3,21 @@
   "name": "Vilify",
   "version": "0.6.41",
   "description": "Vim-style focus mode for websites",
-  "permissions": ["clipboardWrite"],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-gray-16.png",
+      "32": "icons/icon-gray-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "permissions": ["clipboardWrite", "activeTab", "tabs"],
   "content_scripts": [
     {
       "matches": ["*://www.youtube.com/*", "*://youtube.com/*", "*://www.google.com/search*", "*://google.com/search*"],
