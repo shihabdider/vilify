@@ -1005,6 +1005,7 @@ function findVideoElement(videoId: string): Element | null {
 function findMenuButton(videoElement: Element): Element | null {
   const selectors = [
     'button[aria-label="Action menu"]',
+    'button[aria-label="More actions"]',
     'ytd-menu-renderer button.yt-icon-button',
     'ytd-menu-renderer #button',
     '#menu button',
