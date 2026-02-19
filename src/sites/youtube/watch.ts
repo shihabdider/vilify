@@ -341,15 +341,38 @@ function renderVideoInfoBox(ctx: VideoContext, siteState: YouTubeState | null = 
     ? el('div', { class: 'vilify-watch-stats' }, [statsText])
     : null;
   
+  // Action hints grid: keybinds for watch page actions
+  const actionsGrid = el('div', { class: 'vilify-watch-actions' }, [
+    el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
+      el('kbd', {}, ['ss']), ctx.isSubscribed ? 'unsub' : 'sub'
+    ]),
+    el('span', { class: 'vilify-action-hint', id: 'vilify-wl-action' }, [
+      el('kbd', {}, ['sw']), 'wl'
+    ]),
+    el('span', { class: 'vilify-action-hint', id: 'vilify-like-action' }, [
+      el('kbd', {}, ['sl']), 'like'
+    ]),
+    el('span', { class: 'vilify-action-hint', id: 'vilify-dislike-action' }, [
+      el('kbd', {}, ['sd']), 'dislike'
+    ]),
+    el('span', { class: 'vilify-action-hint' }, [
+      el('kbd', {}, ['f']), 'full'
+    ]),
+    el('span', { class: 'vilify-action-hint' }, [
+      el('kbd', {}, ['zo']), 'desc'
+    ]),
+  ]);
+
   // Build info box with TUI pattern
   const children = [
     el('h1', { class: 'vilify-watch-title' }, [ctx.title || 'Untitled']),
     channelEl,
   ];
   if (statsEl) children.push(statsEl);
-  
+  children.push(actionsGrid);
+
   const infoBox = el('div', { class: 'vilify-tui-box', 'data-label': 'video' }, children);
-  
+
   return infoBox;
 }
 
@@ -877,6 +900,46 @@ export function updateSubscribeButton(isSubscribed: boolean): void {
     actionEl.innerHTML = '';
     actionEl.appendChild(el('kbd', {}, ['ss']));
     actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
+  }
+}
+
+/**
+ * Update like button visual state after like action
+ * [I/O]
+ *
+ * @param {boolean} liked - Whether the video is currently liked
+ */
+export function updateLikeButton(liked: boolean): void {
+  const actionEl = document.getElementById('vilify-like-action');
+  if (actionEl) {
+    actionEl.innerHTML = '';
+    actionEl.appendChild(el('kbd', {}, ['sl']));
+    actionEl.appendChild(document.createTextNode(liked ? 'liked' : 'like'));
+    if (liked) {
+      actionEl.classList.add('vilify-wl-added');
+    } else {
+      actionEl.classList.remove('vilify-wl-added');
+    }
+  }
+}
+
+/**
+ * Update dislike button visual state after dislike action
+ * [I/O]
+ *
+ * @param {boolean} disliked - Whether the video is currently disliked
+ */
+export function updateDislikeButton(disliked: boolean): void {
+  const actionEl = document.getElementById('vilify-dislike-action');
+  if (actionEl) {
+    actionEl.innerHTML = '';
+    actionEl.appendChild(el('kbd', {}, ['sd']));
+    actionEl.appendChild(document.createTextNode(disliked ? 'disliked' : 'dislike'));
+    if (disliked) {
+      actionEl.classList.add('vilify-wl-added');
+    } else {
+      actionEl.classList.remove('vilify-wl-added');
+    }
   }
 }
 

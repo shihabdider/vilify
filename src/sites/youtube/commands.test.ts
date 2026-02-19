@@ -31,7 +31,12 @@ vi.mock('../../core/view', () => ({
   showMessage: vi.fn(),
 }));
 
-import { getYouTubeKeySequences, getYouTubeCommands, getYouTubeBlockedNativeKeys } from './commands';
+vi.mock('./watch', () => ({
+  updateLikeButton: vi.fn(),
+  updateDislikeButton: vi.fn(),
+}));
+
+import { getYouTubeKeySequences, getYouTubeCommands, getYouTubeBlockedNativeKeys, likeVideo, dislikeVideo } from './commands';
 import { getYouTubePageType } from './scraper';
 import { getDataProvider } from './data/index';
 import * as player from './player';
@@ -627,5 +632,154 @@ describe('type contracts', () => {
     const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'home' }));
     expect(Array.isArray(result)).toBe(true);
     expect(result).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// Like / Dislike key sequences
+// =============================================================================
+describe('getYouTubeKeySequences - like/dislike', () => {
+  let app;
+
+  beforeEach(() => {
+    app = makeApp();
+    mockVideoContext();
+  });
+
+  afterEach(() => {
+    mockNoVideoContext();
+  });
+
+  it('has sl → likeVideo on watch page with video context', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).toHaveProperty('sl');
+    expect(typeof seq['sl']).toBe('function');
+  });
+
+  it('has sd → dislikeVideo on watch page with video context', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).toHaveProperty('sd');
+    expect(typeof seq['sd']).toBe('function');
+  });
+
+  it('does not have sl on listing pages', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).not.toHaveProperty('sl');
+  });
+
+  it('does not have sd on listing pages', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).not.toHaveProperty('sd');
+  });
+
+  it('does not have sl without video context', () => {
+    mockNoVideoContext();
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).not.toHaveProperty('sl');
+  });
+
+  it('does not have sd without video context', () => {
+    mockNoVideoContext();
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).not.toHaveProperty('sd');
+  });
+});
+
+// =============================================================================
+// likeVideo / dislikeVideo DOM interaction
+// =============================================================================
+describe('likeVideo', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('clicks the like button when found', () => {
+    const mockBtn = { click: vi.fn(), getAttribute: vi.fn(() => null) };
+    vi.stubGlobal('document', {
+      querySelector: vi.fn((sel: string) => {
+        if (sel.includes('like')) return mockBtn;
+        return null;
+      }),
+    });
+    likeVideo();
+    expect(mockBtn.click).toHaveBeenCalled();
+  });
+
+  it('does not throw when no like button is found', () => {
+    vi.stubGlobal('document', {
+      querySelector: vi.fn(() => null),
+    });
+    expect(() => likeVideo()).not.toThrow();
+  });
+});
+
+describe('dislikeVideo', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('clicks the dislike button when found', () => {
+    const mockBtn = { click: vi.fn(), getAttribute: vi.fn(() => null) };
+    vi.stubGlobal('document', {
+      querySelector: vi.fn((sel: string) => {
+        if (sel.includes('dislike')) return mockBtn;
+        return null;
+      }),
+    });
+    dislikeVideo();
+    expect(mockBtn.click).toHaveBeenCalled();
+  });
+
+  it('does not throw when no dislike button is found', () => {
+    vi.stubGlobal('document', {
+      querySelector: vi.fn(() => null),
+    });
+    expect(() => dislikeVideo()).not.toThrow();
+  });
+});
+
+// =============================================================================
+// Command palette - Like / Dislike entries
+// =============================================================================
+describe('getYouTubeCommands - like/dislike palette entries', () => {
+  let app;
+
+  beforeEach(() => {
+    app = {
+      dismissVideo: vi.fn(),
+      openPalette: vi.fn(),
+      exitFocusMode: vi.fn(),
+      executeSort: vi.fn(),
+    };
+  });
+
+  it('has Like video command on watch page', () => {
+    getYouTubePageType.mockReturnValue('watch');
+    mockVideoContext();
+    const commands = getYouTubeCommands(app);
+    const like = commands.find(c => c.label === 'Like video');
+    expect(like).toBeDefined();
+    expect(like.keys).toBe('S L');
+    mockNoVideoContext();
+  });
+
+  it('has Dislike video command on watch page', () => {
+    getYouTubePageType.mockReturnValue('watch');
+    mockVideoContext();
+    const commands = getYouTubeCommands(app);
+    const dislike = commands.find(c => c.label === 'Dislike video');
+    expect(dislike).toBeDefined();
+    expect(dislike.keys).toBe('S D');
+    mockNoVideoContext();
+  });
+
+  it('does not have Like/Dislike commands on listing page', () => {
+    getYouTubePageType.mockReturnValue('home');
+    mockNoVideoContext();
+    const commands = getYouTubeCommands(app);
+    const like = commands.find(c => c.label === 'Like video');
+    const dislike = commands.find(c => c.label === 'Dislike video');
+    expect(like).toBeUndefined();
+    expect(dislike).toBeUndefined();
   });
 });

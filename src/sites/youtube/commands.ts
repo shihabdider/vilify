@@ -9,6 +9,7 @@ import { showMessage } from '../../core/view';
 import { COLORSCHEMES, FONTS, fontToKey, loadSettings, saveSettings, getTheme } from '../../core/settings';
 import { applyTheme, applyFont } from '../../core/layout';
 import { formatTimestamp } from './format';
+import { updateLikeButton, updateDislikeButton } from './watch';
 
 /** Get video context using DataProvider */
 function getVideoContext(): Record<string, any> | null {
@@ -110,6 +111,49 @@ function copyVideoTitleAndUrl(ctx: Record<string, any> | null): void {
  * @param {Object} ctx - Video context
  * @param {Function} onUpdate - Callback after state change
  */
+/** Click YouTube's native like button. Tries multiple selectors for robustness. */
+export function likeVideo(): void {
+  const selectors = [
+    'like-button-view-model button',
+    '#top-level-buttons-computed ytd-toggle-button-renderer:first-child button',
+    'ytd-menu-renderer button[aria-label^="like" i]',
+  ];
+  for (const sel of selectors) {
+    const btn = document.querySelector(sel) as HTMLElement | null;
+    if (btn) {
+      btn.click();
+      const pressed = btn.getAttribute('aria-pressed');
+      const wasLiked = pressed === 'true';
+      showMessage(wasLiked ? 'Unliked' : 'Liked');
+      updateLikeButton(!wasLiked);
+      if (!wasLiked) updateDislikeButton(false); // liking clears dislike
+      return;
+    }
+  }
+  showMessage('Like button not found');
+}
+
+/** Click YouTube's native dislike button. Tries multiple selectors for robustness. */
+export function dislikeVideo(): void {
+  const selectors = [
+    'dislike-button-view-model button',
+    '#top-level-buttons-computed ytd-toggle-button-renderer:last-child button',
+  ];
+  for (const sel of selectors) {
+    const btn = document.querySelector(sel) as HTMLElement | null;
+    if (btn) {
+      btn.click();
+      const pressed = btn.getAttribute('aria-pressed');
+      const wasDisliked = pressed === 'true';
+      showMessage(wasDisliked ? 'Removed dislike' : 'Disliked');
+      updateDislikeButton(!wasDisliked);
+      if (!wasDisliked) updateLikeButton(false); // disliking clears like
+      return;
+    }
+  }
+  showMessage('Dislike button not found');
+}
+
 function toggleSubscribe(ctx: Record<string, any> | null, onUpdate?: (subscribed: boolean) => void): void {
   if (!ctx) return;
 
@@ -580,6 +624,23 @@ export function getYouTubeCommands(app: App): any[] {
         keys: 'G C',
       });
     }
+
+    // Like / Dislike
+    commands.push({ group: 'Like' });
+    commands.push({
+      type: 'command',
+      label: 'Like video',
+      icon: '👍',
+      action: () => likeVideo(),
+      keys: 'S L',
+    });
+    commands.push({
+      type: 'command',
+      label: 'Dislike video',
+      icon: '👎',
+      action: () => dislikeVideo(),
+      keys: 'S D',
+    });
   }
 
   return commands;
@@ -665,6 +726,10 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
 
     sequences['\\gg'] = () => app?.goToTop?.();
     sequences['sw'] = () => app?.addToWatchLater?.();
+    if (ctx) {
+      sequences['sl'] = () => likeVideo();
+      sequences['sd'] = () => dislikeVideo();
+    }
 
     sequences[']'] = () => app?.nextCommentPage?.();
     sequences['['] = () => app?.prevCommentPage?.();

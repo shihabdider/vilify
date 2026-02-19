@@ -697,16 +697,9 @@ function createTabBar(config: SiteConfig): HTMLElement {
     );
   } else {
     hintChildren.push(
-      el('kbd', {}, ['space']), 'play/pause',
-      el('span', { class: 'vilify-hint-sep' }, ['│']),
-      el('kbd', {}, ['ss']), 'sub', el('kbd', {}, ['sw']), 'wl',
-      el('span', { class: 'vilify-hint-sep' }, ['│']),
-      el('kbd', {}, ['zp']), 'chapters', el('kbd', {}, ['t']), 'transcript', el('kbd', {}, ['zo']), 'desc',
-      el('span', { class: 'vilify-hint-sep' }, ['│']),
+      el('kbd', {}, ['zp']), 'chapters', el('kbd', {}, ['t']), 'transcript',
       el('kbd', {}, ['[']), el('kbd', {}, [']']), 'comments',
-      el('span', { class: 'vilify-hint-sep' }, ['│']),
       el('kbd', {}, ['zr']), 'rec', el('kbd', {}, ['gc']), 'channel',
-      el('span', { class: 'vilify-hint-sep' }, ['│']),
       el('kbd', {}, ['i']), 'search', el('kbd', {}, [':']), 'cmd',
     );
   }

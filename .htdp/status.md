@@ -1,15 +1,5 @@
 # Status
 
-phase: 3
-layer: -
-updated: 2026-02-12T06:37:24.095Z
-
-## Wishes
-
-| wish | file | layer | status | time |
-|------|------|-------|--------|------|
-
-## Log
-
-- 23:54:23 stubber complete, 0 wishes, 0 layers
-- 01:37:24 abstractor pass
+## Layer 0
+- Wish 1 (likeDislikeKeybinds): PASS — 14 new tests, sl/sd keybinds + likeVideo/dislikeVideo functions + command palette entries
+- Wish 2 (actionHintsWithLikeDislike): PASS — 28 watch.test.ts tests (8 stale tests fixed, 8 new tests), action hints grid restored with like/dislike indicators
