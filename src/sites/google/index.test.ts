@@ -275,6 +275,47 @@ describe('googleConfig.matches', () => {
   });
 });
 
+describe('googleConfig theme uses hsl() format', () => {
+  it('has background colors in hsl() format', () => {
+    const theme = googleConfig.theme;
+    expect(theme.bg1).toBe('hsl(192, 100%, 11%)');
+    expect(theme.bg2).toBe('hsl(192, 81%, 14%)');
+    expect(theme.bg3).toBe('hsl(193, 80%, 20%)');
+  });
+
+  it('has text colors in hsl() format', () => {
+    const theme = googleConfig.theme;
+    expect(theme.txt1).toBe('hsl(0, 0%, 95%)');
+    expect(theme.txt2).toBe('hsl(0, 0%, 67%)');
+    expect(theme.txt3).toBe('hsl(0, 0%, 44%)');
+    expect(theme.txt4).toBe('hsl(217, 89%, 61%)');
+  });
+
+  it('has accent and mode colors in hsl() format', () => {
+    const theme = googleConfig.theme;
+    expect(theme.accent).toBe('hsl(217, 89%, 61%)');
+    expect(theme.accentHover).toBe('hsl(219, 62%, 52%)');
+    expect(theme.modeNormal).toBe('hsl(136, 52%, 43%)');
+    expect(theme.modeSearch).toBe('hsl(217, 89%, 61%)');
+    expect(theme.modeCommand).toBe('hsl(45, 97%, 50%)');
+    expect(theme.modeFilter).toBe('hsl(4, 81%, 56%)');
+  });
+
+  it('has modeReplace as Google Red (not placeholder gray)', () => {
+    const theme = googleConfig.theme;
+    expect(theme.modeReplace).not.toBe('hsl(0, 0%, 50%)');
+    expect(theme.modeReplace).toBe('hsl(5, 81%, 56%)');
+  });
+
+  it('all theme values use hsl() format, not hex', () => {
+    const theme = googleConfig.theme;
+    for (const [key, value] of Object.entries(theme)) {
+      expect(value).toMatch(/^hsl\(/);
+      expect(value).not.toMatch(/^#/);
+    }
+  });
+});
+
 describe('googleConfig search fields', () => {
   it('has searchUrl that returns correct Google search URL', () => {
     expect(googleConfig.searchUrl).toBeDefined();

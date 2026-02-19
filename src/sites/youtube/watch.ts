@@ -17,22 +17,49 @@ const WATCH_CSS = `
     border-left: 2px solid var(--bg-3);
   }
   
+  body.vilify-watch-page .vilify-tab-bar {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 10001; background: var(--bg-1);
+    border-bottom: 1px solid var(--bg-3);
+  }
+
   body.vilify-watch-page .vilify-status-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
     background: var(--bg-1); z-index: 10001;
   }
-  
+
   body.vilify-watch-page #movie_player {
-    position: fixed !important; top: 0 !important; left: 0 !important;
-    width: calc(100% - 350px) !important; height: calc(100vh - 32px) !important;
+    position: fixed !important; top: 32px !important; left: 0 !important;
+    width: calc(100% - 350px) !important; height: calc(100vh - 64px) !important;
     z-index: 10000 !important; visibility: visible !important;
   }
-  
+
+  /* Drawers span the player area on watch page */
+  body.vilify-watch-page .vilify-drawer {
+    right: 350px;
+    max-height: calc(100vh - 96px);
+  }
+  body.vilify-watch-page .vilify-drawer-content {
+    max-height: none;
+  }
+  body.vilify-watch-page .vilify-drawer-list {
+    max-height: none;
+  }
+  body.vilify-watch-page .vilify-drawer-content a {
+    color: var(--txt-4);
+    text-decoration: underline;
+    text-decoration-color: var(--bg-3);
+  }
+  body.vilify-watch-page .vilify-drawer-content a:hover {
+    text-decoration-color: var(--txt-4);
+  }
+
   /* Watch page content area - flexbox for stretching comments */
   body.vilify-watch-page #vilify-content {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 32px); /* Full height minus status bar */
+    height: calc(100vh - 64px); /* Full height minus tab bar and status bar */
+    margin-top: 32px;
     overflow: hidden;
   }
   
@@ -157,6 +184,41 @@ const WATCH_CSS = `
   .vilify-comments-status {
     padding: 16px; color: var(--txt-3); font-size: 12px; text-align: center;
   }
+
+  /* Description drawer: half the player width, left-aligned */
+  body.vilify-watch-page .vilify-drawer[data-drawer-id="description"] {
+    right: auto;
+    left: 0;
+    width: calc((100% - 350px) / 2);
+  }
+  body.vilify-watch-page .vilify-drawer[data-drawer-id="description"] .vilify-drawer-content {
+    white-space: normal;
+  }
+
+  /* Hashtag links in description */
+  body.vilify-watch-page .vilify-drawer-content a[href*="/hashtag/"] {
+    color: var(--txt-4);
+    text-decoration: none;
+  }
+  /* Social handle links in description */
+  body.vilify-watch-page .vilify-drawer-content a[href*="/@"],
+  body.vilify-watch-page .vilify-drawer-content a[href*="/channel/"] {
+    color: var(--txt-4);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  /* Fullscreen: hide Vilify overlays so player fills the screen */
+  body.vilify-fullscreen #vilify-focus,
+  body.vilify-fullscreen .vilify-tab-bar,
+  body.vilify-fullscreen .vilify-status-bar {
+    display: none !important;
+  }
+  body.vilify-fullscreen #movie_player {
+    width: 100% !important;
+    height: 100vh !important;
+    top: 0 !important;
+  }
 `;
 
 // Track if styles have been injected
@@ -279,59 +341,12 @@ function renderVideoInfoBox(ctx: VideoContext, siteState: YouTubeState | null = 
     ? el('div', { class: 'vilify-watch-stats' }, [statsText])
     : null;
   
-  // Action grid — 3 columns, 2 rows
-  // Row 1: ms, mw, (empty)
-  // Row 2: f, t, zo
-  const subText = ctx.isSubscribed ? 'unsub' : 'sub';
-  const videoId = ctx.videoId;
-  const isInWatchLater = videoId && watchLaterAdded?.has(videoId);
-  const wlClass = isInWatchLater ? 'vilify-action-hint vilify-wl-added' : 'vilify-action-hint';
-  const wlText = isInWatchLater ? 'added' : 'watch later';
-  
-  const actionChildren = [
-    // Row 1
-    el('span', { class: 'vilify-action-hint', id: 'vilify-sub-action' }, [
-      el('kbd', {}, ['\\ms']),
-      subText
-    ]),
-    el('span', { class: wlClass, id: 'vilify-wl-action' }, [
-      el('kbd', {}, ['\\mw']),
-      wlText
-    ]),
-    // Empty cell to complete row 1
-    el('span', {}, []),
-    // Row 2: f (always), t (conditional), zo (always)
-    el('span', { class: 'vilify-action-hint' }, [
-      el('kbd', {}, ['\\f']),
-      'ch'
-    ]),
-  ];
-
-  if (siteState?.transcript?.status === 'loaded') {
-    actionChildren.push(
-      el('span', { class: 'vilify-action-hint' }, [
-        el('kbd', {}, ['\\t']),
-        'transcript'
-      ])
-    );
-  }
-
-  actionChildren.push(
-    el('span', { class: 'vilify-action-hint' }, [
-      el('kbd', {}, ['\\zo']),
-      'desc'
-    ])
-  );
-  
-  const actionsRow = el('div', { class: 'vilify-watch-actions' }, actionChildren);
-  
   // Build info box with TUI pattern
   const children = [
     el('h1', { class: 'vilify-watch-title' }, [ctx.title || 'Untitled']),
     channelEl,
   ];
   if (statsEl) children.push(statsEl);
-  children.push(actionsRow);
   
   const infoBox = el('div', { class: 'vilify-tui-box', 'data-label': 'video' }, children);
   
@@ -395,9 +410,9 @@ function renderCommentsBox(commentsResult: CommentsResult, state: YouTubeState):
   
   // Create pagination
   const paginationEl = el('div', { class: 'vilify-comments-pagination', id: 'vilify-comments-pagination' }, [
-    el('kbd', {}, ['\\cp']),
+    el('kbd', {}, ['[']),
     el('span', { class: 'vilify-comments-page-info' }, ['1 / 1']),
-    el('kbd', {}, ['\\cn'])
+    el('kbd', {}, [']'])
   ]);
   paginationEl.style.display = 'none';
   
@@ -860,7 +875,7 @@ export function updateSubscribeButton(isSubscribed: boolean): void {
   if (actionEl) {
     // Update text (preserve kbd)
     actionEl.innerHTML = '';
-    actionEl.appendChild(el('kbd', {}, ['\\ms']));
+    actionEl.appendChild(el('kbd', {}, ['ss']));
     actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));
   }
 }

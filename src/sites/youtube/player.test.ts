@@ -9,6 +9,7 @@ import {
   setPlaybackRate,
   toggleMute,
   toggleFullscreen,
+  setupFullscreenListener,
   toggleTheaterMode,
   toggleCaptions,
   seekToChapter,
@@ -170,6 +171,67 @@ describe('toggleFullscreen', () => {
 
     toggleFullscreen();
     expect(fsBtn.click).toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// setupFullscreenListener — fullscreenchange toggles vilify-fullscreen class
+// =============================================================================
+describe('setupFullscreenListener', () => {
+  beforeEach(() => {
+    document.body.classList.remove('vilify-fullscreen');
+  });
+
+  it('adds vilify-fullscreen class when entering fullscreen', () => {
+    setupFullscreenListener();
+    // Simulate entering fullscreen by stubbing fullscreenElement
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: document.createElement('div'),
+      writable: true,
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(document.body.classList.contains('vilify-fullscreen')).toBe(true);
+    // Cleanup
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: null,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it('removes vilify-fullscreen class when exiting fullscreen', () => {
+    setupFullscreenListener();
+    // Start in "fullscreen"
+    document.body.classList.add('vilify-fullscreen');
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: null,
+      writable: true,
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(document.body.classList.contains('vilify-fullscreen')).toBe(false);
+  });
+
+  it('is idempotent — calling multiple times does not add duplicate listeners', () => {
+    setupFullscreenListener();
+    setupFullscreenListener();
+    setupFullscreenListener();
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: document.createElement('div'),
+      writable: true,
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(document.body.classList.contains('vilify-fullscreen')).toBe(true);
+    // Remove and fire again — should remove class once
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: null,
+      writable: true,
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(document.body.classList.contains('vilify-fullscreen')).toBe(false);
   });
 });
 

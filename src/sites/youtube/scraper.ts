@@ -933,30 +933,130 @@ export function getRecommendedVideos(): ContentItem[] {
 // =============================================================================
 
 /**
- * Get video description text
- * @returns {string} Description text or empty string if not found
- * 
+ * Get video description as sanitized HTML (preserves links and line breaks).
+ * @returns {string} Description HTML or empty string if not found
+ *
  * Examples:
- *   getDescription() => "In this video we explore...\n\nLinks:\n..."
+ *   getDescription() => 'Check out <a href="...">this link</a><br>...'
  *   getDescription() => ""  // Not found
  */
 export function getDescription(): string {
-  // Inventory: description element
-  // Template: Try multiple selectors, return text
+  // Try to get the full (non-truncated) description content.
+  // YouTube's inline expander truncates visible text; the full content
+  // lives in #content or snippet inside the expander.
+  const expander = document.querySelector('ytd-text-inline-expander#description-inline-expander');
+  if (expander) {
+    // Prefer yt-attributed-string (pure description body, no view count/date metadata)
+    // inside #content. Fall back to #content or the expander itself.
+    const content = expander.querySelector('#content');
+    const attrString = content?.querySelector('yt-attributed-string') ||
+                       expander.querySelector('yt-attributed-string');
+    const target = attrString || content || expander;
+    if (target?.textContent?.trim()) {
+      return sanitizeDescriptionHtml(target);
+    }
+  }
 
-  const selectors = [
-    'ytd-text-inline-expander#description-inline-expander',
+  const fallbackSelectors = [
     '#description-inner',
     '#description',
     'ytd-expander#description',
   ];
 
-  for (const sel of selectors) {
+  for (const sel of fallbackSelectors) {
     const el = document.querySelector(sel);
     if (el?.textContent?.trim()) {
-      return el.textContent.trim();
+      return sanitizeDescriptionHtml(el);
     }
   }
 
   return '';
+}
+
+/**
+ * Extract safe HTML from a YouTube description element.
+ * Preserves <a> links and line breaks, strips everything else.
+ * [PURE]
+ */
+function sanitizeDescriptionHtml(root: Element): string {
+  const parts: string[] = [];
+
+  function walk(node: Node): void {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || '';
+      if (text) parts.push(escapeHtml(text).replace(/\n/g, '<br>'));
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+
+    // Skip hidden elements (YouTube's "Show more" button, etc.)
+    if (tag === 'button' || tag === 'tp-yt-paper-button') return;
+    if (el.getAttribute('hidden') !== null) return;
+
+    // Skip truncated snippet element (contains "...Show more")
+    if (el.id === 'snippet' || el.id === 'collapsed') return;
+
+    // Skip elements from video primary info renderer (view counts, dates)
+    if (el.classList.contains('ytd-video-primary-info-renderer')) return;
+
+    // Skip elements that contain only view count text (e.g., "1.8M views", "1,814,785 views")
+    const textOnly = el.textContent?.trim() || '';
+    if (/^\s*[\d,.]+[KkMmBb]?\s*views?\s*$/i.test(textOnly) && el.children.length === 0) return;
+
+    // Line breaks
+    if (tag === 'br') {
+      parts.push('<br>');
+      return;
+    }
+
+    // Links - preserve href, open in new tab
+    if (tag === 'a') {
+      const href = el.getAttribute('href') || '';
+      // YouTube wraps links in redirect URLs - extract the real URL
+      const realHref = href.startsWith('/redirect')
+        ? new URL(href, location.origin).searchParams.get('q') || href
+        : href;
+      const safeHref = escapeAttr(realHref);
+      parts.push(`<a href="${safeHref}" target="_blank" rel="noopener">`);
+      for (const child of el.childNodes) walk(child);
+      parts.push('</a>');
+      return;
+    }
+
+    // Block elements that imply line breaks
+    if (['div', 'p', 'section'].includes(tag) && parts.length > 0) {
+      const last = parts[parts.length - 1];
+      if (last !== '<br>' && last !== '\n') parts.push('<br>');
+    }
+
+    for (const child of el.childNodes) walk(child);
+  }
+
+  walk(root);
+  let result = parts.join('');
+
+  // Strip trailing ellipsis (YouTube's truncation indicator)
+  result = result.replace(/\.{2,}$/, '').replace(/…$/, '');
+
+  // Strip leading/trailing <br> tags
+  result = result.replace(/^(<br>\s*)+/, '').replace(/(\s*<br>)+$/, '');
+
+  // Strip any remaining view count lines (e.g., "1.8M views<br>1,814,785 views")
+  result = result.replace(/[\d,.]+[KkMmBb]?\s*views?(\s*<br>)?/gi, '');
+
+  // Clean up multiple consecutive <br> tags
+  result = result.replace(/(<br>\s*){3,}/g, '<br><br>');
+
+  return result.trim();
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

@@ -75,10 +75,10 @@ vi.mock('./actions', () => ({
   copyImageToClipboard: vi.fn(),
 }));
 vi.mock('./settings', () => ({
-  COLORSCHEMES: { kanagawa: { bg1: '#1F1F28' } },
+  COLORSCHEMES: { kanagawa: { bg1: 'hsl(240, 14%, 14%)' } },
   loadSettings: vi.fn(() => ({ colorscheme: 'kanagawa', font: 'SF Mono' })),
   saveSettings: vi.fn(),
-  getTheme: vi.fn(() => ({ bg1: '#1F1F28' })),
+  getTheme: vi.fn(() => ({ bg1: 'hsl(240, 14%, 14%)' })),
   getFontFamily: vi.fn((f: string) => `'${f}', monospace`),
   keyToFont: vi.fn(() => null),
   FONTS: [],

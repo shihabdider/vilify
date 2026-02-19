@@ -8,34 +8,71 @@ import { getFontFamily } from './settings';
 import type { SiteConfig, SiteTheme, AppState, ContentItem } from '../types';
 
 /**
- * Return '#000000' or '#FFFFFF' for readable text on the given background.
- * Uses YIQ perceived-brightness formula.
+ * Return 'hsl(0, 0%, 0%)' or 'hsl(0, 0%, 100%)' for readable text on the given background.
+ * Accepts hex (#RRGGBB) or hsl(h, s%, l%) input.
+ * Uses YIQ perceived-brightness formula for both (HSL is converted to RGB first).
  * [PURE]
  */
-function contrastText(hex: string): string {
-  const c = hex.replace('#', '');
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#000000' : '#FFFFFF';
+export function contrastText(color: string): string {
+  const dark = 'hsl(0, 0%, 0%)';
+  const light = 'hsl(0, 0%, 100%)';
+
+  if (!color) return light;
+
+  let r: number, g: number, b: number;
+
+  const hslMatch = color.match(/^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/);
+  if (hslMatch) {
+    // Convert HSL → RGB for perceptually-accurate YIQ brightness
+    const h = parseFloat(hslMatch[1]) / 360;
+    const s = parseFloat(hslMatch[2]) / 100;
+    const l = parseFloat(hslMatch[3]) / 100;
+    if (s === 0) {
+      r = g = b = Math.round(l * 255);
+    } else {
+      const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = Math.round(hue2rgb(p, q, h + 1 / 3) * 255);
+      g = Math.round(hue2rgb(p, q, h) * 255);
+      b = Math.round(hue2rgb(p, q, h - 1 / 3) * 255);
+    }
+  } else {
+    // Hex path
+    const c = color.replace('#', '');
+    r = parseInt(c.substring(0, 2), 16);
+    g = parseInt(c.substring(2, 4), 16);
+    b = parseInt(c.substring(4, 6), 16);
+  }
+
+  // YIQ perceived-brightness — consistent for both input formats
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 128 ? dark : light;
 }
 
 // Main CSS for focus mode - Kanagawa theme with TUI aesthetic
 const FOCUS_MODE_CSS = `
   :root {
-    --bg-1: #1F1F28;
-    --bg-2: #2A2A37;
-    --bg-3: #363646;
-    --txt-1: #DCD7BA;
-    --txt-2: #C8C093;
-    --txt-3: #727169;
-    --txt-4: #7E9CD8;
-    --accent: #C34043;
-    --accent-hover: #E82424;
-    --mode-normal: #268BD2;
-    --mode-search: #859900;
-    --mode-command: #CB4B16;
-    --mode-filter: #D33682;
+    --bg-1: hsl(240, 14%, 14%);
+    --bg-2: hsl(240, 15%, 19%);
+    --bg-3: hsl(240, 14%, 24%);
+    --txt-1: hsl(50, 36%, 77%);
+    --txt-2: hsl(49, 30%, 68%);
+    --txt-3: hsl(53, 4%, 43%);
+    --txt-4: hsl(220, 53%, 67%);
+    --accent: hsl(358, 51%, 51%);
+    --accent-hover: hsl(0, 82%, 53%);
+    --mode-normal: hsl(205, 69%, 49%);
+    --mode-search: hsl(68, 100%, 30%);
+    --mode-command: hsl(18, 80%, 44%);
+    --mode-filter: hsl(331, 64%, 52%);
+    --mode-replace: hsl(0, 0%, 50%);
     --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
   }
 
@@ -191,7 +228,7 @@ const FOCUS_MODE_CSS = `
   /* Mode badge - leftmost segment */
   .vilify-mode-badge {
     background: var(--mode-normal);
-    color: var(--mode-normal-text, #FFFFFF);
+    color: var(--mode-normal-text, hsl(0, 0%, 100%));
     padding: 0 12px;
     font-size: 13px;
     font-weight: 700;
@@ -200,9 +237,11 @@ const FOCUS_MODE_CSS = `
     display: flex;
     align-items: center;
   }
-  .vilify-mode-badge.mode-search { background: var(--mode-search); color: var(--mode-search-text, #FFFFFF); }
-  .vilify-mode-badge.mode-command { background: var(--mode-command); color: var(--mode-command-text, #FFFFFF); }
-  .vilify-mode-badge.mode-filter { background: var(--mode-filter); color: var(--mode-filter-text, #FFFFFF); }
+  .vilify-mode-badge.mode-search { background: var(--mode-search); color: var(--mode-search-text, hsl(0, 0%, 100%)); }
+  .vilify-mode-badge.mode-command { background: var(--mode-command); color: var(--mode-command-text, hsl(0, 0%, 100%)); }
+  .vilify-mode-badge.mode-filter { background: var(--mode-filter); color: var(--mode-filter-text, hsl(0, 0%, 100%)); }
+  .vilify-mode-badge.mode-recommended { background: var(--mode-filter); color: var(--mode-filter-text, hsl(0, 0%, 100%)); }
+  .vilify-mode-badge.mode-description { background: var(--mode-replace); color: var(--mode-replace-text, hsl(0, 0%, 100%)); }
 
   /* Page type segment (gray) */
   .vilify-pl-pagetype {
@@ -232,7 +271,7 @@ const FOCUS_MODE_CSS = `
   /* Browser segment (mode-colored, rightmost) */
   .vilify-pl-browser {
     background: var(--mode-normal);
-    color: var(--mode-normal-text, #FFFFFF);
+    color: var(--mode-normal-text, hsl(0, 0%, 100%));
     font-size: 12px;
     font-weight: 700;
   }
@@ -551,10 +590,12 @@ export function applyTheme(theme: SiteTheme): void {
   root.style.setProperty('--mode-search', theme.modeSearch);
   root.style.setProperty('--mode-command', theme.modeCommand);
   root.style.setProperty('--mode-filter', theme.modeFilter);
+  root.style.setProperty('--mode-replace', theme.modeReplace);
   root.style.setProperty('--mode-normal-text', contrastText(theme.modeNormal));
   root.style.setProperty('--mode-search-text', contrastText(theme.modeSearch));
   root.style.setProperty('--mode-command-text', contrastText(theme.modeCommand));
   root.style.setProperty('--mode-filter-text', contrastText(theme.modeFilter));
+  root.style.setProperty('--mode-replace-text', contrastText(theme.modeReplace));
 }
 
 /**
@@ -658,9 +699,15 @@ function createTabBar(config: SiteConfig): HTMLElement {
     hintChildren.push(
       el('kbd', {}, ['space']), 'play/pause',
       el('span', { class: 'vilify-hint-sep' }, ['│']),
-      el('kbd', {}, ['\\h']), el('kbd', {}, ['\\l']), 'seek',
+      el('kbd', {}, ['ss']), 'sub', el('kbd', {}, ['sw']), 'wl',
       el('span', { class: 'vilify-hint-sep' }, ['│']),
-      el('kbd', {}, ['\\i']), 'search', el('kbd', {}, ['\\:']), 'cmd',
+      el('kbd', {}, ['zp']), 'chapters', el('kbd', {}, ['t']), 'transcript', el('kbd', {}, ['zo']), 'desc',
+      el('span', { class: 'vilify-hint-sep' }, ['│']),
+      el('kbd', {}, ['[']), el('kbd', {}, [']']), 'comments',
+      el('span', { class: 'vilify-hint-sep' }, ['│']),
+      el('kbd', {}, ['zr']), 'rec', el('kbd', {}, ['gc']), 'channel',
+      el('span', { class: 'vilify-hint-sep' }, ['│']),
+      el('kbd', {}, ['i']), 'search', el('kbd', {}, [':']), 'cmd',
     );
   }
 
@@ -722,10 +769,12 @@ function plArrow(fromColor: string, toColor: string, direction: 'right' | 'left'
 function getModeColor(mode: string): string {
   const styles = getComputedStyle(document.documentElement);
   switch (mode) {
-    case 'SEARCH': return styles.getPropertyValue('--mode-search').trim() || '#859900';
-    case 'COMMAND': return styles.getPropertyValue('--mode-command').trim() || '#CB4B16';
-    case 'FILTER': return styles.getPropertyValue('--mode-filter').trim() || '#D33682';
-    default: return styles.getPropertyValue('--mode-normal').trim() || '#268BD2';
+    case 'SEARCH': return styles.getPropertyValue('--mode-search').trim() || 'hsl(68, 100%, 30%)';
+    case 'COMMAND': return styles.getPropertyValue('--mode-command').trim() || 'hsl(18, 80%, 44%)';
+    case 'FILTER': return styles.getPropertyValue('--mode-filter').trim() || 'hsl(331, 64%, 52%)';
+    case 'RECOMMENDED': return styles.getPropertyValue('--mode-filter').trim() || 'hsl(331, 64%, 52%)';
+    case 'DESCRIPTION': return styles.getPropertyValue('--mode-replace').trim() || 'hsl(0, 0%, 50%)';
+    default: return styles.getPropertyValue('--mode-normal').trim() || 'hsl(205, 69%, 49%)';
   }
 }
 
@@ -770,6 +819,11 @@ function createStatusBar(state: AppState): HTMLElement {
   input.addEventListener('keydown', (e) => {
     e.stopPropagation(); // Prevent keyboard handler from intercepting
 
+    // Prevent macOS Emacs keybindings (Ctrl-N/P = cursor movement) immediately
+    if (e.ctrlKey && (e.key === 'n' || e.key === 'p')) {
+      e.preventDefault();
+    }
+
     const currentMode = document.querySelector('.vilify-mode-badge')?.textContent;
 
     // Ctrl-x Ctrl-o omnicompletion sequence (command mode only)
@@ -806,6 +860,16 @@ function createStatusBar(state: AppState): HTMLElement {
       if (inputCallbacks?.onCommandNavigate) {
         inputCallbacks.onCommandNavigate('up');
       }
+      return;
+    } else if (e.key === 'n' && e.ctrlKey && inputCallbacks?.onDrawerNavigate) {
+      // Ctrl-N for site-specific drawers (RECOMMENDED, CHAPTERS, etc.)
+      e.preventDefault();
+      inputCallbacks.onDrawerNavigate('down', currentMode);
+      return;
+    } else if (e.key === 'p' && e.ctrlKey && inputCallbacks?.onDrawerNavigate) {
+      // Ctrl-P for site-specific drawers
+      e.preventDefault();
+      inputCallbacks.onDrawerNavigate('up', currentMode);
       return;
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -869,8 +933,8 @@ function createStatusBar(state: AppState): HTMLElement {
   // Build powerline: [mode][▶][pagetype][▶][middle...][◀][position][◀][browser]
   // Colors for initial arrows (NORMAL mode)
   const modeColor = getModeColor(mode);
-  const grayColor = '#363646';  // --bg-3
-  const midColor = '#2A2A37';   // --bg-2
+  const grayColor = 'hsl(240, 14%, 24%)';  // --bg-3
+  const midColor = 'hsl(240, 15%, 19%)';   // --bg-2
 
   const arrow1 = plArrow(modeColor, grayColor, 'right');
   arrow1.id = 'vilify-pl-arrow1';
@@ -903,19 +967,21 @@ export function updateStatusBar(state: AppState, focusInput: boolean = false, dr
   const modeClass = mode === 'SEARCH' ? 'mode-search'
     : mode === 'COMMAND' ? 'mode-command'
     : mode === 'FILTER' ? 'mode-filter'
+    : mode === 'RECOMMENDED' ? 'mode-recommended'
+    : mode === 'DESCRIPTION' ? 'mode-description'
     : null;
 
   const badge = document.querySelector('.vilify-mode-badge');
   if (badge) {
     badge.textContent = mode;
-    badge.classList.remove('mode-search', 'mode-command', 'mode-filter');
+    badge.classList.remove('mode-search', 'mode-command', 'mode-filter', 'mode-recommended', 'mode-description');
     if (modeClass) badge.classList.add(modeClass);
   }
 
   // Update powerline arrows to match mode color
   const modeColor = getModeColor(mode);
-  const grayColor = '#363646';
-  const midColor = '#2A2A37';
+  const grayColor = 'hsl(240, 14%, 24%)';
+  const midColor = 'hsl(240, 15%, 19%)';
 
   const a1 = document.getElementById('vilify-pl-arrow1');
   if (a1) { a1.innerHTML = ''; a1.appendChild(plArrow(modeColor, grayColor, 'right').firstChild!); }

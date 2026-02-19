@@ -256,7 +256,7 @@ export function getYouTubeCommands(app: App): any[] {
     label: 'Open search',
     icon: '🔍',
     action: () => app?.openSearch?.(),
-    keys: pageType === 'watch' ? '\\ I' : 'I',
+    keys: 'I',
   });
   if (pageType !== 'watch') {
     commands.push({
@@ -325,14 +325,14 @@ export function getYouTubeCommands(app: App): any[] {
     label: 'Command palette',
     icon: '⌘',
     action: () => app?.openPalette?.('command'),
-    keys: pageType === 'watch' ? '\\ :' : ':',
+    keys: ':',
   });
   commands.push({
     type: 'command',
     label: 'Exit focus mode',
     icon: '>',
     action: () => app?.exitFocusMode?.(),
-    keys: pageType === 'watch' ? '\\:q' : ':q',
+    keys: ':q',
   });
   commands.push({
     type: 'command',
@@ -421,20 +421,6 @@ export function getYouTubeCommands(app: App): any[] {
     });
     commands.push({
       type: 'command',
-      label: 'Skip back 10s',
-      icon: '⏪',
-      action: () => player.seekRelative(-10),
-      keys: '\\ h',
-    });
-    commands.push({
-      type: 'command',
-      label: 'Skip forward 10s',
-      icon: '⏩',
-      action: () => player.seekRelative(10),
-      keys: '\\ l',
-    });
-    commands.push({
-      type: 'command',
       label: 'Skip back 5s',
       icon: '◀',
       action: () => player.seekRelative(-5),
@@ -500,52 +486,38 @@ export function getYouTubeCommands(app: App): any[] {
     });
     commands.push({
       type: 'command',
-      label: 'Toggle captions',
-      icon: '💬',
-      action: player.toggleCaptions,
-      keys: '\\ c',
-    });
-    commands.push({
-      type: 'command',
-      label: 'Toggle mute',
-      icon: ctx.muted ? '🔇' : '🔊',
-      action: player.toggleMute,
-      keys: '\\ m',
-    });
-    commands.push({
-      type: 'command',
       label: 'Show description',
       icon: '📖',
       action: () => app?.openDrawer?.('description'),
-      keys: '\\ Z O',
+      keys: 'Z O',
     });
     commands.push({
       type: 'command',
       label: 'Close description',
       icon: '📕',
       action: () => app?.closeDrawer?.(),
-      keys: '\\ Z C',
+      keys: 'Z C',
     });
     commands.push({
       type: 'command',
       label: 'Jump to chapter',
       icon: '📑',
       action: () => app?.openDrawer?.('chapters'),
-      keys: '\\ F',
+      keys: 'Z P',
     });
     commands.push({
       type: 'command',
       label: 'Next comment page',
       icon: '💬',
       action: () => app?.nextCommentPage?.(),
-      keys: '\\cn',
+      keys: ']',
     });
     commands.push({
       type: 'command',
       label: 'Prev comment page',
       icon: '💬',
       action: () => app?.prevCommentPage?.(),
-      keys: '\\cp',
+      keys: '[',
     });
 
     // Watch Later
@@ -555,7 +527,7 @@ export function getYouTubeCommands(app: App): any[] {
       label: 'Add to Watch Later',
       icon: '🕐',
       action: () => app?.addToWatchLater?.(),
-      keys: 'M W',
+      keys: 'S W',
     });
 
     // Copy
@@ -598,14 +570,14 @@ export function getYouTubeCommands(app: App): any[] {
         label: ctx.isSubscribed ? 'Unsubscribe' : 'Subscribe',
         icon: ctx.isSubscribed ? '✓' : '⊕',
         action: () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app)),
-        keys: 'M S',
+        keys: 'S S',
       });
       commands.push({
         type: 'command',
         label: `Go to ${ctx.channelName || 'channel'} videos`,
         icon: '👤',
         action: () => navigateTo(ctx.channelUrl + '/videos'),
-        keys: '\\ G C',
+        keys: 'G C',
       });
     }
   }
@@ -629,7 +601,7 @@ export function getYouTubeCommands(app: App): any[] {
  * @returns {Object} Map of key sequence to action function
  * 
  * Bindings by context:
- * - Always: '/', ':', 'i', 'gh', 'gs', 'gy', 'gl', 'gw', 'gg', 'mw',
+ * - Always: '/', ':', 'i', 'gh', 'gs', 'gy', 'gl', 'gw', 'gg',
  *           'ArrowDown', 'ArrowUp', 'Enter' (on listing pages)
  * - Listing, !filterActive, !searchActive: 'j', 'k', 'h', 'l', 'u', 'dd'
  * - Listing: 'G' (goToBottom)
@@ -679,11 +651,11 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
     }
   }
 
-  // (2) Watch page: \ leader prefix on most custom bindings
+  // (2) Watch page bindings
   if (pageType === 'watch') {
-    sequences['\\/'] = () => app?.openRecommended?.();
-    sequences['\\:'] = () => app?.openPalette?.('command');
-    sequences['\\i'] = () => app?.openSearch?.();
+    sequences['zr'] = () => app?.openRecommended?.();
+    sequences[':'] = () => app?.openPalette?.('command');
+    sequences['i'] = () => app?.openSearch?.();
 
     sequences['gh'] = () => navigateTo('/');
     sequences['gs'] = () => navigateTo('/feed/subscriptions');
@@ -692,10 +664,11 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
     sequences['gw'] = () => navigateTo('/playlist?list=WL');
 
     sequences['\\gg'] = () => app?.goToTop?.();
-    sequences['mw'] = () => app?.addToWatchLater?.();
+    sequences['sw'] = () => app?.addToWatchLater?.();
 
-    sequences['\\cn'] = () => app?.nextCommentPage?.();
-    sequences['\\cp'] = () => app?.prevCommentPage?.();
+    sequences[']'] = () => app?.nextCommentPage?.();
+    sequences['['] = () => app?.prevCommentPage?.();
+    sequences['f'] = () => player.toggleFullscreen();
     // Space: NOT in sequences — YouTube's own capture-phase handler toggles play/pause.
     // Space IS in blockedKeys to preventDefault (prevent page scroll).
   }
@@ -703,7 +676,7 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
   // (3) Watch page with video context (\ leader prefix)
   if (ctx) {
     if (ctx.channelUrl) {
-      sequences['\\gc'] = () => navigateTo(ctx.channelUrl + '/videos');
+      sequences['gc'] = () => navigateTo(ctx.channelUrl + '/videos');
     }
 
     sequences['\\g1'] = () => player.setPlaybackRate(1);
@@ -713,16 +686,12 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
     sequences['\\yt'] = () => copyVideoTitle(ctx);
     sequences['\\Y'] = () => copyVideoUrlAtTime(ctx);
 
-    sequences['\\zo'] = () => app?.openDrawer?.('description');
-    sequences['\\zc'] = () => app?.closeDrawer?.();
-    sequences['\\f'] = () => app?.openDrawer?.('chapters');
+    sequences['zo'] = () => app?.openDrawer?.('description');
+    sequences['zc'] = () => app?.closeDrawer?.();
+    sequences['zp'] = () => app?.openDrawer?.('chapters');
 
-    sequences['ms'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
+    sequences['ss'] = () => toggleSubscribe(ctx, app?.updateSubscribeButton?.bind(app));
 
-    sequences['\\m'] = player.toggleMute;
-    sequences['\\c'] = player.toggleCaptions;
-    sequences['\\h'] = () => player.seekRelative(-10);
-    sequences['\\l'] = () => player.seekRelative(10);
     sequences['t'] = () => app?.openTranscriptDrawer?.();
   }
 
@@ -746,11 +715,13 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
  */
 export function getYouTubeBlockedNativeKeys(context: KeyContext): string[] {
   if (context.pageType === 'watch') {
-    // Watch page: block \ (leader key prefix) and direct prefix keys
-    // g - prefix for gh, gs, gw navigation
-    // m - prefix for ms, mw; also YouTube native mute
-    // t - our transcript binding; also YouTube native theater mode
-    return ['\\', 'g', 'm', 't', ' '];
+    // Watch page: block prefix keys from YouTube's native handlers
+    // g - prefix for gh, gs, gw, gc navigation
+    // s - prefix for ss, sw (subscribe, watch later)
+    // z - prefix for zo, zc (description open/close)
+    // t - transcript binding; also YouTube native theater mode
+    // r - recommended; i - search; : - command palette
+    return ['\\', 'g', 's', 'z', 't', 'i', ':', ' ', 'f'];
   }
   // Listing pages: no leader prefix, block keys YouTube would intercept
   return [];

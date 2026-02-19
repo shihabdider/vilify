@@ -259,7 +259,7 @@ export function createListDrawer(config: ListDrawerConfig): DrawerHandler {
       // Create drawer structure (no input - uses status bar)
       listEl = el('div', { class: 'vilify-drawer-list' }, []);
       
-      drawerEl = el('div', { class: 'vilify-drawer open' }, [
+      drawerEl = el('div', { class: 'vilify-drawer open', 'data-drawer-id': config.id }, [
         listEl,
       ]);
       
@@ -299,15 +299,15 @@ export function createListDrawer(config: ListDrawerConfig): DrawerHandler {
         return { handled: true, newState: closeDrawer() };
       }
       
-      if (key === 'ArrowDown' || key === 'j') {
+      if (key === 'ArrowDown' || key === 'j' || key === 'C-n') {
         if (selectedIdx < filtered.length - 1) {
           selectedIdx++;
           renderList();
         }
         return { handled: true, newState: state };
       }
-      
-      if (key === 'ArrowUp' || key === 'k') {
+
+      if (key === 'ArrowUp' || key === 'k' || key === 'C-p') {
         if (selectedIdx > 0) {
           selectedIdx--;
           renderList();
@@ -369,29 +369,19 @@ export function createContentDrawer(config: ContentDrawerConfig): DrawerHandler 
       injectDrawerStyles();
       
       const content = config.getContent();
-      
+
       contentEl = el('div', { class: 'vilify-drawer-content' }, []);
-      
+
       if (content && content.trim()) {
-        // Clean up whitespace
-        const cleaned = content
-          .trim()
-          .replace(/\r\n/g, '\n')
-          .replace(/[\u00A0\u200B\u2028\u2029]/g, ' ')
-          .replace(/[ \t]+/g, ' ')
-          .replace(/\n[ \t]+/g, '\n')
-          .replace(/[ \t]+\n/g, '\n')
-          .replace(/\n{2,}/g, '\n\n')
-          .replace(/^\n+/, '')
-          .replace(/\n+$/, '');
-        contentEl.textContent = cleaned;
+        // Content may be HTML (with sanitized <a> and <br> tags)
+        contentEl.innerHTML = content;
       } else {
         contentEl.appendChild(el('div', { class: 'vilify-drawer-empty' }, [
           config.emptyMessage || 'No content'
         ]));
       }
       
-      drawerEl = el('div', { class: 'vilify-drawer open' }, [
+      drawerEl = el('div', { class: 'vilify-drawer open', 'data-drawer-id': config.id }, [
         contentEl,
       ]);
       
@@ -415,12 +405,12 @@ export function createContentDrawer(config: ContentDrawerConfig): DrawerHandler 
         return { handled: true, newState: closeDrawerState() };
       }
       
-      if ((key === 'j' || key === 'ArrowDown') && contentEl) {
+      if ((key === 'j' || key === 'ArrowDown' || key === 'C-n') && contentEl) {
         contentEl.scrollTop += SCROLL_AMOUNT;
         return { handled: true, newState: state };
       }
-      
-      if ((key === 'k' || key === 'ArrowUp') && contentEl) {
+
+      if ((key === 'k' || key === 'ArrowUp' || key === 'C-p') && contentEl) {
         contentEl.scrollTop -= SCROLL_AMOUNT;
         return { handled: true, newState: state };
       }

@@ -156,7 +156,15 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     // 1. Input element filtering
     if (isInputElement(target)) {
       // Vilify's own status bar input — let it handle everything
+      // EXCEPT Ctrl-N/Ctrl-P when a drawer is open (route to drawer navigation)
       if (target.id === 'vilify-status-input') {
+        if (event.ctrlKey && (event.key === 'n' || event.key === 'p') && drawer !== null && drawer !== 'palette') {
+          event.preventDefault();
+          event.stopPropagation();
+          const drawerKey = normalizeKey(event);
+          if (drawerKey) appCallbacks.onDrawerKey?.(drawerKey);
+          return;
+        }
         return;
       }
       // Native search input — Escape blurs, block rest
@@ -192,11 +200,13 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
       return;
     }
 
-    // 4. Drawer key delegation (not palette, not recommended)
-    if (drawer !== null && drawer !== 'palette' && drawer !== 'recommended') {
+    // 4. Drawer key delegation (not palette)
+    if (drawer !== null && drawer !== 'palette') {
       event.preventDefault();
       event.stopPropagation();
-      appCallbacks.onDrawerKey?.(event.key);
+      // Use normalized key so Ctrl combos (C-n, C-p) are distinguishable
+      const drawerKey = normalizeKey(event);
+      if (drawerKey) appCallbacks.onDrawerKey?.(drawerKey);
       return;
     }
 
@@ -206,6 +216,9 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     // 6. Normalize key
     const key = normalizeKey(event);
     if (key === null) return; // modifier-only
+
+    // 6a. Let browser Meta (Cmd) shortcuts pass through
+    if (event.metaKey) return;
 
     // 7. Build context & get bindings
     const pageType = config.getPageType?.() ?? null;

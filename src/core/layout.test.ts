@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
+  contrastText,
   setInputCallbacks,
   injectFocusModeStyles,
   applyTheme,
@@ -27,9 +28,12 @@ import { createAppState } from './state';
 
 function makeTheme(): SiteTheme {
   return {
-    bg1: '#1F1F28', bg2: '#2A2A37', bg3: '#363646',
-    txt1: '#DCD7BA', txt2: '#C8C093', txt3: '#727169', txt4: '#7E9CD8',
-    accent: '#C34043', accentHover: '#E82424',
+    bg1: 'hsl(240, 14%, 14%)', bg2: 'hsl(240, 15%, 19%)', bg3: 'hsl(240, 14%, 24%)',
+    txt1: 'hsl(50, 36%, 77%)', txt2: 'hsl(49, 30%, 68%)', txt3: 'hsl(53, 4%, 43%)', txt4: 'hsl(220, 53%, 67%)',
+    accent: 'hsl(358, 51%, 51%)', accentHover: 'hsl(0, 82%, 53%)',
+    modeNormal: 'hsl(220, 53%, 67%)', modeSearch: 'hsl(93, 34%, 58%)',
+    modeCommand: 'hsl(39, 40%, 59%)', modeFilter: 'hsl(264, 29%, 61%)',
+    modeReplace: 'hsl(0, 0%, 50%)',
   };
 }
 
@@ -95,9 +99,9 @@ describe('applyTheme', () => {
     const theme = makeTheme();
     applyTheme(theme);
     const root = document.documentElement;
-    expect(root.style.getPropertyValue('--bg-1')).toBe('#1F1F28');
-    expect(root.style.getPropertyValue('--accent')).toBe('#C34043');
-    expect(root.style.getPropertyValue('--txt-4')).toBe('#7E9CD8');
+    expect(root.style.getPropertyValue('--bg-1')).toBe('hsl(240, 14%, 14%)');
+    expect(root.style.getPropertyValue('--accent')).toBe('hsl(358, 51%, 51%)');
+    expect(root.style.getPropertyValue('--txt-4')).toBe('hsl(220, 53%, 67%)');
   });
 });
 
@@ -175,7 +179,7 @@ describe('renderFocusMode', () => {
     const config = makeConfig();
     const state = makeState();
     renderFocusMode(config, state);
-    expect(document.documentElement.style.getPropertyValue('--bg-1')).toBe('#1F1F28');
+    expect(document.documentElement.style.getPropertyValue('--bg-1')).toBe('hsl(240, 14%, 14%)');
   });
 });
 
@@ -437,5 +441,69 @@ describe('getContentContainer', () => {
     expect(result).not.toBeNull();
     expect(result?.id).toBe('vilify-content');
     removeFocusMode();
+  });
+});
+
+// =============================================================================
+// contrastText
+// =============================================================================
+
+describe('contrastText', () => {
+  // Hex input tests (backward compatibility)
+  it('returns dark text for light hex color (white)', () => {
+    expect(contrastText('#FFFFFF')).toBe('hsl(0, 0%, 0%)');
+  });
+
+  it('returns light text for dark hex color (black)', () => {
+    expect(contrastText('#000000')).toBe('hsl(0, 0%, 100%)');
+  });
+
+  it('returns light text for dark hex (Kanagawa bg)', () => {
+    expect(contrastText('#1F1F28')).toBe('hsl(0, 0%, 100%)');
+  });
+
+  it('returns dark text for bright hex (yellow-green)', () => {
+    expect(contrastText('#FFFF00')).toBe('hsl(0, 0%, 0%)');
+  });
+
+  // HSL input tests
+  it('returns dark text for high lightness hsl (white)', () => {
+    expect(contrastText('hsl(0, 0%, 100%)')).toBe('hsl(0, 0%, 0%)');
+  });
+
+  it('returns light text for low lightness hsl (black)', () => {
+    expect(contrastText('hsl(0, 0%, 0%)')).toBe('hsl(0, 0%, 100%)');
+  });
+
+  it('returns light text for dark hsl (Kanagawa bg)', () => {
+    expect(contrastText('hsl(240, 14%, 14%)')).toBe('hsl(0, 0%, 100%)');
+  });
+
+  it('returns dark text for warm hsl at 60% lightness (perceptually bright)', () => {
+    expect(contrastText('hsl(50, 36%, 60%)')).toBe('hsl(0, 0%, 0%)');
+  });
+
+  it('returns dark text for warm hsl at 59% lightness (YIQ still bright)', () => {
+    // Warm amber at 59% converts to high YIQ brightness via HSL→RGB→YIQ
+    expect(contrastText('hsl(50, 36%, 59%)')).toBe('hsl(0, 0%, 0%)');
+  });
+
+  it('returns dark text for high lightness hsl (Kanagawa txt-1)', () => {
+    expect(contrastText('hsl(50, 36%, 77%)')).toBe('hsl(0, 0%, 0%)');
+  });
+
+  it('returns light text for Kanagawa mode-normal hsl (blue at 49%)', () => {
+    // Blue at 49% lightness is perceptually dark despite medium L
+    expect(contrastText('hsl(205, 69%, 49%)')).toBe('hsl(0, 0%, 100%)');
+  });
+
+  it('returns dark text for kanagawa modeSearch (green at 58%)', () => {
+    // Green at 58% is perceptually bright — needs dark text
+    expect(contrastText('hsl(93, 34%, 58%)')).toBe('hsl(0, 0%, 0%)');
+  });
+
+  it('returns dark text for gruvbox modeCommand (yellow-green at 44%)', () => {
+    // Yellow-green is perceptually bright even at medium lightness
+    expect(contrastText('hsl(62, 66%, 44%)')).toBe('hsl(0, 0%, 0%)');
   });
 });

@@ -54,6 +54,39 @@ describe('WATCH_CSS - action grid styles', () => {
 });
 
 // =============================================================================
+// CSS - Description Drawer Styles
+// =============================================================================
+
+describe('WATCH_CSS - description drawer styles', () => {
+  it('description drawer has half player width', () => {
+    expect(WATCH_CSS).toContain('data-drawer-id="description"');
+    expect(WATCH_CSS).toMatch(/width:\s*calc\(\(100% - 350px\) \/ 2\)/);
+  });
+
+  it('description drawer is left-aligned', () => {
+    expect(WATCH_CSS).toMatch(/\[data-drawer-id="description"\][^}]*left:\s*0/);
+    expect(WATCH_CSS).toMatch(/\[data-drawer-id="description"\][^}]*right:\s*auto/);
+  });
+
+  it('description drawer content has white-space normal', () => {
+    expect(WATCH_CSS).toMatch(/\[data-drawer-id="description"\]\s*\.vilify-drawer-content[^}]*white-space:\s*normal/);
+  });
+
+  it('hashtag links have custom styling', () => {
+    expect(WATCH_CSS).toContain('a[href*="/hashtag/"]');
+  });
+
+  it('social handle links have custom styling', () => {
+    expect(WATCH_CSS).toContain('a[href*="/@"]');
+    expect(WATCH_CSS).toContain('a[href*="/channel/"]');
+  });
+
+  it('social handle links have font-weight 600', () => {
+    expect(WATCH_CSS).toMatch(/a\[href\*="\/channel\/"\][^}]*font-weight:\s*600/);
+  });
+});
+
+// =============================================================================
 // DOM STRUCTURE TESTS
 // =============================================================================
 

@@ -22,15 +22,37 @@ describe('youtubeConfig type annotations', () => {
 
   it('has a valid SiteTheme', () => {
     const theme: SiteTheme = youtubeConfig.theme;
-    expect(theme.bg1).toBe('#1F1F28');
-    expect(theme.bg2).toBe('#2A2A37');
-    expect(theme.bg3).toBe('#363646');
-    expect(theme.txt1).toBe('#DCD7BA');
-    expect(theme.txt2).toBe('#C8C093');
-    expect(theme.txt3).toBe('#727169');
-    expect(theme.txt4).toBe('#7E9CD8');
-    expect(theme.accent).toBe('#C34043');
-    expect(theme.accentHover).toBe('#E82424');
+    expect(theme.bg1).toBe('hsl(240, 14%, 14%)');
+    expect(theme.bg2).toBe('hsl(240, 15%, 19%)');
+    expect(theme.bg3).toBe('hsl(240, 14%, 24%)');
+    expect(theme.txt1).toBe('hsl(50, 36%, 77%)');
+    expect(theme.txt2).toBe('hsl(49, 30%, 68%)');
+    expect(theme.txt3).toBe('hsl(53, 4%, 43%)');
+    expect(theme.txt4).toBe('hsl(220, 53%, 67%)');
+    expect(theme.accent).toBe('hsl(358, 51%, 51%)');
+    expect(theme.accentHover).toBe('hsl(0, 82%, 53%)');
+  });
+
+  it('has mode colors in hsl() format', () => {
+    const theme: SiteTheme = youtubeConfig.theme;
+    expect(theme.modeNormal).toBe('hsl(205, 69%, 49%)');
+    expect(theme.modeSearch).toBe('hsl(68, 100%, 30%)');
+    expect(theme.modeCommand).toBe('hsl(18, 80%, 44%)');
+    expect(theme.modeFilter).toBe('hsl(331, 64%, 52%)');
+  });
+
+  it('has modeReplace matching solarized red (not placeholder gray)', () => {
+    const theme: SiteTheme = youtubeConfig.theme;
+    expect(theme.modeReplace).not.toBe('hsl(0, 0%, 50%)');
+    expect(theme.modeReplace).toBe('hsl(1, 71%, 52%)');
+  });
+
+  it('all theme values use hsl() format, not hex', () => {
+    const theme: SiteTheme = youtubeConfig.theme;
+    for (const [key, value] of Object.entries(theme)) {
+      expect(value).toMatch(/^hsl\(/);
+      expect(value).not.toMatch(/^#/);
+    }
   });
 });
 

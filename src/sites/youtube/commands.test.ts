@@ -344,6 +344,17 @@ describe('getYouTubeKeySequences - watch page', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
     expect(seq).not.toHaveProperty(' ');
   });
+
+  it('has f → toggleFullscreen on watch page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    seq['f']();
+    expect(player.toggleFullscreen).toHaveBeenCalled();
+  });
+
+  it('does not have f on listing page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).not.toHaveProperty('f');
+  });
 });
 
 // =============================================================================
@@ -531,6 +542,11 @@ describe('getYouTubeBlockedNativeKeys', () => {
       drawer: 'settings',
     }));
     expect(result).toEqual(['\\', 'g', 'm', 't', ' ']);
+  });
+
+  it('includes f in blocked keys on watch page', () => {
+    const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'watch' }));
+    expect(result).toContain('f');
   });
 });
 

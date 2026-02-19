@@ -85,6 +85,7 @@ export interface SiteTheme {
   modeSearch: string;
   modeCommand: string;
   modeFilter: string;
+  modeReplace: string;
 }
 
 export interface SiteConfig {

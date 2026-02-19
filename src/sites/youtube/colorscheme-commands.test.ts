@@ -33,15 +33,15 @@ vi.mock('../../core/view', () => ({
 
 vi.mock('../../core/settings', () => ({
   COLORSCHEMES: {
-    'kanagawa': { bg1: '#1F1F28' },
-    'gruvbox': { bg1: '#282828' },
-    'tokyo-night': { bg1: '#1a1b26' },
+    'kanagawa': { bg1: 'hsl(240, 14%, 14%)' },
+    'gruvbox': { bg1: 'hsl(0, 0%, 16%)' },
+    'tokyo-night': { bg1: 'hsl(235, 21%, 13%)' },
   },
   FONTS: ['SF Mono', 'JetBrains Mono', 'Fira Code'],
   fontToKey: vi.fn((name: string) => name.replace(/ /g, '-')),
   loadSettings: vi.fn(() => ({ colorscheme: 'kanagawa', font: 'SF Mono' })),
   saveSettings: vi.fn(),
-  getTheme: vi.fn((key: string) => ({ bg1: '#000' })),
+  getTheme: vi.fn((key: string) => ({ bg1: 'hsl(0, 0%, 0%)' })),
 }));
 
 vi.mock('../../core/layout', () => ({

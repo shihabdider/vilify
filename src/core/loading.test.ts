@@ -91,6 +91,20 @@ describe('LOADING_CSS content', () => {
     expect(css).toContain('html.vilify-loading #top_nav');
   });
 
+  it('uses hsl() fallback colors, not hex', async () => {
+    const { _LOADING_CSS_FOR_TEST } = await import('./loading');
+    const css = _LOADING_CSS_FOR_TEST || '';
+    expect(css).toContain('var(--bg-1, hsl(192, 100%, 11%))');
+    expect(css).toContain('var(--bg-3, hsl(192, 81%, 14%))');
+    expect(css).toContain('var(--accent, hsl(0, 100%, 50%))');
+    expect(css).toContain('var(--txt-3, hsl(196, 13%, 45%))');
+    // Should not contain hex fallbacks
+    expect(css).not.toContain('#002b36');
+    expect(css).not.toContain('#073642');
+    expect(css).not.toContain('#ff0000');
+    expect(css).not.toContain('#657b83');
+  });
+
   it('uses visibility: hidden for all hiding selectors', async () => {
     const { _LOADING_CSS_FOR_TEST } = await import('./loading');
     const css = _LOADING_CSS_FOR_TEST || '';

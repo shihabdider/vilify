@@ -109,16 +109,41 @@ export function toggleMute(): void {
 // VIEW CONTROLS
 // =============================================================================
 
+/** Module-level flag to ensure fullscreenchange listener is added only once */
+let fullscreenListenerAdded = false;
+
 /**
- * Toggle fullscreen mode by clicking YouTube's fullscreen button
+ * Set up a fullscreenchange event listener that toggles the vilify-fullscreen
+ * class on document.body. Idempotent — safe to call multiple times.
  * @returns {void}
- * 
+ */
+export function setupFullscreenListener(): void {
+  if (fullscreenListenerAdded) return;
+  fullscreenListenerAdded = true;
+
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement != null) {
+      document.body.classList.add('vilify-fullscreen');
+    } else {
+      document.body.classList.remove('vilify-fullscreen');
+    }
+  });
+}
+
+/**
+ * Toggle fullscreen mode by clicking YouTube's fullscreen button.
+ * Also ensures the fullscreenchange listener is registered so that
+ * Vilify's overlay elements are hidden/restored automatically.
+ * @returns {void}
+ *
  * Examples:
  *   toggleFullscreen()  // Enters or exits fullscreen
  */
 export function toggleFullscreen(): void {
   // Inventory: player element, fullscreen button
   // Template: find and click button
+  setupFullscreenListener();
+
   const player = document.querySelector('#movie_player');
   if (!player) return;
 

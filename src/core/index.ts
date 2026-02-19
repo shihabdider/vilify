@@ -448,7 +448,13 @@ export function createApp(config: SiteConfig): App {
     if (value.trim()) {
       const query = value.trim();
       const url = buildSearchUrl(config, query);
-      navigateTo(url);
+      const pageType = config.getPageType?.() ?? 'other';
+      if (pageType === 'watch') {
+        // On watch page, open search results in new tab to keep video playing
+        window.open(url, '_blank');
+      } else {
+        navigateTo(url);
+      }
     }
   }
 
@@ -1399,7 +1405,7 @@ export function createApp(config: SiteConfig): App {
           const actionEl = document.getElementById('vilify-sub-action');
           if (actionEl) {
             const kbd = document.createElement('kbd');
-            kbd.textContent = 'ms';
+            kbd.textContent = 'ss';
             actionEl.innerHTML = '';
             actionEl.appendChild(kbd);
             actionEl.appendChild(document.createTextNode(isSubscribed ? 'unsub' : 'sub'));

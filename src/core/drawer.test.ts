@@ -188,6 +188,12 @@ describe('createListDrawer', () => {
     expect(empty?.textContent).toBe('No items');
   });
 
+  it('sets data-drawer-id attribute from config.id', () => {
+    handler.render(container);
+    const drawer = container.querySelector('.vilify-drawer');
+    expect(drawer?.getAttribute('data-drawer-id')).toBe('test-list');
+  });
+
   it('unrecognized key returns handled: false', () => {
     handler.render(container);
     const state = makeState({ drawer: 'test-list' });
@@ -232,6 +238,12 @@ describe('createContentDrawer', () => {
     const content = container.querySelector('.vilify-drawer-content');
     expect(content).not.toBeNull();
     expect(content?.textContent).toContain('Hello world');
+  });
+
+  it('sets data-drawer-id attribute from config.id', () => {
+    handler.render(container);
+    const drawer = container.querySelector('.vilify-drawer');
+    expect(drawer?.getAttribute('data-drawer-id')).toBe('test-content');
   });
 
   it('render shows empty message when content is null', () => {

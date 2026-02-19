@@ -29,19 +29,20 @@ import { getSuggestDrawer, resetSuggestDrawer } from './suggest';
  * - Green: #34A853
  */
 const googleTheme: SiteTheme = {
-  bg1: '#002b36',      // Solarized base03
-  bg2: '#073642',      // Solarized base02
-  bg3: '#0a4a5c',      // Slightly lighter for hover
-  txt1: '#f1f1f1',     // Primary text
-  txt2: '#aaaaaa',     // Secondary text
-  txt3: '#717171',     // Tertiary text
-  txt4: '#4285F4',     // Google Blue for links
-  accent: '#4285F4',   // Google Blue accent
-  accentHover: '#3367D6',
-  modeNormal: '#34A853',  // Google Green
-  modeSearch: '#4285F4',  // Google Blue
-  modeCommand: '#FBBC04', // Google Yellow
-  modeFilter: '#EA4335',  // Google Red
+  bg1: 'hsl(192, 100%, 11%)',      // Solarized base03
+  bg2: 'hsl(192, 81%, 14%)',       // Solarized base02
+  bg3: 'hsl(193, 80%, 20%)',       // Slightly lighter for hover
+  txt1: 'hsl(0, 0%, 95%)',         // Primary text
+  txt2: 'hsl(0, 0%, 67%)',         // Secondary text
+  txt3: 'hsl(0, 0%, 44%)',         // Tertiary text
+  txt4: 'hsl(217, 89%, 61%)',      // Google Blue for links
+  accent: 'hsl(217, 89%, 61%)',    // Google Blue accent
+  accentHover: 'hsl(219, 62%, 52%)',
+  modeNormal: 'hsl(136, 52%, 43%)',   // Google Green
+  modeSearch: 'hsl(217, 89%, 61%)',   // Google Blue
+  modeCommand: 'hsl(45, 97%, 50%)',   // Google Yellow
+  modeFilter: 'hsl(4, 81%, 56%)',     // Google Red
+  modeReplace: 'hsl(5, 81%, 56%)',
 };
 
 // =============================================================================

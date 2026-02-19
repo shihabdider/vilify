@@ -32,19 +32,20 @@ import { getPageItems } from '../../core/view-tree';
  * @type {SiteTheme}
  */
 const youtubeTheme: SiteTheme = {
-  bg1: '#1F1F28',
-  bg2: '#2A2A37',
-  bg3: '#363646',
-  txt1: '#DCD7BA',
-  txt2: '#C8C093',
-  txt3: '#727169',
-  txt4: '#7E9CD8',
-  accent: '#C34043',
-  accentHover: '#E82424',
-  modeNormal: '#268BD2',
-  modeSearch: '#859900',
-  modeCommand: '#CB4B16',
-  modeFilter: '#D33682',
+  bg1: 'hsl(240, 14%, 14%)',
+  bg2: 'hsl(240, 15%, 19%)',
+  bg3: 'hsl(240, 14%, 24%)',
+  txt1: 'hsl(50, 36%, 77%)',
+  txt2: 'hsl(49, 30%, 68%)',
+  txt3: 'hsl(53, 4%, 43%)',
+  txt4: 'hsl(220, 53%, 67%)',
+  accent: 'hsl(358, 51%, 51%)',
+  accentHover: 'hsl(0, 82%, 53%)',
+  modeNormal: 'hsl(205, 69%, 49%)',
+  modeSearch: 'hsl(68, 100%, 30%)',
+  modeCommand: 'hsl(18, 80%, 44%)',
+  modeFilter: 'hsl(331, 64%, 52%)',
+  modeReplace: 'hsl(1, 71%, 52%)',
 };
 
 // =============================================================================
