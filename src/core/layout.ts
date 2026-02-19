@@ -92,7 +92,6 @@ const FOCUS_MODE_CSS = `
     flex-direction: column;
     font-size: 14px;
     line-height: 1.5;
-    border: 2px solid var(--bg-3);
   }
 
   /* Tab bar at top */

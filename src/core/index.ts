@@ -37,6 +37,7 @@ import { setupKeyboardEngine } from './keyboard';
 import { injectFocusModeStyles, applyTheme, applyFont, renderFocusMode, renderListing, setInputCallbacks, updateStatusBar, updateSortIndicator, updateItemCount, updateCursorPosition, removeFocusMode } from './layout';
 import { loadSettings, saveSettings, getTheme, getFontFamily, COLORSCHEMES, keyToFont } from './settings';
 import { openSettingsWindow } from './settings-window';
+import { openHelpWindow } from './help-window';
 import { parseSortCommand, getSortLabel, getDefaultDirection, toggleDirection, SORT_FIELDS } from './sort';
 import { injectPaletteStyles, filterItems, filterColonCommands, openPalette, closePalette, renderPalette, showPalette, hidePalette } from './palette';
 import { copyToClipboard, navigateTo, openInNewTab } from './actions';
@@ -121,6 +122,44 @@ export function createApp(config: SiteConfig): App {
 
   /** Whether omnicompletion popup is active (Ctrl-x Ctrl-o) */
   let omniCompleteActive = false;
+
+  // ==========================================================================
+  // DESTROY (shared by :q handler and public destroy method)
+  // ==========================================================================
+
+  /**
+   * Full cleanup of the app — stops polling, removes keyboard/observer,
+   * tears down UI, and nulls state. Called by both :q and destroy().
+   * [I/O]
+   */
+  function destroyApp() {
+    stopContentPolling();
+
+    if (cleanupKeyboard) {
+      cleanupKeyboard();
+      cleanupKeyboard = null;
+    }
+
+    if (navigationObserver) {
+      navigationObserver.disconnect();
+      navigationObserver = null;
+    }
+
+    removeFocusMode();
+    document.body.classList.remove('vilify-focus-mode', 'vilify-watch-page', 'vilify-loading');
+
+    hideLoadingScreen();
+
+    const drawers = document.querySelectorAll(
+      '.vilify-drawer, #vilify-drawer-container, ' +
+      '#vilify-loading-overlay, .vilify-overlay'
+    );
+    drawers.forEach(el => el.remove());
+
+    state = null;
+    siteState = null;
+    lastRenderedDrawer = null;
+  }
 
   // ==========================================================================
   // CONTENT POLLING
@@ -518,23 +557,17 @@ export function createApp(config: SiteConfig): App {
 
     // Direct command execution — no autocomplete interference
 
+    // Check for :help command
+    const helpMatch = value.trim().match(/^:?help\s*$/i);
+    if (helpMatch !== null) {
+      state = onDrawerClose(state);
+      openHelpWindow();
+      return;
+    }
+
     // Check for :q exit command
     if (value.trim().toLowerCase() === ':q') {
-      state = onDrawerClose(state);
-      state = { ...state, core: { ...state.core, focusModeActive: false } };
-
-      stopContentPolling();
-      removeFocusMode();
-      document.body.classList.remove('vilify-watch-page', 'vilify-loading');
-      hideLoadingScreen();
-
-      const drawers = document.querySelectorAll(
-        '.vilify-drawer, #vilify-drawer-container, ' +
-        '#vilify-loading-overlay, .vilify-overlay'
-      );
-      drawers.forEach(el => el.remove());
-
-      showMessage('Focus mode off (refresh to re-enable)');
+      destroyApp();
       return;
     }
 
@@ -698,7 +731,7 @@ export function createApp(config: SiteConfig): App {
   // EVENT HANDLERS
   // ==========================================================================
 
-  function handleListNavigation(direction) {
+  async function handleListNavigation(direction, stepOverride?: number) {
     const items = getPageItems(state);
     const filtered = getVisibleItems(state, items);
 
@@ -712,8 +745,8 @@ export function createApp(config: SiteConfig): App {
       return;
     }
 
-    let step = 1;
-    if (gridColumns > 0 && (direction === 'up' || direction === 'down')) {
+    let step = stepOverride ?? 1;
+    if (stepOverride === undefined && gridColumns > 0 && (direction === 'up' || direction === 'down')) {
       step = gridColumns;
     }
 
@@ -726,12 +759,25 @@ export function createApp(config: SiteConfig): App {
       showMessage(`${pos}/${total}`);
     }
 
-    if (result.boundary) {
-      if (result.boundary === 'bottom' && !state.ui.filterActive) {
-        triggerLazyLoad();
-      } else {
-        flashBoundary();
+    if (result.boundary === 'bottom' && !state.ui.filterActive) {
+      // Await lazy load so new items arrive before rendering
+      await triggerLazyLoad();
+
+      // After lazy load, state has been updated with new items.
+      // Re-get items and advance cursor past the old boundary.
+      const newItems = getPageItems(state);
+      const newFiltered = getVisibleItems(state, newItems);
+      if (newFiltered.length > filtered.length) {
+        const advanceResult = onNavigate(state, direction, newFiltered.length, step);
+        state = advanceResult.state;
       }
+
+      render();
+      return;
+    }
+
+    if (result.boundary) {
+      flashBoundary();
     }
 
     render();
@@ -741,8 +787,8 @@ export function createApp(config: SiteConfig): App {
   let isLoadingMore = false;
 
   /**
-   * Trigger lazy loading via YouTube browse API continuation.
-   * Falls back to DOM scrolling if the API approach fails.
+   * Trigger lazy loading via both the YouTube browse API and DOM scrolling
+   * in parallel. Resolves as soon as either path produces new items.
    * [I/O]
    */
   async function triggerLazyLoad() {
@@ -750,36 +796,63 @@ export function createApp(config: SiteConfig): App {
     isLoadingMore = true;
     showMessage('Loading more...');
 
+    // Count items before loading
+    const beforeCount = config.createPageState?.()?.videos?.length || 0;
+
+    // Start DOM scroll immediately (triggers YouTube's native loader)
+    triggerDOMScroll();
+
+    // Also try API path in parallel (if YouTube)
+    let apiPromise: Promise<boolean> = Promise.resolve(false);
     try {
       if (config.name === 'youtube') {
         const { getDataProvider } = await import('../sites/youtube/data/index');
         const dp = getDataProvider();
-        const success = await dp.fetchMore();
-
-        if (success) {
-          if (config.createPageState) {
-            const pageState = config.createPageState();
-            state = onListItemsUpdate(state, pageState.videos || []);
-          }
-          render();
-          isLoadingMore = false;
-          return;
-        }
+        apiPromise = dp.fetchMore();
       }
     } catch (e) {
-      console.error('[Vilify] triggerLazyLoad error:', e);
+      // API path failed to initialize, DOM scroll is already running
     }
 
-    // Fallback: scroll YouTube's continuation element into view
-    triggerLazyLoadDOM();
+    // Poll for new content from EITHER path (up to 3 seconds)
+    const success = await new Promise<boolean>((resolve) => {
+      const start = Date.now();
+      const check = async () => {
+        // Check if createPageState shows more items (DOM scrape)
+        const currentCount = config.createPageState?.()?.videos?.length || 0;
+        if (currentCount > beforeCount) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - start > 3000) {
+          resolve(false);
+          return;
+        }
+        setTimeout(check, 100);
+      };
+      setTimeout(check, 200); // First check after 200ms
+    });
+
+    // Restore focus mode (DOM scroll removed it)
+    document.body.classList.add('vilify-focus-mode');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    // Update state with new items
+    if (success && config.createPageState) {
+      const pageState = config.createPageState();
+      state = onListItemsUpdate(state, pageState.videos || []);
+      render();
+    }
+
     isLoadingMore = false;
   }
 
   /**
-   * Fallback: trigger lazy loading by scrolling continuation element into view.
+   * Trigger YouTube's native lazy loader by scrolling a continuation element
+   * into view (or scrolling down the page if none found).
    * [I/O]
    */
-  function triggerLazyLoadDOM() {
+  function triggerDOMScroll() {
     const continuationSelectors = [
       'ytd-continuation-item-renderer',
       '#continuations ytd-continuation-item-renderer',
@@ -793,19 +866,11 @@ export function createApp(config: SiteConfig): App {
       const continuation = document.querySelector(selector);
       if (continuation) {
         continuation.scrollIntoView({ behavior: 'instant', block: 'center' });
-        setTimeout(() => {
-          document.body.classList.add('vilify-focus-mode');
-          window.scrollTo({ top: 0, behavior: 'instant' });
-        }, 300);
         return;
       }
     }
 
     window.scrollBy({ top: window.innerHeight, behavior: 'instant' });
-    setTimeout(() => {
-      document.body.classList.add('vilify-focus-mode');
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }, 300);
   }
 
   function handleSelect(shiftKey) {
@@ -1313,7 +1378,7 @@ export function createApp(config: SiteConfig): App {
       // Construct appCallbacks — the full set of callbacks that key sequences can invoke.
       // Previously built inside keyboard.js; now constructed here and passed in.
       const appCallbacks = {
-        navigate: handleListNavigation,
+        navigate: (direction, stepOverride?) => handleListNavigation(direction, stepOverride),
         select: handleSelect,
         render: render,
         onDrawerKey: handleSiteDrawerKey,
@@ -1504,39 +1569,7 @@ export function createApp(config: SiteConfig): App {
      * [I/O]
      */
     destroy() {
-      // Stop content polling
-      stopContentPolling();
-
-      // Clean up keyboard handler
-      if (cleanupKeyboard) {
-        cleanupKeyboard();
-        cleanupKeyboard = null;
-      }
-
-      // Disconnect navigation observer
-      if (navigationObserver) {
-        navigationObserver.disconnect();
-        navigationObserver = null;
-      }
-
-      // Remove focus mode
-      removeFocusMode();
-      document.body.classList.remove('vilify-focus-mode', 'vilify-watch-page', 'vilify-loading');
-
-      // Remove loading overlay
-      hideLoadingScreen();
-
-      // Remove drawers
-      const drawers = document.querySelectorAll(
-        '.vilify-drawer, #vilify-drawer-container, ' +
-        '#vilify-loading-overlay, .vilify-overlay'
-      );
-      drawers.forEach(el => el.remove());
-
-      // Clear state
-      state = null;
-      siteState = null;
-      lastRenderedDrawer = null;
+      destroyApp();
     },
 
     /**

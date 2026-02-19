@@ -57,6 +57,12 @@ describe('WATCH_CSS - action grid styles', () => {
 // CSS - Description Drawer Styles
 // =============================================================================
 
+describe('WATCH_CSS - watch page sidebar border', () => {
+  it('does not have border-left on #vilify-focus', () => {
+    expect(WATCH_CSS).not.toMatch(/border-left/);
+  });
+});
+
 describe('WATCH_CSS - description drawer styles', () => {
   it('description drawer has half player width', () => {
     expect(WATCH_CSS).toContain('data-drawer-id="description"');

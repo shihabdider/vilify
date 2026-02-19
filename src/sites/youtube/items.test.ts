@@ -21,6 +21,7 @@ describe('injectYouTubeItemStyles', () => {
     expect(styleEl).not.toBeNull();
     expect(styleEl!.tagName).toBe('STYLE');
     expect(styleEl!.textContent).toContain('.vilify-item-meta2');
+    expect(styleEl!.textContent).toContain('.vilify-cursor-icon');
   });
 
   it('is idempotent — second call does not add another <style>', () => {
@@ -93,6 +94,50 @@ describe('renderYouTubeItem', () => {
   it('does not add "selected" class when isSelected is false', () => {
     const el = renderYouTubeItem(baseItem, false);
     expect(el.classList.contains('selected')).toBe(false);
+  });
+
+  // =========================================================================
+  // Cursor icon
+  // =========================================================================
+  it('always includes a cursor icon element with class vilify-cursor-icon', () => {
+    const el = renderYouTubeItem(baseItem, false);
+    const cursor = el.querySelector('.vilify-cursor-icon');
+    expect(cursor).not.toBeNull();
+  });
+
+  it('cursor icon contains the arrow character when selected', () => {
+    const el = renderYouTubeItem(baseItem, true);
+    const cursor = el.querySelector('.vilify-cursor-icon');
+    expect(cursor).not.toBeNull();
+    expect(cursor!.textContent).toBe('\u25B6');
+  });
+
+  it('cursor icon is present but empty when not selected', () => {
+    const el = renderYouTubeItem(baseItem, false);
+    const cursor = el.querySelector('.vilify-cursor-icon');
+    expect(cursor).not.toBeNull();
+    expect(cursor!.textContent).toBe('');
+  });
+
+  it('cursor icon is the first child of the item element', () => {
+    const el = renderYouTubeItem(baseItem, true);
+    const firstChild = el.firstElementChild;
+    expect(firstChild).not.toBeNull();
+    expect(firstChild!.classList.contains('vilify-cursor-icon')).toBe(true);
+  });
+
+  it('cursor icon does not appear in group headers', () => {
+    const groupItem = { title: '', url: '', group: 'My Group' } as ContentItem;
+    const el = renderYouTubeItem(groupItem, false);
+    const cursor = el.querySelector('.vilify-cursor-icon');
+    expect(cursor).toBeNull();
+  });
+
+  it('cursor icon does not appear in command items', () => {
+    const cmdItem = { title: '', url: '', label: 'Do thing', action: () => {} } as any;
+    const el = renderYouTubeItem(cmdItem, true);
+    const cursor = el.querySelector('.vilify-cursor-icon');
+    expect(cursor).toBeNull();
   });
 
   // =========================================================================

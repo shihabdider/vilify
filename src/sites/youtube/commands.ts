@@ -10,6 +10,7 @@ import { COLORSCHEMES, FONTS, fontToKey, loadSettings, saveSettings, getTheme } 
 import { applyTheme, applyFont } from '../../core/layout';
 import { formatTimestamp } from './format';
 import { updateLikeButton, updateDislikeButton } from './watch';
+import { openHelpWindow } from '../../core/help-window';
 
 /** Get video context using DataProvider */
 function getVideoContext(): Record<string, any> | null {
@@ -385,6 +386,13 @@ export function getYouTubeCommands(app: App): any[] {
     action: () => app?.openSettings?.(),
     keys: ':settings',
   });
+  commands.push({
+    type: 'command',
+    label: 'Show keybind help',
+    icon: '?',
+    action: () => { openHelpWindow(); },
+    keys: ':help',
+  });
 
   // --- Colorscheme command (visible entry that opens colorscheme picker) ---
   commands.push({
@@ -702,6 +710,12 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
     sequences['Enter'] = () => app?.select?.(false);
     sequences['G'] = () => app?.goToBottom?.();
     sequences['dd'] = () => app?.removeFromWatchLater?.();
+
+    // Half-page and line scroll
+    sequences['C-d'] = () => app?.navigate?.('down', 10);
+    sequences['C-u'] = () => app?.navigate?.('up', 10);
+    sequences['C-e'] = () => app?.navigate?.('down');
+    sequences['C-y'] = () => app?.navigate?.('up');
 
     if (!context?.filterActive && !context?.searchActive) {
       sequences['j'] = () => app?.navigate?.('down');

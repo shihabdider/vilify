@@ -5,6 +5,7 @@ import type { KeyEventResult, KeyboardState } from '../types';
 import { isInputElement, showMessage } from './view';
 import { removeFocusMode } from './layout';
 import { isSettingsOpen } from './settings-window';
+import { isHelpOpen } from './help-window';
 
 /**
  * Returns initial keyboard state.
@@ -145,8 +146,8 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
   }
 
   function handler(event) {
-    // 0. Settings window absorbs all keys
-    if (isSettingsOpen()) return;
+    // 0. Settings/Help window absorbs all keys
+    if (isSettingsOpen() || isHelpOpen()) return;
 
     const state = getState();
     const { drawer, filterActive, searchActive } = state.ui;

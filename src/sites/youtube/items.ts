@@ -30,6 +30,17 @@ const YOUTUBE_ITEM_CSS = `
     align-self: flex-start;
   }
   
+  /* Cursor icon — selection indicator */
+  .vilify-cursor-icon {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-right: 8px;
+    width: 1em;
+    text-align: center;
+  }
+
   /* Removed from Watch Later - grayed out */
   .vilify-item.vilify-removed {
     opacity: 0.4;
@@ -141,8 +152,11 @@ export function renderYouTubeItem(item: ContentItem, isSelected: boolean, watchL
 
   const infoEl = el('div', { class: 'vilify-item-info' }, infoChildren);
 
-  // Build item children: thumb, info, and optionally badge on right
-  const itemChildren = [thumbEl, infoEl];
+  // Cursor icon: visible arrow when selected, empty placeholder when not
+  const cursorIcon = el('span', { class: 'vilify-cursor-icon' }, isSelected ? ['\u25B6'] : []);
+
+  // Build item children: cursor, thumb, info, and optionally badge on right
+  const itemChildren = [cursorIcon, thumbEl, infoEl];
   
   if (isRemoved) {
     itemChildren.push(el('div', { class: 'vilify-removed-badge' }, ['WL']));

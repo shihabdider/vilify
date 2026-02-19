@@ -323,6 +323,7 @@ describe('onNavigate', () => {
     expect(result.state.ui.selectedIdx).toBe(1);
     expect(result.boundary).toBe(null);
   });
+
 });
 
 describe('onFilterToggle', () => {
@@ -613,6 +614,7 @@ describe('onPaletteNavigate', () => {
     expect(result.state.ui.paletteSelectedIdx).toBe(4);
     expect(result.boundary).toBe(null);
   });
+
 });
 
 describe('onUrlChange', () => {

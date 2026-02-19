@@ -89,6 +89,18 @@ describe('injectFocusModeStyles', () => {
     const styles = document.querySelectorAll('#vilify-focus-mode-styles');
     expect(styles.length).toBe(1);
   });
+
+  it('does not include an outer border on #vilify-focus container', () => {
+    injectFocusModeStyles();
+    const styleEl = document.getElementById('vilify-focus-mode-styles') as HTMLStyleElement;
+    const css = styleEl.textContent ?? '';
+    // Extract the #vilify-focus rule block
+    const match = css.match(/#vilify-focus\s*\{([^}]*)\}/);
+    expect(match).not.toBeNull();
+    const ruleBody = match![1];
+    // The rule should NOT contain a border declaration
+    expect(ruleBody).not.toMatch(/\bborder\s*:/);
+  });
 });
 
 // =============================================================================

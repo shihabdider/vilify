@@ -14,7 +14,6 @@ const WATCH_CSS = `
   /* Watch page: player left, sidebar right */
   body.vilify-watch-page #vilify-focus {
     left: auto; right: 0; width: 350px;
-    border-left: 2px solid var(--bg-3);
   }
   
   body.vilify-watch-page .vilify-tab-bar {

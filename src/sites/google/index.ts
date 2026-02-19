@@ -13,6 +13,7 @@ import { showMessage } from '../../core/view';
 import { copyToClipboard, copyImageToClipboard } from '../../core/actions';
 import { getCachedPage, setCachedPage } from './page-cache';
 import { getSuggestDrawer, resetSuggestDrawer } from './suggest';
+import { openHelpWindow } from '../../core/help-window';
 
 // =============================================================================
 // THEME
@@ -305,7 +306,15 @@ export const googleConfig: SiteConfig = {
    * @param {Object} ctx - Context with state, callbacks
    * @returns {Array<Command>}
    */
-  getCommands: () => [],
+  getCommands: () => [
+    {
+      type: 'command',
+      label: 'Show keybind help',
+      icon: '?',
+      action: () => { openHelpWindow(); },
+      keys: ':help',
+    },
+  ],
 
   /**
    * Get ALL key sequence bindings (including navigation, modifiers, multi-key).

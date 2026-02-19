@@ -636,6 +636,78 @@ describe('type contracts', () => {
 });
 
 // =============================================================================
+// Scroll keybinds (C-d, C-u, C-e, C-y)
+// =============================================================================
+describe('getYouTubeKeySequences - scroll keybinds', () => {
+  let app;
+
+  beforeEach(() => {
+    app = makeApp();
+    mockNoVideoContext();
+  });
+
+  it('has C-d → navigate("down", 10) on listing page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).toHaveProperty('C-d');
+    seq['C-d']();
+    expect(app.navigate).toHaveBeenCalledWith('down', 10);
+  });
+
+  it('has C-u → navigate("up", 10) on listing page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).toHaveProperty('C-u');
+    seq['C-u']();
+    expect(app.navigate).toHaveBeenCalledWith('up', 10);
+  });
+
+  it('has C-e → navigate("down") on listing page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).toHaveProperty('C-e');
+    seq['C-e']();
+    expect(app.navigate).toHaveBeenCalledWith('down');
+  });
+
+  it('has C-y → navigate("up") on listing page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).toHaveProperty('C-y');
+    seq['C-y']();
+    expect(app.navigate).toHaveBeenCalledWith('up');
+  });
+
+  it('does not have C-d on watch page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).not.toHaveProperty('C-d');
+  });
+
+  it('does not have C-u on watch page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).not.toHaveProperty('C-u');
+  });
+
+  it('does not have C-e on watch page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).not.toHaveProperty('C-e');
+  });
+
+  it('does not have C-y on watch page', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
+    expect(seq).not.toHaveProperty('C-y');
+  });
+
+  it('C-d is NOT in getYouTubeCommands shortlist', () => {
+    getYouTubePageType.mockReturnValue('home');
+    const commands = getYouTubeCommands(app);
+    const cdCommand = commands.find(c => c.keys === 'C-d' || c.keys === 'Ctrl-D');
+    expect(cdCommand).toBeUndefined();
+  });
+
+  it('handles null app gracefully for C-d', () => {
+    const seq = getYouTubeKeySequences(null, makeContext({ pageType: 'home' }));
+    expect(() => seq['C-d']()).not.toThrow();
+  });
+});
+
+// =============================================================================
 // Like / Dislike key sequences
 // =============================================================================
 describe('getYouTubeKeySequences - like/dislike', () => {

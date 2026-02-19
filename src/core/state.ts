@@ -710,7 +710,7 @@ export function onPaletteNavigate(state: AppState, direction: string, itemCount:
       newIdx = currentIdx - 1;
     }
   }
-  
+
   if (itemCount === 0) {
     newIdx = 0;
     boundary = null;

@@ -291,10 +291,10 @@ export function createListDrawer(config: ListDrawerConfig): DrawerHandler {
      */
     onKey: (key, state) => {
       const filtered = getFilteredItems();
-      
+
       // Helper to close drawer
       const closeDrawer = () => ({ ...state, ui: { ...state.ui, drawer: null } });
-      
+
       if (key === 'Escape') {
         return { handled: true, newState: closeDrawer() };
       }

@@ -210,6 +210,7 @@ describe('createListDrawer', () => {
     expect(items.length).toBe(1);
     expect(items[0].textContent).toBe('Gamma');
   });
+
 });
 
 // =============================================================================
