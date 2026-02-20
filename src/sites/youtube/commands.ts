@@ -718,6 +718,7 @@ export function getYouTubeKeySequences(app: App, context: KeyContext): Record<st
     sequences['ArrowDown'] = () => app?.navigate?.('down');
     sequences['ArrowUp'] = () => app?.navigate?.('up');
     sequences['Enter'] = () => app?.select?.(false);
+    sequences['S-Enter'] = () => app?.select?.(true);
     sequences['G'] = () => app?.goToBottom?.();
     sequences['dd'] = () => app?.removeFromWatchLater?.();
 

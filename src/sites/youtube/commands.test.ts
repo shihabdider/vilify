@@ -109,11 +109,9 @@ describe('getYouTubeKeySequences - always available', () => {
     expect(app.openLocalFilter).toHaveBeenCalled();
   });
 
-  it('has / on watch page → openRecommended', () => {
+  it('does NOT have / on watch page', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('\\/');
-    seq['\\/']();
-    expect(app.openRecommended).toHaveBeenCalled();
+    expect(seq).not.toHaveProperty('/');
   });
 
   it('has : → openPalette("command")', () => {
@@ -134,20 +132,18 @@ describe('getYouTubeKeySequences - always available', () => {
     expect(app.goToTop).toHaveBeenCalled();
   });
 
-  it('has mw → addToWatchLater (always)', () => {
+  it('has mw → addToWatchLater (listing only)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
     seq['mw']();
     expect(app.addToWatchLater).toHaveBeenCalled();
   });
 
-  it('has mw on watch page too', () => {
+  it('does NOT have mw on watch page (uses sw)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['mw']();
-    expect(app.addToWatchLater).toHaveBeenCalled();
+    expect(seq).not.toHaveProperty('mw');
   });
 
   // g-prefixed navigation sequences
-  // gh, gs, gw are now unprefixed on watch page; gy, gl keep \\ prefix
   const gNavTests = [
     ['gh', '/', false],
     ['gs', '/feed/subscriptions', false],
@@ -197,6 +193,13 @@ describe('getYouTubeKeySequences - listing pages', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
     seq['Enter']();
     expect(app.select).toHaveBeenCalledWith(false);
+  });
+
+  it('has S-Enter → select(true)', () => {
+    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
+    expect(seq).toHaveProperty('S-Enter');
+    seq['S-Enter']();
+    expect(app.select).toHaveBeenCalledWith(true);
   });
 
   it('has G → goToBottom', () => {
@@ -328,21 +331,21 @@ describe('getYouTubeKeySequences - watch page', () => {
     mockNoVideoContext();
   });
 
-  it('has C-f → nextCommentPage', () => {
+  it('has ] → nextCommentPage', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\cn']();
+    seq[']']();
     expect(app.nextCommentPage).toHaveBeenCalled();
   });
 
-  it('has C-b → prevCommentPage', () => {
+  it('has [ → prevCommentPage', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\cp']();
+    seq['[']();
     expect(app.prevCommentPage).toHaveBeenCalled();
   });
 
-  it('does not have C-f on listing page', () => {
+  it('does not have ] on listing page', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'home' }));
-    expect(seq).not.toHaveProperty('\\cn');
+    expect(seq).not.toHaveProperty(']');
   });
 
   it('does not have space in sequences (YouTube native handles it)', () => {
@@ -379,7 +382,7 @@ describe('getYouTubeKeySequences - watch page with video context', () => {
 
   it('has gc → navigateTo(channelUrl + /videos)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('\\gc');
+    expect(seq).toHaveProperty('gc');
   });
 
   it('has g1 → setPlaybackRate(1)', () => {
@@ -411,49 +414,42 @@ describe('getYouTubeKeySequences - watch page with video context', () => {
 
   it('has zo → openDrawer("description")', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\zo']();
+    seq['zo']();
     expect(app.openDrawer).toHaveBeenCalledWith('description');
   });
 
   it('has zc → closeDrawer', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\zc']();
+    seq['zc']();
     expect(app.closeDrawer).toHaveBeenCalled();
   });
 
-  it('has f → openDrawer("chapters")', () => {
+  it('has zp → openDrawer("chapters")', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\f']();
+    seq['zp']();
     expect(app.openDrawer).toHaveBeenCalledWith('chapters');
   });
 
-  it('has ms → toggleSubscribe', () => {
+  it('has ss → toggleSubscribe', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    expect(seq).toHaveProperty('ms');
+    expect(seq).toHaveProperty('ss');
   });
 
-  it('has m → toggleMute', () => {
+  it('does NOT have m in sequences (handled by YouTube native)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\m']();
-    expect(player.toggleMute).toHaveBeenCalled();
+    expect(seq).not.toHaveProperty('m');
+    expect(seq).not.toHaveProperty('\\m');
   });
 
-  it('has c → toggleCaptions', () => {
+  it('does NOT have c in sequences (handled by YouTube native)', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\c']();
-    expect(player.toggleCaptions).toHaveBeenCalled();
+    expect(seq).not.toHaveProperty('c');
   });
 
-  it('has h → seekRelative(-10)', () => {
+  it('does NOT have h or l in sequences on watch page', () => {
     const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\h']();
-    expect(player.seekRelative).toHaveBeenCalledWith(-10);
-  });
-
-  it('has l → seekRelative(10)', () => {
-    const seq = getYouTubeKeySequences(app, makeContext({ pageType: 'watch' }));
-    seq['\\l']();
-    expect(player.seekRelative).toHaveBeenCalledWith(10);
+    expect(seq).not.toHaveProperty('h');
+    expect(seq).not.toHaveProperty('l');
   });
 
   it('has t → openTranscriptDrawer', () => {
@@ -469,8 +465,8 @@ describe('getYouTubeKeySequences - watch page with video context', () => {
     expect(seq).not.toHaveProperty('\\g1');
     expect(seq).not.toHaveProperty('\\yy');
     expect(seq).not.toHaveProperty('\\Y');
-    expect(seq).not.toHaveProperty('ms');
-    expect(seq).not.toHaveProperty('\\f');
+    expect(seq).not.toHaveProperty('ss');
+    expect(seq).not.toHaveProperty('zp');
   });
 
   it('does not have gc when channelUrl is missing', () => {
@@ -510,8 +506,8 @@ describe('getYouTubeKeySequences - null app safety', () => {
 
   it('handles null app gracefully for watch page bindings', () => {
     const seq = getYouTubeKeySequences(null, makeContext({ pageType: 'watch' }));
-    expect(() => seq['\\cn']()).not.toThrow();
-    expect(() => seq['\\cp']()).not.toThrow();
+    expect(() => seq[']']()).not.toThrow();
+    expect(() => seq['[']()).not.toThrow();
   });
 });
 
@@ -521,7 +517,7 @@ describe('getYouTubeKeySequences - null app safety', () => {
 describe('getYouTubeBlockedNativeKeys', () => {
   it('returns full blocked keys list on watch page', () => {
     const result = getYouTubeBlockedNativeKeys(makeContext({ pageType: 'watch' }));
-    expect(result).toEqual(['\\', 'g', 'm', 't', ' ']);
+    expect(result).toEqual(['\\', 'g', 's', 'z', 't', 'i', ':', ' ', 'f']);
   });
 
   it('returns empty array on home page', () => {
@@ -546,7 +542,7 @@ describe('getYouTubeBlockedNativeKeys', () => {
       searchActive: true,
       drawer: 'settings',
     }));
-    expect(result).toEqual(['\\', 'g', 'm', 't', ' ']);
+    expect(result).toEqual(['\\', 'g', 's', 'z', 't', 'i', ':', ' ', 'f']);
   });
 
   it('includes f in blocked keys on watch page', () => {
@@ -578,7 +574,7 @@ describe('getYouTubeCommands - Not interested display key', () => {
     expect(notInterested.keys).toBe('D D');
   });
 
-  it('shows M S as key for Subscribe on watch page', () => {
+  it('shows S S as key for Subscribe on watch page', () => {
     getYouTubePageType.mockReturnValue('watch');
     getDataProvider.mockReturnValue({
       getVideoContext: () => ({ videoId: 'abc', channelUrl: '/c/test', channelName: 'Test', isSubscribed: false }),
@@ -586,7 +582,7 @@ describe('getYouTubeCommands - Not interested display key', () => {
     const commands = getYouTubeCommands(app);
     const sub = commands.find(c => c.label === 'Subscribe');
     expect(sub).toBeDefined();
-    expect(sub.keys).toBe('M S');
+    expect(sub.keys).toBe('S S');
     // Restore default mock
     getDataProvider.mockReturnValue({
       getVideoContext: () => null,

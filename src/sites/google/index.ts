@@ -265,6 +265,7 @@ function getGoogleKeySequences(app: any, context: KeyContext): Record<string, Fu
   sequences['ArrowLeft'] = () => app?.navigate?.('left');
   sequences['ArrowRight'] = () => app?.navigate?.('right');
   sequences['Enter'] = () => app?.select?.(false);
+  sequences['S-Enter'] = () => app?.select?.(true);
 
   // (4) Listing + !filterActive + !searchActive: j/k navigate
   if (!context?.filterActive && !context?.searchActive) {

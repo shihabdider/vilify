@@ -12,6 +12,7 @@ export function getYouTubeHelpSections() {
         { keys: ['gg'], description: 'Go to top' },
         { keys: ['G'], description: 'Go to bottom' },
         { keys: ['Enter'], description: 'Open video' },
+        { keys: ['Shift+Enter'], description: 'Open in new tab' },
         { keys: ['dd'], description: 'Dismiss video' },
         { keys: ['mw'], description: 'Add to watch later' },
         { keys: ['u'], description: 'Undo watch later removal' },

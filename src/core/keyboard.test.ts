@@ -35,6 +35,15 @@ describe('normalizeKey', () => {
     expect(normalizeKey({ key: 'Enter', ctrlKey: false })).toBe('Enter');
     expect(normalizeKey({ key: 'Escape', ctrlKey: false })).toBe('Escape');
   });
+
+  it('returns S- prefix for Shift+SpecialKey', () => {
+    expect(normalizeKey({ key: 'Enter', shiftKey: true, ctrlKey: false })).toBe('S-Enter');
+    expect(normalizeKey({ key: 'Tab', shiftKey: true, ctrlKey: false })).toBe('S-Tab');
+  });
+
+  it('returns C-S- prefix for Ctrl+Shift+SpecialKey', () => {
+    expect(normalizeKey({ key: 'Enter', shiftKey: true, ctrlKey: true })).toBe('C-S-Enter');
+  });
 });
 
 describe('handleKeyEvent - prefix disambiguation', () => {
@@ -496,7 +505,7 @@ describe('setupKeyboardEngine - drawer key delegation', () => {
     cleanup();
   });
 
-  it('does NOT delegate to onDrawerKey when drawer is recommended', () => {
+  it('delegates to onDrawerKey when drawer is recommended', () => {
     const onDrawerKey = vi.fn();
     const state = mockState({ ui: { drawer: 'recommended' } });
     const config = mockConfig();
@@ -508,7 +517,7 @@ describe('setupKeyboardEngine - drawer key delegation', () => {
 
     press('j');
 
-    expect(onDrawerKey).not.toHaveBeenCalled();
+    expect(onDrawerKey).toHaveBeenCalledWith('j');
 
     cleanup();
   });

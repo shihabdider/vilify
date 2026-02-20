@@ -338,7 +338,7 @@ describe('appCallbacks constructed in createApp.init()', () => {
       const actionEl = document.getElementById('vilify-sub-action');
       const kbd = actionEl.querySelector('kbd');
       expect(kbd).not.toBeNull();
-      expect(kbd.textContent).toBe('ms');
+      expect(kbd.textContent).toBe('ss');
       expect(actionEl.textContent).toContain('unsub');
     });
 

@@ -12,6 +12,7 @@ export function getGoogleHelpSections() {
         { keys: ['gg'], description: 'Go to top' },
         { keys: ['G'], description: 'Go to bottom' },
         { keys: ['Enter'], description: 'Open result' },
+        { keys: ['Shift+Enter'], description: 'Open in new tab' },
         { keys: ['Ctrl+f'], description: 'Next page' },
         { keys: ['Ctrl+b'], description: 'Previous page' },
         { keys: ['go'], description: 'Google search (same query)' },

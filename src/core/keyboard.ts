@@ -48,8 +48,12 @@ export function createKeyboardState(): KeyboardState {
 export function normalizeKey(event: KeyboardEvent): string | null {
   const MODIFIER_KEYS = ['Shift', 'Control', 'Alt', 'Meta'];
   if (MODIFIER_KEYS.includes(event.key)) return null;
-  if (event.ctrlKey) return 'C-' + event.key;
-  return event.key;
+
+  let prefix = '';
+  if (event.ctrlKey) prefix += 'C-';
+  if (event.shiftKey && event.key.length > 1) prefix += 'S-';
+  
+  return prefix + event.key;
 }
 
 /**

@@ -244,6 +244,14 @@ describe('listing page navigation keys in getKeySequences', () => {
     expect(app.select).toHaveBeenCalledWith(false);
   });
 
+  it('S-Enter calls app.select(true)', () => {
+    const app = { select: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    expect(seqs).toHaveProperty('S-Enter');
+    seqs['S-Enter']();
+    expect(app.select).toHaveBeenCalledWith(true);
+  });
+
   it('includes j and k when !filterActive and !searchActive', () => {
     const app = { navigate: vi.fn() };
     const seqs = googleConfig.getKeySequences(app, listingCtx);

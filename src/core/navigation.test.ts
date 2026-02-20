@@ -13,10 +13,14 @@ const mockObserverInstance = {
   takeRecords: vi.fn(() => []),
 };
 
-const MockMutationObserver = vi.fn((cb: MutationCallback) => {
-  mutationCallback = cb as unknown as () => void;
-  return mockObserverInstance;
-});
+class MockMutationObserver {
+  constructor(cb: MutationCallback) {
+    mutationCallback = cb as unknown as () => void;
+  }
+  observe = mockObserverInstance.observe;
+  disconnect = mockObserverInstance.disconnect;
+  takeRecords = mockObserverInstance.takeRecords;
+}
 
 vi.stubGlobal('MutationObserver', MockMutationObserver);
 
