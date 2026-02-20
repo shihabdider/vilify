@@ -13,7 +13,7 @@ vi.stubGlobal('document', {
 const fakeLocation = { pathname: '/', search: '' };
 vi.stubGlobal('location', fakeLocation);
 
-const { getGooglePageType, scrapeImageResults, parseImageMetadata } = await import('./scraper');
+const { getGooglePageType, scrapeSearchResults, scrapeImageResults, parseImageMetadata } = await import('./scraper');
 
 describe('getGooglePageType', () => {
   beforeEach(() => {
@@ -76,6 +76,407 @@ describe('getGooglePageType', () => {
     fakeLocation.pathname = '/imghp';
     fakeLocation.search = '';
     expect(getGooglePageType()).toBe('other');
+  });
+});
+
+// =============================================================================
+// scrapeSearchResults
+// =============================================================================
+
+describe('scrapeSearchResults', () => {
+  /**
+   * Helper: create a mock search result element.
+   * Each result is a div that may have data-hveid/lang attributes,
+   * and contains child elements (h3, a, cite, description divs).
+   */
+  function mockSearchResult({
+    dataHveid,
+    lang,
+    title,
+    href,
+    citeText,
+    descriptionText,
+    isPeopleAlsoAsk = false,
+  }: {
+    dataHveid?: string;
+    lang?: string;
+    title?: string;
+    href?: string;
+    citeText?: string;
+    descriptionText?: string;
+    isPeopleAlsoAsk?: boolean;
+  }) {
+    const h3El = title ? { textContent: title, closest: () => null } : null;
+    const aEl = href ? { href, getAttribute: (n) => n === 'href' ? href : null } : null;
+    const citeEl = citeText ? { textContent: citeText } : null;
+
+    // Child elements for querySelectorAll
+    const children: any[] = [];
+    if (h3El) children.push(h3El);
+
+    return {
+      getAttribute: (name) => {
+        if (name === 'data-hveid') return dataHveid ?? null;
+        if (name === 'lang') return lang ?? null;
+        if (name === 'data-sncf') return null;
+        return null;
+      },
+      querySelector: (sel) => {
+        if (sel === 'h3') return h3El;
+        if (sel === 'a' || sel === 'a[href]') return aEl;
+        if (sel === 'a[href^="http"]') return aEl && aEl.href?.startsWith('http') ? aEl : null;
+        if (sel === 'cite') return citeEl;
+        if (sel === 'div[data-hveid]') return null; // leaf element — no nested hveid
+        if (sel === 'div[style*="-webkit-line-clamp"]') {
+          if (descriptionText) return { textContent: descriptionText };
+          return null;
+        }
+        if (sel === '[data-sncf]') return null;
+        if (sel === 'em') return null;
+        if (sel === '[role="heading"]') return isPeopleAlsoAsk ? { textContent: 'People also ask' } : null;
+        return null;
+      },
+      querySelectorAll: (sel) => {
+        if (sel === 'div') {
+          const divs: any[] = [];
+          if (descriptionText) divs.push({ textContent: descriptionText });
+          return divs;
+        }
+        return [];
+      },
+      textContent: [title, citeText, descriptionText].filter(Boolean).join(' '),
+      closest: (sel) => null,
+      matches: (sel) => false,
+      hasAttribute: (name) => {
+        if (name === 'data-hveid') return !!dataHveid;
+        if (name === 'lang') return !!lang;
+        return false;
+      },
+      contains: (el) => false,
+    };
+  }
+
+  /**
+   * Setup DOM with an #rso container containing mock result elements.
+   * Supports different selector scenarios for testing fallback strategies.
+   */
+  function setupSearchDOM(mockResults) {
+    const elements = mockResults.map(r => mockSearchResult(r));
+
+    // Build the #rso container mock
+    const rsoContainer = {
+      querySelectorAll: (sel) => {
+        if (sel === 'div[data-hveid][lang]') {
+          // Primary strategy: only return elements with BOTH attributes
+          return elements.filter(el => el.getAttribute('data-hveid') && el.getAttribute('lang'));
+        }
+        if (sel === 'div[data-hveid]') {
+          // Fallback 1: elements with data-hveid only
+          return elements.filter(el => el.getAttribute('data-hveid'));
+        }
+        // For broader selectors, return all elements
+        if (sel === '*') {
+          return elements;
+        }
+        return [];
+      },
+      querySelector: (sel) => null,
+      children: elements,
+    };
+
+    document.querySelector.mockImplementation((sel) => {
+      if (sel === '#rso') return rsoContainer;
+      return null;
+    });
+  }
+
+  beforeEach(() => {
+    document.querySelector.mockReturnValue(null);
+    document.querySelectorAll.mockReturnValue([]);
+  });
+
+  // --- No container ---
+  it('returns empty array when no container exists', () => {
+    document.querySelector.mockReturnValue(null);
+    expect(scrapeSearchResults()).toEqual([]);
+  });
+
+  // --- Fallback container: #search ---
+  it('uses #search as fallback container when #rso is missing', () => {
+    const element = mockSearchResult({
+      dataHveid: 'abc',
+      lang: 'en',
+      title: 'Fallback Result',
+      href: 'https://fallback.com',
+      citeText: 'fallback.com',
+      descriptionText: 'Found via #search container',
+    });
+
+    const searchContainer = {
+      querySelectorAll: (sel) => {
+        if (sel === 'div[data-hveid][lang]') return [element];
+        if (sel === 'div[data-hveid]') return [element];
+        if (sel === '*') return [element];
+        return [];
+      },
+      querySelector: () => null,
+      children: [element],
+    };
+
+    document.querySelector.mockImplementation((sel) => {
+      if (sel === '#rso') return null;
+      if (sel === '#search') return searchContainer;
+      return null;
+    });
+
+    const results = scrapeSearchResults();
+    expect(results.length).toBe(1);
+    expect(results[0].title).toBe('Fallback Result');
+  });
+
+  // --- Modern Google DOM: no h3, title from link text ---
+  it('scrapes results from modern Google DOM without h3 elements', () => {
+    // Modern Google (Chrome omnibar) uses div[data-hveid] without h3 or lang
+    const aEl = { href: 'https://example.com/page', textContent: 'Example Page Title', getAttribute: (n) => n === 'href' ? 'https://example.com/page' : null };
+    const citeEl = { textContent: 'example.com' };
+
+    const element = {
+      getAttribute: (name) => name === 'data-hveid' ? 'abc123' : null,
+      querySelector: (sel) => {
+        if (sel === 'h3') return null; // No h3!
+        if (sel === 'a' || sel === 'a[href]') return aEl;
+        if (sel === 'a[href^="http"]') return aEl;
+        if (sel === 'cite') return citeEl;
+        if (sel === 'div[data-hveid]') return null; // leaf — no nested hveid
+        if (sel === 'div[style*="-webkit-line-clamp"]') return { textContent: 'A description.' };
+        return null;
+      },
+      querySelectorAll: (sel) => {
+        if (sel === 'div') return [{ textContent: 'A description.' }];
+        return [];
+      },
+      textContent: 'Example Page Title example.com A description.',
+      closest: () => null,
+      matches: () => false,
+      hasAttribute: (name) => name === 'data-hveid',
+      contains: () => false,
+    };
+
+    const rsoContainer = {
+      querySelectorAll: (sel) => {
+        if (sel === 'div[data-hveid][lang]') return []; // No lang attributes
+        if (sel === 'div[data-hveid]') return [element];
+        if (sel === '*') return [element];
+        return [];
+      },
+      querySelector: () => null,
+      children: [element],
+    };
+
+    document.querySelector.mockImplementation((sel) => {
+      if (sel === '#rso') return rsoContainer;
+      return null;
+    });
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe('Example Page Title'); // Title from link text
+    expect(results[0].url).toBe('https://example.com/page');
+    expect(results[0].meta).toBe('example.com');
+  });
+
+  // --- Primary selector: div[data-hveid][lang] ---
+  it('scrapes results using primary selector (data-hveid + lang)', () => {
+    setupSearchDOM([
+      {
+        dataHveid: 'ABcDEf',
+        lang: 'en',
+        title: 'Example Site',
+        href: 'https://example.com',
+        citeText: 'example.com',
+        descriptionText: 'This is an example description for the site.',
+      },
+    ]);
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({
+      id: 'https://example.com',
+      title: 'Example Site',
+      url: 'https://example.com',
+      meta: 'example.com',
+      description: 'This is an example description for the site.',
+    });
+  });
+
+  it('scrapes multiple results with primary selector', () => {
+    setupSearchDOM([
+      { dataHveid: 'a1', lang: 'en', title: 'First Result', href: 'https://first.com', citeText: 'first.com' },
+      { dataHveid: 'b2', lang: 'en', title: 'Second Result', href: 'https://second.org', citeText: 'second.org' },
+      { dataHveid: 'c3', lang: 'en', title: 'Third Result', href: 'https://third.net', citeText: 'third.net' },
+    ]);
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(3);
+    expect(results[0].title).toBe('First Result');
+    expect(results[1].title).toBe('Second Result');
+    expect(results[2].title).toBe('Third Result');
+  });
+
+  // --- Fallback 1: div[data-hveid] without lang ---
+  it('falls back to data-hveid selector when lang attribute is missing', () => {
+    setupSearchDOM([
+      {
+        dataHveid: 'ABcDEf',
+        // no lang attribute
+        title: 'Result Without Lang',
+        href: 'https://example.com/page',
+        citeText: 'example.com',
+        descriptionText: 'A description for the page without lang attr.',
+      },
+    ]);
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe('Result Without Lang');
+    expect(results[0].url).toBe('https://example.com/page');
+  });
+
+  // --- Fallback 2: broad selector (h3 + a[href]) within #rso ---
+  it('falls back to broad selector when no data-hveid elements exist', () => {
+    // Elements with no data-hveid at all — need broad fallback
+    const h3El = { textContent: 'Broad Result', closest: () => null };
+    const aEl = { href: 'https://broad.com/page', getAttribute: (n) => n === 'href' ? 'https://broad.com/page' : null };
+    const citeEl = { textContent: 'broad.com' };
+
+    const element = {
+      getAttribute: () => null,
+      querySelector: (sel) => {
+        if (sel === 'h3') return h3El;
+        if (sel === 'a' || sel === 'a[href]') return aEl;
+        if (sel === 'a[href^="http"]') return aEl;
+        if (sel === 'cite') return citeEl;
+        if (sel === 'div[style*="-webkit-line-clamp"]') return { textContent: 'A broad description text.' };
+        if (sel === '[data-sncf]') return null;
+        if (sel === 'em') return null;
+        if (sel === '[role="heading"]') return null;
+        return null;
+      },
+      querySelectorAll: (sel) => {
+        if (sel === 'h3') return [h3El];
+        if (sel === 'a[href^="http"]') return [aEl];
+        if (sel === 'div') return [{ textContent: 'A broad description text.' }];
+        return [];
+      },
+      textContent: 'Broad Result broad.com A broad description text.',
+      closest: () => null,
+      matches: () => false,
+      hasAttribute: () => false,
+      contains: () => false,
+      children: [],
+    };
+
+    const rsoContainer = {
+      querySelectorAll: (sel) => {
+        if (sel === 'div[data-hveid][lang]') return [];
+        if (sel === 'div[data-hveid]') return [];
+        return [element];
+      },
+      querySelector: () => null,
+      children: [element],
+    };
+
+    document.querySelector.mockImplementation((sel) => {
+      if (sel === '#rso') return rsoContainer;
+      return null;
+    });
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe('Broad Result');
+    expect(results[0].url).toBe('https://broad.com/page');
+  });
+
+  // --- Skips results without h3 (title) ---
+  it('skips results without a title (no h3)', () => {
+    setupSearchDOM([
+      { dataHveid: 'a1', lang: 'en', title: undefined, href: 'https://example.com' },
+      { dataHveid: 'b2', lang: 'en', title: 'Valid Result', href: 'https://valid.com' },
+    ]);
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe('Valid Result');
+  });
+
+  // --- Skips results without a link ---
+  it('skips results without a URL (no anchor)', () => {
+    setupSearchDOM([
+      { dataHveid: 'a1', lang: 'en', title: 'No Link Result', href: undefined },
+      { dataHveid: 'b2', lang: 'en', title: 'Valid', href: 'https://valid.com' },
+    ]);
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe('Valid');
+  });
+
+  // --- Skips non-http links ---
+  it('skips results with non-http links', () => {
+    setupSearchDOM([
+      { dataHveid: 'a1', lang: 'en', title: 'JS Link', href: 'javascript:void(0)' },
+      { dataHveid: 'b2', lang: 'en', title: 'Good Link', href: 'https://good.com' },
+    ]);
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe('Good Link');
+  });
+
+  // --- Display URL fallback ---
+  it('uses hostname as meta when no cite element exists', () => {
+    setupSearchDOM([
+      {
+        dataHveid: 'a1',
+        lang: 'en',
+        title: 'No Cite',
+        href: 'https://www.example.com/deep/path',
+        // no citeText
+      },
+    ]);
+
+    const results = scrapeSearchResults();
+    expect(results).toHaveLength(1);
+    expect(results[0].meta).toBe('www.example.com');
+  });
+
+  // --- Empty container ---
+  it('returns empty array when #rso container has no matching elements', () => {
+    const rsoContainer = {
+      querySelectorAll: () => [],
+      querySelector: () => null,
+      children: [],
+    };
+    document.querySelector.mockImplementation((sel) => {
+      if (sel === '#rso') return rsoContainer;
+      return null;
+    });
+
+    expect(scrapeSearchResults()).toEqual([]);
+  });
+
+  // --- Mixed scenario: primary + fallback ---
+  it('uses primary results when available, ignoring fallback', () => {
+    // Two results: one with data-hveid+lang, one with only data-hveid
+    // Primary should find the first one; no need for fallback
+    setupSearchDOM([
+      { dataHveid: 'a1', lang: 'en', title: 'Primary', href: 'https://primary.com' },
+      { dataHveid: 'b2', title: 'Fallback Only', href: 'https://fallback.com' },
+    ]);
+
+    const results = scrapeSearchResults();
+    // Primary selector matches one, so it should be used (not fallback)
+    expect(results.some(r => r.title === 'Primary')).toBe(true);
   });
 });
 

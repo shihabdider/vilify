@@ -658,13 +658,7 @@ export function renderFocusMode(config: SiteConfig, state: AppState): void {
  */
 function createTabBar(config: SiteConfig): HTMLElement {
   const pageType = config?.getPageType?.() ?? 'other';
-
-  const tabs = [
-    { label: 'Home', shortcut: 'gh', type: 'home', path: '/' },
-    { label: 'Subscriptions', shortcut: 'gs', type: 'subscriptions', path: '/feed/subscriptions' },
-    { label: 'Watch Later', shortcut: 'gw', type: 'playlist', path: '/playlist?list=WL' },
-    { label: 'History', shortcut: 'gy', type: 'history', path: '/feed/history' },
-  ];
+  const tabs = config?.tabs || [];
 
   const tabElements = tabs.map(tab => {
     const isActive = pageType === tab.type ||
@@ -684,23 +678,14 @@ function createTabBar(config: SiteConfig): HTMLElement {
 
   // Right side: navigation hints + settings gear
   const isListPage = pageType !== 'watch';
-  const hintChildren: (HTMLElement | string)[] = [];
+  const hintItems = isListPage
+    ? (config?.hints?.list || [])
+    : (config?.hints?.detail || []);
 
-  if (isListPage) {
-    hintChildren.push(
-      el('kbd', {}, ['j']), el('kbd', {}, ['k']), 'move',
-      el('kbd', {}, ['gg']), 'top', el('kbd', {}, ['G']), 'bottom',
-      el('kbd', {}, ['↵']), 'play',
-      el('kbd', {}, ['dd']), 'dismiss', el('kbd', {}, ['mw']), 'watch later',
-      el('kbd', {}, ['i']), 'search', el('kbd', {}, ['/']), 'filter', el('kbd', {}, [':']), 'cmd',
-    );
-  } else {
-    hintChildren.push(
-      el('kbd', {}, ['zp']), 'chapters', el('kbd', {}, ['t']), 'transcript',
-      el('kbd', {}, ['[']), el('kbd', {}, [']']), 'comments',
-      el('kbd', {}, ['zr']), 'rec', el('kbd', {}, ['gc']), 'channel',
-      el('kbd', {}, ['i']), 'search', el('kbd', {}, [':']), 'cmd',
-    );
+  const hintChildren: (HTMLElement | string)[] = [];
+  for (const hint of hintItems) {
+    hintChildren.push(el('kbd', {}, [hint.key]));
+    if (hint.label) hintChildren.push(hint.label);
   }
 
   const hintsDiv = el('div', { class: 'vilify-tab-bar-right' }, hintChildren);
@@ -1118,7 +1103,7 @@ export function renderListing(items: ContentItem[], selectedIdx: number, contain
   // Add tilde fillers to fill remaining space (vim-style)
   addTildeFillers(targetContainer);
 
-  const selectedEl = targetContainer.querySelector('.vilify-item.selected');
+  const selectedEl = targetContainer.querySelector('.selected');
   if (selectedEl) {
     selectedEl.scrollIntoView({ block: 'nearest', behavior: 'instant' });
   }

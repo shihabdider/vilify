@@ -104,9 +104,11 @@ function extractDescription(element: Element, titleEl: Element | null, citeEl: E
  * Signature: scrapeSearchResults : () → Array<ContentItem>
  * Purpose: Extract search results from Google DOM using stable selectors.
  * 
- * Selectors:
+ * Selectors (tried in order, first non-empty wins):
  * - Container: #rso (stable ID)
- * - Each result: div[data-hveid][lang] (data attributes mark results)
+ * - Strategy 1: div[data-hveid][lang] (most specific)
+ * - Strategy 2: div[data-hveid] filtered to those with h3 + a[href]
+ * - Strategy 3: any element with h3 + a[href^="http"] (broadest)
  * - Title: h3 (semantic HTML)
  * - Link: a (first anchor in result)
  * - Description: multiple strategies (see extractDescription)
@@ -125,47 +127,99 @@ function extractDescription(element: Element, titleEl: Element | null, citeEl: E
  * @returns {Array<Object>} Array of ContentItem objects
  */
 export function scrapeSearchResults(): ContentItem[] {
-  // Template: List comprehension over DOM elements
-  const results = [];
-  
-  // Container: #rso is the main results container
-  const container = document.querySelector('#rso');
-  if (!container) return results;
-  
-  // Each result: marked by data-hveid and lang attributes
-  const resultElements = container.querySelectorAll('div[data-hveid][lang]');
-  
+  // Try multiple containers — Google uses different ones depending on
+  // how the search was initiated (direct vs Chrome omnibar vs AI overview)
+  const container = document.querySelector('#rso')
+    || document.querySelector('#search')
+    || document.querySelector('#main');
+  if (!container) return [];
+
+  return scrapeResultsFromContainer(container);
+}
+
+/**
+ * Scrape search results from a given container element.
+ * Works on both the live DOM and parsed HTML from fetch responses.
+ *
+ * @param {Element} container - Container element to scrape from
+ * @returns {Array<ContentItem>} Scraped results
+ */
+export function scrapeResultsFromContainer(container: Element): ContentItem[] {
+  const resultElements = findResultElements(container);
+
+  const results: ContentItem[] = [];
+  const seenUrls = new Set<string>();
+
   resultElements.forEach(element => {
-    // Title: semantic h3
+    // Title: try h3 first (classic Google), then first link text (modern Google)
     const titleEl = element.querySelector('h3');
-    const title = titleEl?.textContent?.trim();
-    if (!title) return; // Skip results without title
-    
-    // URL: first anchor link
-    const linkEl = element.querySelector('a');
-    const url = linkEl?.href;
-    if (!url) return; // Skip results without URL
-    
-    // Skip non-http links (javascript:, etc.)
-    if (!url.startsWith('http')) return;
-    
+    const linkEl = element.querySelector('a[href^="http"]') || element.querySelector('a[href]');
+    const title = titleEl?.textContent?.trim()
+      || linkEl?.textContent?.trim()
+      || '';
+    if (!title) return;
+
+    // URL: first http anchor link
+    const url = (linkEl as HTMLAnchorElement)?.href;
+    if (!url || !url.startsWith('http')) return;
+
+    // Deduplicate
+    if (seenUrls.has(url)) return;
+    seenUrls.add(url);
+
     // Display URL: cite element shows clean URL
     const citeEl = element.querySelector('cite');
     const displayUrl = citeEl?.textContent?.trim() || new URL(url).hostname;
-    
-    // Description: try multiple strategies
-    const description = extractDescription(element, titleEl, citeEl);
-    
+
+    const description = extractDescription(element, titleEl || linkEl, citeEl);
+
     results.push({
-      id: url,           // URL as unique identifier
+      id: url,
       title: title,
       url: url,
-      meta: displayUrl,  // Display URL in meta field
+      meta: displayUrl,
       description: description
     });
   });
-  
+
   return results;
+}
+
+/**
+ * Find search result elements within the results container using multiple
+ * selector strategies. Tries each in order of specificity and returns
+ * the first non-empty result set.
+ *
+ * Strategies:
+ * 1. div[data-hveid][lang] — most specific, classic Google DOM
+ * 2. div[data-hveid] with a link — leaf-level only (modern Google DOM,
+ *    no h3 elements, titles are link text)
+ * 3. Broad: elements containing h3 + a[href^="http"] (fallback)
+ */
+function findResultElements(container: Element): Element[] {
+  // Strategy 1: Classic — both data-hveid and lang attributes
+  const primary = container.querySelectorAll('div[data-hveid][lang]');
+  if (primary.length > 0) return Array.from(primary);
+
+  // Strategy 2: Modern — data-hveid with a link, leaf-level only.
+  // Google dropped h3 and lang on Chrome omnibar searches.
+  // Filter to leaf hveid elements (those not containing other hveid elements)
+  // that have at least one link.
+  const hveidAll = Array.from(container.querySelectorAll('div[data-hveid]'));
+  const hveidLeaf = hveidAll.filter(el =>
+    el.querySelector('a[href]') &&
+    !el.querySelector('div[data-hveid]')
+  );
+  if (hveidLeaf.length > 0) return hveidLeaf;
+
+  // Strategy 3: Broad — elements containing h3 + a[href^="http"].
+  // Pick leaf-level matches to avoid parent containers.
+  const candidates = Array.from(container.querySelectorAll('*')).filter(el =>
+    el.querySelector('h3') && el.querySelector('a[href^="http"]')
+  );
+  return candidates.filter(el =>
+    !candidates.some(other => other !== el && el.contains(other))
+  );
 }
 
 /**

@@ -108,6 +108,32 @@ describe('pages config', () => {
       expect(youtubeConfig.pages[page]).toBeDefined();
     }
   });
+
+  // ===========================================================================
+  // waitForContent predicates — every page type must have one so core
+  // does not need YouTube-specific DOM fallbacks
+  // ===========================================================================
+
+  it('every page config has a waitForContent predicate', () => {
+    const pages = youtubeConfig.pages;
+    for (const [name, cfg] of Object.entries(pages)) {
+      expect(typeof cfg.waitForContent).toBe('function');
+    }
+  });
+
+  it('all listing pages share the same waitForContent predicate', () => {
+    const listingPages = ['home', 'search', 'subscriptions', 'channel', 'playlist', 'history', 'library', 'shorts', 'other'];
+    const homePred = youtubeConfig.pages.home.waitForContent;
+    for (const page of listingPages) {
+      expect(youtubeConfig.pages[page].waitForContent).toBe(homePred);
+    }
+  });
+
+  it('watch page waitForContent differs from listing pages', () => {
+    expect(youtubeConfig.pages.watch.waitForContent).not.toBe(
+      youtubeConfig.pages.home.waitForContent
+    );
+  });
 });
 
 // =============================================================================

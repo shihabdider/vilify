@@ -78,14 +78,6 @@ vi.mock('./actions', () => ({
   copyImageToClipboard: vi.fn(),
 }));
 
-// Mock YouTube data provider for triggerLazyLoad
-let mockFetchMore = vi.fn(() => Promise.resolve(false));
-vi.mock('../sites/youtube/data/index', () => ({
-  getDataProvider: () => ({
-    fetchMore: () => mockFetchMore(),
-  }),
-}));
-
 // Mock setupKeyboardEngine to capture appCallbacks
 let capturedAppCallbacks: any = null;
 vi.mock('./keyboard', () => ({
@@ -108,12 +100,10 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
 
   beforeEach(() => {
     capturedAppCallbacks = null;
-    mockFetchMore = vi.fn(() => Promise.resolve(false));
 
     document.body.innerHTML = '<div id="vilify-content"></div>';
 
     minimalConfig = {
-      name: 'youtube',
       getPageType: () => 'home',
       getKeySequences: () => ({}),
       getBlockedNativeKeys: () => [],
@@ -156,20 +146,16 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
     expect(app.getState().ui.selectedIdx).toBe(2);
 
     // createPageState starts with 3 items (captured as beforeCount),
-    // then after fetchMore succeeds, switches to 5 items for polling to detect
+    // then switches to 5 items for polling to detect
     let pollCount = 0;
     minimalConfig.createPageState = () => {
       pollCount++;
       // First call captures beforeCount (3 items)
       if (pollCount <= 1) return { videos: items3 };
       // Subsequent poll calls see new items
+      getPageItemsMock.mockReturnValue(items5);
       return { videos: items5 };
     };
-
-    mockFetchMore.mockImplementation(async () => {
-      getPageItemsMock.mockReturnValue(items5);
-      return true;
-    });
 
     // Press j at the bottom boundary - should await lazy load then advance
     await cb.navigate('down');
@@ -189,8 +175,7 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
     cb.navigate('down');
     expect(app.getState().ui.selectedIdx).toBe(2);
 
-    // fetchMore fails, and createPageState never shows more items
-    mockFetchMore.mockResolvedValue(false);
+    // createPageState never shows more items
     minimalConfig.createPageState = () => ({ videos: items3 });
 
     await cb.navigate('down');
@@ -208,7 +193,6 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
     cb.navigate('down');
     expect(app.getState().ui.selectedIdx).toBe(1);
 
-    mockFetchMore.mockResolvedValue(false);
     minimalConfig.createPageState = () => ({ videos: items2 });
 
     await cb.navigate('down');
@@ -235,7 +219,6 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
 
     // Should flash boundary instead of lazy loading
     expect(flashBoundary).toHaveBeenCalled();
-    expect(mockFetchMore).not.toHaveBeenCalled();
   });
 
   it('does not fire duplicate lazy loads when pressing j rapidly', async () => {
@@ -247,30 +230,29 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
     cb.navigate('down');
     expect(app.getState().ui.selectedIdx).toBe(1);
 
-    // Slow fetchMore to simulate in-flight request
-    let resolveFetch!: (v: boolean) => void;
-    const fetchPromise = new Promise<boolean>((r) => { resolveFetch = r; });
-    mockFetchMore.mockReturnValue(fetchPromise);
-
     // createPageState returns same count so poll keeps running
     minimalConfig.createPageState = () => ({ videos: items2 });
 
     // First j at bottom - starts lazy load
     const p1 = cb.navigate('down');
 
-    // Second j at bottom while first is still loading
+    // Second j at bottom while first is still loading (isLoadingMore guard)
     const p2 = cb.navigate('down');
 
-    // Resolve the first fetch (poll will still time out since no new items)
-    resolveFetch(false);
+    // Let the poll timeout naturally by making createPageState return more items
+    const items4 = [makeItem('1'), makeItem('2'), makeItem('3'), makeItem('4')];
+    minimalConfig.createPageState = () => ({ videos: items4 });
     await p1;
     await p2;
 
-    // fetchMore should only be called once (isLoadingMore guard)
-    expect(mockFetchMore).toHaveBeenCalledTimes(1);
+    // showMessage('Loading more...') should only have been called once (isLoadingMore guard)
+    const loadingCalls = (showMessage as any).mock.calls.filter(
+      (c: any) => c[0] === 'Loading more...'
+    );
+    expect(loadingCalls.length).toBe(1);
   });
 
-  it('DOM scroll fires immediately (not after API timeout)', async () => {
+  it('DOM scroll fires immediately', async () => {
     const items2 = [makeItem('1'), makeItem('2')];
     getPageItemsMock.mockReturnValue(items2);
 
@@ -289,8 +271,6 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
       return origRemove(...args);
     });
 
-    // Make fetchMore hang (never resolve quickly)
-    mockFetchMore.mockReturnValue(new Promise(() => {}));
     minimalConfig.createPageState = () => ({ videos: items2 });
 
     const startTime = Date.now();
@@ -305,13 +285,12 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
     expect(classRemoveTime[0]! - startTime).toBeLessThan(500);
 
     // Clean up: let the poll timeout naturally
-    // Force resolve by making createPageState return more items
     const items4 = [makeItem('1'), makeItem('2'), makeItem('3'), makeItem('4')];
     minimalConfig.createPageState = () => ({ videos: items4 });
     await p;
   });
 
-  it('picks up new items from DOM path when API path fails', async () => {
+  it('picks up new items from DOM polling when content loads', async () => {
     const items2 = [makeItem('1'), makeItem('2')];
     const items4 = [makeItem('1'), makeItem('2'), makeItem('3'), makeItem('4')];
     getPageItemsMock.mockReturnValue(items2);
@@ -326,11 +305,8 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
     cb.navigate('down');
     expect(app.getState().ui.selectedIdx).toBe(1);
 
-    // API path fails
-    mockFetchMore.mockResolvedValue(false);
-
     // createPageState: first call returns 2 items (beforeCount),
-    // after a few polls, returns 4 items (simulating YouTube native load)
+    // after a few polls, returns 4 items (simulating native lazy load)
     let pollCount = 0;
     minimalConfig.createPageState = () => {
       pollCount++;
@@ -370,17 +346,14 @@ describe('handleListNavigation with lazy load at bottom boundary', () => {
     cb.navigate('down');
     expect(app.getState().ui.selectedIdx).toBe(1);
 
-    // fetchMore fails, DOM path will produce new items
-    mockFetchMore.mockResolvedValue(false);
-
     // createPageState starts with 2 items (beforeCount captures this),
-    // then switches to 5 items after a short delay (simulating YouTube loading)
+    // then switches to 5 items after a short delay (simulating native loading)
     let pollCount = 0;
     minimalConfig.createPageState = () => {
       pollCount++;
       // First call is beforeCount capture, next few are polling checks
       if (pollCount <= 2) return { type: 'list', videos: items2 };
-      // After a couple of polls, YouTube has loaded new content
+      // After a couple of polls, content has loaded
       return { type: 'list', videos: items5 };
     };
 

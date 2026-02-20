@@ -302,11 +302,12 @@ export function createApp(config: SiteConfig): App {
     updateItemCount(contentView.items.length);
     updateCursorPosition(contentView.selectedIdx + 1, contentView.items.length);
 
-    // On watch pages with chapters, override position segment to show chapter count
-    if (pageType === 'watch' && state.page?.type === 'watch' && state.page.chapters.length > 0) {
+    // Let site config override the position label (e.g. chapter count on watch pages)
+    const positionLabel = config.getPositionLabel?.(state);
+    if (positionLabel) {
       const posEl = document.getElementById('vilify-status-position');
       if (posEl) {
-        posEl.textContent = `chapters: ${state.page.chapters.length}`;
+        posEl.textContent = positionLabel;
       }
     }
 
@@ -561,7 +562,8 @@ export function createApp(config: SiteConfig): App {
     const helpMatch = value.trim().match(/^:?help\s*$/i);
     if (helpMatch !== null) {
       state = onDrawerClose(state);
-      openHelpWindow();
+      const sections = config.getHelpSections?.() ?? [];
+      openHelpWindow(sections);
       return;
     }
 
@@ -760,6 +762,25 @@ export function createApp(config: SiteConfig): App {
     }
 
     if (result.boundary === 'bottom' && !state.ui.filterActive) {
+      // Site-specific fetch-more (e.g. Google pagination into current list)
+      if (config.fetchMoreItems) {
+        showMessage('Loading more...');
+        const moreItems = await config.fetchMoreItems();
+        if (moreItems.length > 0) {
+          const currentItems = getPageItems(state);
+          state = onListItemsUpdate(state, [...currentItems, ...moreItems]);
+          // Advance cursor past the old boundary
+          const newFiltered = getVisibleItems(state, getPageItems(state));
+          const advanceResult = onNavigate(state, direction, newFiltered.length, step);
+          state = advanceResult.state;
+        } else {
+          flashBoundary();
+          showMessage('No more results');
+        }
+        render();
+        return;
+      }
+
       // Await lazy load so new items arrive before rendering
       await triggerLazyLoad();
 
@@ -776,6 +797,12 @@ export function createApp(config: SiteConfig): App {
       return;
     }
 
+    if (result.boundary === 'top' && !state.ui.filterActive && config.onTopBoundary) {
+      config.onTopBoundary();
+      render();
+      return;
+    }
+
     if (result.boundary) {
       flashBoundary();
     }
@@ -787,8 +814,8 @@ export function createApp(config: SiteConfig): App {
   let isLoadingMore = false;
 
   /**
-   * Trigger lazy loading via both the YouTube browse API and DOM scrolling
-   * in parallel. Resolves as soon as either path produces new items.
+   * Trigger lazy loading via DOM scrolling and poll for new items.
+   * Resolves when new items appear or timeout.
    * [I/O]
    */
   async function triggerLazyLoad() {
@@ -799,22 +826,10 @@ export function createApp(config: SiteConfig): App {
     // Count items before loading
     const beforeCount = config.createPageState?.()?.videos?.length || 0;
 
-    // Start DOM scroll immediately (triggers YouTube's native loader)
+    // Start DOM scroll immediately (triggers native lazy loader)
     triggerDOMScroll();
 
-    // Also try API path in parallel (if YouTube)
-    let apiPromise: Promise<boolean> = Promise.resolve(false);
-    try {
-      if (config.name === 'youtube') {
-        const { getDataProvider } = await import('../sites/youtube/data/index');
-        const dp = getDataProvider();
-        apiPromise = dp.fetchMore();
-      }
-    } catch (e) {
-      // API path failed to initialize, DOM scroll is already running
-    }
-
-    // Poll for new content from EITHER path (up to 3 seconds)
+    // Poll for new content (up to 3 seconds)
     const success = await new Promise<boolean>((resolve) => {
       const start = Date.now();
       const check = async () => {
@@ -848,7 +863,7 @@ export function createApp(config: SiteConfig): App {
   }
 
   /**
-   * Trigger YouTube's native lazy loader by scrolling a continuation element
+   * Trigger native lazy loading by scrolling a continuation element
    * into view (or scrolling down the page if none found).
    * [I/O]
    */
@@ -1286,44 +1301,17 @@ export function createApp(config: SiteConfig): App {
   // ==========================================================================
 
   async function waitForContent(cfg, timeout = 5000) {
-    const start = Date.now();
-    
-    // YouTube data bridge special case (unchanged)
-    if (cfg.name === 'youtube') {
+    // Site-specific data readiness (e.g. YouTube API data bridge)
+    if (cfg.waitForData) {
       try {
-        const { getDataProvider } = await import('../sites/youtube/data/index');
-        const dp = getDataProvider();
-        if (dp.waitForData) {
-          await dp.waitForData(timeout);
-        }
+        await cfg.waitForData(timeout);
       } catch (e) {
-        // Fallback to DOM-based waiting
+        // Fallback to DOM-based waiting via pollPageContent
       }
     }
-    
-    // Use page config's waitForContent predicate when available
-    const handled = await pollPageContent(cfg, timeout);
-    if (handled) return;
-    
-    // Legacy YouTube-specific DOM selector fallback
-    const pageType = cfg.getPageType ? cfg.getPageType() : 'other';
-    if (pageType === 'watch') {
-      while (!document.querySelector('video.html5-main-video') && Date.now() - start < timeout) {
-        await new Promise(r => setTimeout(r, 100));
-      }
-    } else {
-      while (Date.now() - start < timeout) {
-        const videoItems = document.querySelectorAll(
-          'ytd-rich-item-renderer, ytd-video-renderer, yt-lockup-view-model'
-        );
-        
-        if (videoItems.length > 0) {
-          break;
-        }
-        
-        await new Promise(r => setTimeout(r, 50));
-      }
-    }
+
+    // Use page config's waitForContent predicate
+    await pollPageContent(cfg, timeout);
   }
 
   // ==========================================================================

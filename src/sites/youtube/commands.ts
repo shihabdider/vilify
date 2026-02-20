@@ -11,6 +11,7 @@ import { applyTheme, applyFont } from '../../core/layout';
 import { formatTimestamp } from './format';
 import { updateLikeButton, updateDislikeButton } from './watch';
 import { openHelpWindow } from '../../core/help-window';
+import { getYouTubeHelpSections } from './help-sections';
 
 /** Get video context using DataProvider */
 function getVideoContext(): Record<string, any> | null {
@@ -390,7 +391,7 @@ export function getYouTubeCommands(app: App): any[] {
     type: 'command',
     label: 'Show keybind help',
     icon: '?',
-    action: () => { openHelpWindow(); },
+    action: () => { openHelpWindow(getYouTubeHelpSections()); },
     keys: ':help',
   });
 

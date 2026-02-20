@@ -196,6 +196,145 @@ describe('renderFocusMode', () => {
 });
 
 // =============================================================================
+// createTabBar (tested via renderFocusMode)
+// =============================================================================
+describe('createTabBar (site-aware)', () => {
+  afterEach(() => {
+    removeFocusMode();
+  });
+
+  it('renders tabs from config.tabs', () => {
+    const config = makeConfig({
+      tabs: [
+        { label: 'Home', shortcut: 'gh', type: 'home', path: '/' },
+        { label: 'Subs', shortcut: 'gs', type: 'subscriptions', path: '/feed/subscriptions' },
+      ],
+    });
+    renderFocusMode(config, makeState());
+    const tabs = document.querySelectorAll('.vilify-tab');
+    expect(tabs.length).toBe(2);
+    expect(tabs[0].textContent).toContain('gh');
+    expect(tabs[0].textContent).toContain('Home');
+    expect(tabs[1].textContent).toContain('gs');
+    expect(tabs[1].textContent).toContain('Subs');
+  });
+
+  it('renders no tabs when config.tabs is empty', () => {
+    const config = makeConfig({ tabs: [] });
+    renderFocusMode(config, makeState());
+    const tabs = document.querySelectorAll('.vilify-tab');
+    expect(tabs.length).toBe(0);
+  });
+
+  it('renders no tabs when config.tabs is undefined', () => {
+    const config = makeConfig();
+    // no tabs property
+    renderFocusMode(config, makeState());
+    const tabs = document.querySelectorAll('.vilify-tab');
+    expect(tabs.length).toBe(0);
+  });
+
+  it('marks the active tab based on pageType matching tab.type', () => {
+    const config = makeConfig({
+      getPageType: () => 'subscriptions',
+      tabs: [
+        { label: 'Home', shortcut: 'gh', type: 'home', path: '/' },
+        { label: 'Subs', shortcut: 'gs', type: 'subscriptions', path: '/feed/subscriptions' },
+      ],
+    });
+    renderFocusMode(config, makeState());
+    const tabs = document.querySelectorAll('.vilify-tab');
+    expect(tabs[0].classList.contains('active')).toBe(false);
+    expect(tabs[1].classList.contains('active')).toBe(true);
+  });
+
+  it('renders list hints on non-watch pages', () => {
+    const config = makeConfig({
+      getPageType: () => 'home',
+      hints: {
+        list: [
+          { key: 'j', label: '' },
+          { key: 'k', label: 'move' },
+        ],
+      },
+    });
+    renderFocusMode(config, makeState());
+    const right = document.querySelector('.vilify-tab-bar-right');
+    expect(right).not.toBeNull();
+    const kbds = right!.querySelectorAll('kbd');
+    expect(kbds.length).toBeGreaterThanOrEqual(2);
+    expect(kbds[0].textContent).toBe('j');
+    expect(kbds[1].textContent).toBe('k');
+    expect(right!.textContent).toContain('move');
+  });
+
+  it('renders detail hints on watch pages', () => {
+    const config = makeConfig({
+      getPageType: () => 'watch',
+      hints: {
+        detail: [
+          { key: 'zp', label: 'chapters' },
+          { key: 't', label: 'transcript' },
+        ],
+      },
+    });
+    renderFocusMode(config, makeState());
+    const right = document.querySelector('.vilify-tab-bar-right');
+    expect(right).not.toBeNull();
+    const kbds = right!.querySelectorAll('kbd');
+    expect(kbds.length).toBeGreaterThanOrEqual(2);
+    expect(kbds[0].textContent).toBe('zp');
+    expect(kbds[1].textContent).toBe('t');
+    expect(right!.textContent).toContain('chapters');
+    expect(right!.textContent).toContain('transcript');
+  });
+
+  it('renders no hints when config.hints is undefined', () => {
+    const config = makeConfig({ getPageType: () => 'home' });
+    renderFocusMode(config, makeState());
+    const right = document.querySelector('.vilify-tab-bar-right');
+    expect(right).not.toBeNull();
+    // Should have no kbd elements (except possibly settings gear)
+    const kbds = right!.querySelectorAll('kbd');
+    expect(kbds.length).toBe(0);
+  });
+
+  it('renders settings gear in tab bar', () => {
+    const config = makeConfig();
+    renderFocusMode(config, makeState());
+    const gear = document.querySelector('.vilify-settings-btn');
+    expect(gear).not.toBeNull();
+    expect(gear!.textContent).toContain('\u2699');
+  });
+
+  it('Google-style tabs render correctly', () => {
+    const config = makeConfig({
+      getPageType: () => 'search',
+      tabs: [
+        { label: 'Web', shortcut: 'go', type: 'search', path: '/search' },
+        { label: 'Images', shortcut: 'gi', type: 'images', path: '/search' },
+      ],
+      hints: {
+        list: [
+          { key: 'j', label: '' },
+          { key: 'k', label: 'move' },
+          { key: 'yy', label: 'copy' },
+        ],
+      },
+    });
+    renderFocusMode(config, makeState());
+    const tabs = document.querySelectorAll('.vilify-tab');
+    expect(tabs.length).toBe(2);
+    // 'search' type should be active since pageType is 'search'
+    expect(tabs[0].classList.contains('active')).toBe(true);
+    expect(tabs[1].classList.contains('active')).toBe(false);
+    // Hints should show Google-specific hints
+    const right = document.querySelector('.vilify-tab-bar-right');
+    expect(right!.textContent).toContain('copy');
+  });
+});
+
+// =============================================================================
 // updateStatusBar
 // =============================================================================
 describe('updateStatusBar', () => {

@@ -88,11 +88,29 @@ export interface SiteTheme {
   modeReplace: string;
 }
 
+/** Tab configuration for the navigation bar */
+export interface TabConfig {
+  label: string;
+  shortcut: string;
+  type: string;
+  path: string;
+}
+
+/** Hint configuration for key hints in the tab bar */
+export interface HintConfig {
+  /** Hints for listing pages (non-watch) */
+  list?: Array<{ key: string; label: string }>;
+  /** Hints for watch/detail pages */
+  detail?: Array<{ key: string; label: string }>;
+}
+
 export interface SiteConfig {
   name: string;
   theme: SiteTheme;
   matches?: string[];
   logo?: string | null;
+  tabs?: TabConfig[];
+  hints?: HintConfig;
   getPageType: () => string;
   getItems?: () => ContentItem[];
   createPageState?: () => any;
@@ -103,6 +121,11 @@ export interface SiteConfig {
   isNativeSearchInput?: (el: Element) => boolean;
   createSiteState?: () => any;
   getDrawerHandler?: (drawerState: any, siteState?: any) => DrawerHandler | null;
+  getHelpSections?: () => Array<{ name: string; keybinds: Array<{ keys: string[]; description: string }> }>;
+  waitForData?: (timeout?: number) => Promise<void>;
+  getPositionLabel?: (state: AppState) => string | null;
+  fetchMoreItems?: () => Promise<ContentItem[]>;
+  onTopBoundary?: () => void;
   onNavigate?: (oldUrl: string, newUrl: string, app: any) => void;
   searchUrl?: (query: string) => string;
   searchPlaceholder?: string;

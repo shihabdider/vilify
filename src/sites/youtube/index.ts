@@ -18,6 +18,7 @@ import {
   onChaptersLoad 
 } from './state';
 import { renderYouTubeItem, injectYouTubeItemStyles } from './items';
+import { getYouTubeHelpSections } from './help-sections';
 import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout';
 import { getSortLabel } from '../../core/sort';
 import { getVisibleItems } from '../../core/state';
@@ -184,6 +185,10 @@ function renderWatchWithRetry(state: AppState, siteState: YouTubeState, containe
  */
 const listingPageConfig: PageConfig = {
   render: renderYouTubeListing,
+  waitForContent: () =>
+    document.querySelectorAll(
+      'ytd-rich-item-renderer, ytd-video-renderer, yt-lockup-view-model'
+    ).length > 0,
   // No special lifecycle needed for listing pages
 };
 
@@ -195,6 +200,7 @@ const watchPageConfig: PageConfig = {
   render: (state, siteState, container) => {
     renderWatchWithRetry(state, siteState, container, 0);
   },
+  waitForContent: () => document.querySelector('video.html5-main-video') !== null,
   
   /**
    * Called when entering watch page.
@@ -282,7 +288,45 @@ export const youtubeConfig: SiteConfig = {
   name: 'youtube',
   matches: ['*://www.youtube.com/*', '*://youtube.com/*'],
   theme: youtubeTheme,
-  logo: null, // Could add YouTube logo data URL here
+  logo: null,
+
+  getHelpSections: getYouTubeHelpSections,
+
+  waitForData: async (timeout = 5000) => {
+    const dp = getDataProvider();
+    if (dp.waitForData) {
+      await dp.waitForData(timeout);
+    }
+  },
+
+  getPositionLabel: (state) => {
+    if (state.page?.type === 'watch' && state.page.chapters.length > 0) {
+      return `chapters: ${state.page.chapters.length}`;
+    }
+    return null;
+  },
+
+  tabs: [
+    { label: 'Home', shortcut: 'gh', type: 'home', path: '/' },
+    { label: 'Subscriptions', shortcut: 'gs', type: 'subscriptions', path: '/feed/subscriptions' },
+    { label: 'Watch Later', shortcut: 'gw', type: 'playlist', path: '/playlist?list=WL' },
+    { label: 'History', shortcut: 'gy', type: 'history', path: '/feed/history' },
+  ],
+  hints: {
+    list: [
+      { key: 'j', label: '' }, { key: 'k', label: 'move' },
+      { key: 'gg', label: 'top' }, { key: 'G', label: 'bottom' },
+      { key: '↵', label: 'play' },
+      { key: 'dd', label: 'dismiss' }, { key: 'mw', label: 'watch later' },
+      { key: 'i', label: 'search' }, { key: '/', label: 'filter' }, { key: ':', label: 'cmd' },
+    ],
+    detail: [
+      { key: 'zp', label: 'chapters' }, { key: 't', label: 'transcript' },
+      { key: '[', label: '' }, { key: ']', label: 'comments' },
+      { key: 'zr', label: 'rec' }, { key: 'gc', label: 'channel' },
+      { key: 'i', label: 'search' }, { key: ':', label: 'cmd' },
+    ],
+  },
 
   /**
    * Get current page type from URL.

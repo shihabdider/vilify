@@ -1,8 +1,38 @@
 // @vitest-environment jsdom
-// Tests for help-window.ts — floating help window with keybind reference
+// Tests for help-window.ts — generic floating help window with keybind reference
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { openHelpWindow, closeHelpWindow, isHelpOpen } from './help-window';
+import type { HelpSection } from './help-window';
+
+// =============================================================================
+// Test data — generic sections (not site-specific)
+// =============================================================================
+
+const testSections: HelpSection[] = [
+  {
+    name: 'Section A',
+    keybinds: [
+      { keys: ['j'], description: 'Move down' },
+      { keys: ['k'], description: 'Move up' },
+      { keys: ['gg'], description: 'Go to top' },
+    ],
+  },
+  {
+    name: 'Section B',
+    keybinds: [
+      { keys: ['Enter'], description: 'Open item' },
+      { keys: ['/'], description: 'Filter' },
+    ],
+  },
+  {
+    name: 'Section C',
+    keybinds: [
+      { keys: ['Esc'], description: 'Close overlay' },
+      { keys: [':q'], description: 'Exit' },
+    ],
+  },
+];
 
 // =============================================================================
 // Helpers
@@ -26,12 +56,12 @@ describe('isHelpOpen', () => {
   });
 
   it('returns true after opening', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     expect(isHelpOpen()).toBe(true);
   });
 
   it('returns false after closing', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     closeHelpWindow();
     expect(isHelpOpen()).toBe(false);
   });
@@ -47,50 +77,49 @@ describe('openHelpWindow', () => {
   });
 
   it('creates backdrop and window elements in DOM', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     expect(document.querySelector('.vilify-help-backdrop')).not.toBeNull();
     expect(document.querySelector('.vilify-help-window')).not.toBeNull();
   });
 
   it('shows title "Help"', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     const title = document.querySelector('.vilify-help-title');
     expect(title).not.toBeNull();
     expect(title!.textContent).toBe('Help');
   });
 
-  it('has four section tabs', () => {
-    openHelpWindow();
+  it('has tabs matching provided sections', () => {
+    openHelpWindow(testSections);
     const tabs = document.querySelectorAll('.vilify-help-tab');
-    expect(tabs.length).toBe(4);
-    expect(tabs[0]!.textContent).toBe('Home Page');
-    expect(tabs[1]!.textContent).toBe('Watch Page');
-    expect(tabs[2]!.textContent).toBe('Google Search');
-    expect(tabs[3]!.textContent).toBe('Universal');
+    expect(tabs.length).toBe(3);
+    expect(tabs[0]!.textContent).toBe('Section A');
+    expect(tabs[1]!.textContent).toBe('Section B');
+    expect(tabs[2]!.textContent).toBe('Section C');
   });
 
   it('first tab is active by default', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     const tabs = document.querySelectorAll('.vilify-help-tab');
     expect(tabs[0]!.classList.contains('active')).toBe(true);
     expect(tabs[1]!.classList.contains('active')).toBe(false);
   });
 
   it('renders keybind rows with kbd elements', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     const kbds = document.querySelectorAll('.vilify-help-list kbd');
     expect(kbds.length).toBeGreaterThan(0);
   });
 
   it('opening when already open is a no-op', () => {
-    openHelpWindow();
-    openHelpWindow();
+    openHelpWindow(testSections);
+    openHelpWindow(testSections);
     const windows = document.querySelectorAll('.vilify-help-window');
     expect(windows.length).toBe(1);
   });
 
   it('has a footer with navigation hints', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     const footer = document.querySelector('.vilify-help-footer');
     expect(footer).not.toBeNull();
     expect(footer!.textContent).toContain('navigate');
@@ -104,7 +133,7 @@ describe('openHelpWindow', () => {
 
 describe('closeHelpWindow', () => {
   it('removes DOM elements', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     closeHelpWindow();
     expect(document.querySelector('.vilify-help-backdrop')).toBeNull();
     expect(document.querySelector('.vilify-help-window')).toBeNull();
@@ -127,7 +156,7 @@ describe('Tab switching', () => {
   });
 
   it('Tab key switches to next section', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     const tabs = document.querySelectorAll('.vilify-help-tab');
     expect(tabs[0]!.classList.contains('active')).toBe(true);
 
@@ -138,17 +167,16 @@ describe('Tab switching', () => {
   });
 
   it('Tab wraps around from last to first section', () => {
-    openHelpWindow();
-    fireKey('Tab'); // -> Watch Page
-    fireKey('Tab'); // -> Google Search
-    fireKey('Tab'); // -> Universal
-    fireKey('Tab'); // -> Home Page (wrap)
+    openHelpWindow(testSections);
+    fireKey('Tab'); // -> Section B
+    fireKey('Tab'); // -> Section C
+    fireKey('Tab'); // -> Section A (wrap)
     const tabs = document.querySelectorAll('.vilify-help-tab');
     expect(tabs[0]!.classList.contains('active')).toBe(true);
   });
 
   it('clicking a tab switches to that section', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     const tabs = document.querySelectorAll('.vilify-help-tab');
     (tabs[2] as HTMLElement).click();
     const tabsAfter = document.querySelectorAll('.vilify-help-tab');
@@ -167,14 +195,14 @@ describe('Keyboard navigation', () => {
   });
 
   it('Esc key closes the window', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     expect(isHelpOpen()).toBe(true);
     fireKey('Escape');
     expect(isHelpOpen()).toBe(false);
   });
 
   it('j key moves selection down', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     const firstRow = document.querySelector('.vilify-help-item.selected');
     expect(firstRow).not.toBeNull();
 
@@ -185,7 +213,7 @@ describe('Keyboard navigation', () => {
   });
 
   it('k key moves selection up', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     fireKey('j'); // move to 1
     fireKey('k'); // move back to 0
     const items = document.querySelectorAll('.vilify-help-item');
@@ -193,7 +221,7 @@ describe('Keyboard navigation', () => {
   });
 
   it('g key goes to top', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     fireKey('j');
     fireKey('j');
     fireKey('g');
@@ -202,7 +230,7 @@ describe('Keyboard navigation', () => {
   });
 
   it('G key goes to bottom', () => {
-    openHelpWindow();
+    openHelpWindow(testSections);
     fireKey('G');
     const items = document.querySelectorAll('.vilify-help-item');
     const last = items[items.length - 1];

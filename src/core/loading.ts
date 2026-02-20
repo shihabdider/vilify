@@ -38,7 +38,7 @@ const LOADING_CSS = `
   
   #vilify-loading-overlay {
     position: fixed; inset: 0; z-index: 99999999;
-    background: var(--bg-1, hsl(192, 100%, 11%));
+    background: var(--bg-1, #002b36);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     font-family: var(--font-mono, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace);
@@ -54,15 +54,15 @@ const LOADING_CSS = `
   
   .vilify-loading-spinner {
     width: 32px; height: 32px;
-    border: 3px solid var(--bg-3, hsl(192, 81%, 14%));
-    border-top-color: var(--accent, hsl(0, 100%, 50%));
+    border: 3px solid var(--bg-3, #073642);
+    border-top-color: var(--accent, #ff0000);
     border-radius: 50%;
     animation: vilify-spin 0.8s linear infinite;
   }
   @keyframes vilify-spin { to { transform: rotate(360deg); } }
   
   .vilify-loading-text {
-    margin-top: 16px; color: var(--txt-3, hsl(196, 13%, 45%)); font-size: 14px;
+    margin-top: 16px; color: var(--txt-3, #657b83); font-size: 14px;
   }
 `;
 
@@ -125,10 +125,10 @@ export function showLoadingScreen(siteConfig: SiteConfig): void {
 
   // Extract theme colors from config (use defaults if not provided)
   const theme = siteConfig?.theme || {};
-  const bg1 = theme.bg1 || 'hsl(192, 100%, 11%)';
-  const bg3 = theme.bg3 || 'hsl(192, 81%, 14%)';
-  const accent = theme.accent || 'hsl(0, 100%, 50%)';
-  const txt3 = theme.txt3 || 'hsl(196, 13%, 45%)';
+  const bg1 = theme.bg1 || '#002b36';
+  const bg3 = theme.bg3 || '#073642';
+  const accent = theme.accent || '#ff0000';
+  const txt3 = theme.txt3 || '#657b83';
 
   // Build overlay children
   const children = [];

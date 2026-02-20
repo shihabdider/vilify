@@ -2,7 +2,7 @@
 // Supports search results page with Solarized Dark theme + Google Blue accent
 
 import type { SiteConfig, SiteTheme, GoogleState, AppState, ContentItem, PageConfig, App, KeyContext, DrawerHandler, ListPageState } from '../../types';
-import { getGooglePageType, scrapeSearchResults, scrapeImageResults } from './scraper';
+import { getGooglePageType, scrapeSearchResults, scrapeImageResults, scrapeResultsFromContainer } from './scraper';
 import { renderGoogleItem, injectGoogleItemStyles } from './items';
 import { renderGoogleImageGrid, GRID_COLUMNS } from './grid';
 import { renderListing, updateSortIndicator, updateItemCount } from '../../core/layout';
@@ -14,6 +14,7 @@ import { copyToClipboard, copyImageToClipboard } from '../../core/actions';
 import { getCachedPage, setCachedPage } from './page-cache';
 import { getSuggestDrawer, resetSuggestDrawer } from './suggest';
 import { openHelpWindow } from '../../core/help-window';
+import { getGoogleHelpSections } from './help-sections';
 
 // =============================================================================
 // THEME
@@ -113,30 +114,81 @@ function renderGoogleListing(state: AppState, siteState: GoogleState, container:
 // =============================================================================
 
 /**
- * Navigate to next page of Google search results.
- * [I/O]
+ * Get current pagination offset from URL's `start` parameter.
+ * [PURE]
+ * @returns {number} Current start offset (0-based)
  */
-function nextPage(): void {
-  // Find the "Next" link in Google's pagination
-  const nextLink = document.querySelector('a#pnnext');
-  if (nextLink) {
-    nextLink.click();
-  } else {
-    showMessage('No next page');
-  }
+function getPageStart(): number {
+  const params = new URLSearchParams(location.search);
+  return parseInt(params.get('start') || '0', 10) || 0;
 }
 
 /**
+ * Navigate to a Google search results page at a given start offset.
+ * Preserves all existing URL parameters.
+ * [I/O]
+ */
+function navigateToPage(start: number): void {
+  const params = new URLSearchParams(location.search);
+  if (start > 0) {
+    params.set('start', String(start));
+  } else {
+    params.delete('start');
+  }
+  location.href = '/search?' + params.toString();
+}
+
+/** Track how many pages have been loaded (for infinite scroll) */
+let loadedPageCount = 1;
+
+/**
  * Navigate to previous page of Google search results.
+ * Uses URL `start` parameter (decrements by 10, min 0).
  * [I/O]
  */
 function prevPage(): void {
-  // Find the "Previous" link in Google's pagination
-  const prevLink = document.querySelector('a#pnprev');
-  if (prevLink) {
-    prevLink.click();
-  } else {
-    showMessage('No previous page');
+  const current = getPageStart();
+  if (current <= 0) {
+    showMessage('Already on first page');
+    return;
+  }
+  navigateToPage(Math.max(0, current - 10));
+}
+
+/**
+ * Fetch the next page of Google results and return them as ContentItems.
+ * Builds the next page URL using the current start offset + pages already loaded,
+ * fetches the HTML, parses it with DOMParser, and runs the scraper on it.
+ * [I/O]
+ */
+async function fetchNextPageResults(): Promise<ContentItem[]> {
+  const baseStart = getPageStart();
+  const nextStart = baseStart + (loadedPageCount * 10);
+
+  const params = new URLSearchParams(location.search);
+  params.set('start', String(nextStart));
+  const url = '/search?' + params.toString();
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [];
+
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    // Run the same selector strategies on the fetched document
+    const container = doc.querySelector('#rso')
+      || doc.querySelector('#search')
+      || doc.querySelector('#main');
+    if (!container) return [];
+
+    const results = scrapeResultsFromContainer(container);
+    if (results.length > 0) {
+      loadedPageCount++;
+    }
+    return results;
+  } catch (e) {
+    return [];
   }
 }
 
@@ -200,6 +252,10 @@ function getGoogleKeySequences(app: any, context: KeyContext): Record<string, Fu
   // (2) Modifier combos + Shift keys
   sequences['C-f'] = () => nextPage();
   sequences['C-b'] = () => prevPage();
+  sequences['C-d'] = () => app?.navigate?.('down', 10);
+  sequences['C-u'] = () => app?.navigate?.('up', 10);
+  sequences['C-e'] = () => app?.navigate?.('down');
+  sequences['C-y'] = () => app?.navigate?.('up');
   sequences['G'] = () => app?.goToBottom?.();
 
   // (3) Listing-page navigation (always on listing pages)
@@ -225,7 +281,9 @@ function getGoogleKeySequences(app: any, context: KeyContext): Record<string, Fu
  * @type {PageConfig}
  */
 const searchPageConfig: PageConfig = {
-  waitForContent: () => document.querySelector('#rso') !== null,
+  waitForContent: () =>
+    document.querySelector('#rso') !== null ||
+    document.querySelector('#search') !== null,
   render: renderGoogleListing,
 };
 
@@ -256,6 +314,26 @@ export const googleConfig: SiteConfig = {
   matches: ['*://www.google.com/search*', '*://google.com/search*'],
   theme: googleTheme,
   logo: null,
+
+  getHelpSections: getGoogleHelpSections,
+
+  tabs: [
+    { label: 'Web', shortcut: 'go', type: 'search', path: '/search' },
+    { label: 'Images', shortcut: 'gi', type: 'images', path: '/search' },
+  ],
+  hints: {
+    list: [
+      { key: 'j', label: '' }, { key: 'k', label: 'move' },
+      { key: 'gg', label: 'top' }, { key: 'G', label: 'bottom' },
+      { key: '↵', label: 'open' },
+      { key: 'yy', label: 'copy' },
+      { key: 'i', label: 'search' }, { key: '/', label: 'filter' }, { key: ':', label: 'cmd' },
+    ],
+  },
+
+  fetchMoreItems: fetchNextPageResults,
+  onTopBoundary: prevPage,
+
   searchUrl: (query) => {
     const base = '/search?q=' + encodeURIComponent(query);
     return getGooglePageType() === 'images' ? base + '&udm=2' : base;
@@ -311,7 +389,7 @@ export const googleConfig: SiteConfig = {
       type: 'command',
       label: 'Show keybind help',
       icon: '?',
-      action: () => { openHelpWindow(); },
+      action: () => { openHelpWindow(getGoogleHelpSections()); },
       keys: ':help',
     },
   ],

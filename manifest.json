@@ -20,7 +20,7 @@
   "permissions": ["clipboardWrite", "activeTab", "tabs"],
   "content_scripts": [
     {
-      "matches": ["*://www.youtube.com/*", "*://youtube.com/*", "*://www.google.com/search*", "*://google.com/search*"],
+      "matches": ["*://www.youtube.com/*", "*://youtube.com/*"],
       "js": ["dist/data-bridge.js"],
       "run_at": "document_start",
       "world": "MAIN"
