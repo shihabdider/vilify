@@ -20,3 +20,19 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 chrome.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {
   updateIcon(tabId, tab.url);
 });
+
+// Add a listener for when the user clicks the extension's action button (the icon)
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.id) {
+    // Execute a script in the current tab to re-enable Vilify
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        // Remove the disabled flag from sessionStorage
+        sessionStorage.removeItem('vilify-disabled');
+        // Reload the page to re-initialize the content script
+        window.location.reload();
+      }
+    });
+  }
+});

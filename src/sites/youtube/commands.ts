@@ -423,6 +423,15 @@ export function getYouTubeCommands(app: App): any[] {
     });
   }
 
+  // --- Font command (visible entry that opens font picker) ---
+  commands.push({
+    type: 'command',
+    label: 'Change font',
+    icon: '\uD83D\uDD24',
+    action: () => app?.typeCommand?.(':set guifont='),
+    keys: ':set guifont',
+  });
+
   // --- Font commands ---
   commands.push({ group: 'Font' });
   for (const font of FONTS) {

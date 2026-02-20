@@ -17,7 +17,7 @@
   "background": {
     "service_worker": "dist/background.js"
   },
-  "permissions": ["clipboardWrite", "activeTab", "tabs"],
+  "permissions": ["clipboardWrite", "activeTab", "tabs", "scripting"],
   "content_scripts": [
     {
       "matches": ["*://www.youtube.com/*", "*://youtube.com/*"],

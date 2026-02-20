@@ -15,6 +15,7 @@ import { getCachedPage, setCachedPage } from './page-cache';
 import { getSuggestDrawer, resetSuggestDrawer } from './suggest';
 import { openHelpWindow } from '../../core/help-window';
 import { getGoogleHelpSections } from './help-sections';
+import { getGoogleCommands } from './commands';
 
 // =============================================================================
 // THEME
@@ -261,12 +262,20 @@ function getGoogleKeySequences(app: any, context: KeyContext): Record<string, Fu
   // (3) Listing-page navigation (always on listing pages)
   sequences['ArrowDown'] = () => app?.navigate?.('down');
   sequences['ArrowUp'] = () => app?.navigate?.('up');
+  sequences['ArrowLeft'] = () => app?.navigate?.('left');
+  sequences['ArrowRight'] = () => app?.navigate?.('right');
   sequences['Enter'] = () => app?.select?.(false);
 
   // (4) Listing + !filterActive + !searchActive: j/k navigate
   if (!context?.filterActive && !context?.searchActive) {
     sequences['j'] = () => app?.navigate?.('down');
     sequences['k'] = () => app?.navigate?.('up');
+    
+    // Grid navigation for images
+    if (pageType === 'images') {
+      sequences['h'] = () => app?.navigate?.('left');
+      sequences['l'] = () => app?.navigate?.('right');
+    }
   }
 
   return sequences;
@@ -323,7 +332,7 @@ export const googleConfig: SiteConfig = {
   ],
   hints: {
     list: [
-      { key: 'j', label: '' }, { key: 'k', label: 'move' },
+      { key: 'hjkl', label: 'move' },
       { key: 'gg', label: 'top' }, { key: 'G', label: 'bottom' },
       { key: '↵', label: 'open' },
       { key: 'yy', label: 'copy' },
@@ -380,19 +389,10 @@ export const googleConfig: SiteConfig = {
 
   /**
    * Get available commands for command palette.
-   * Google has minimal commands - just the core ones.
-   * @param {Object} ctx - Context with state, callbacks
+   * @param {App} app - The main app object with callbacks.
    * @returns {Array<Command>}
    */
-  getCommands: () => [
-    {
-      type: 'command',
-      label: 'Show keybind help',
-      icon: '?',
-      action: () => { openHelpWindow(getGoogleHelpSections()); },
-      keys: ':help',
-    },
-  ],
+  getCommands: (app) => getGoogleCommands(app),
 
   /**
    * Get ALL key sequence bindings (including navigation, modifiers, multi-key).

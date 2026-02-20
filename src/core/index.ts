@@ -133,6 +133,13 @@ export function createApp(config: SiteConfig): App {
    * [I/O]
    */
   function destroyApp() {
+    // Set a flag in sessionStorage to prevent re-initialization on this tab
+    try {
+      sessionStorage.setItem('vilify-disabled', 'true');
+    } catch (e) {
+      console.error('[Vilify] Failed to set sessionStorage:', e);
+    }
+
     stopContentPolling();
 
     if (cleanupKeyboard) {

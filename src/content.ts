@@ -43,19 +43,38 @@ export function getSiteConfig(): SiteConfig | null {
 
 console.log('[Vilify] Content script loaded');
 
-// Initialize UI when DOM is ready
-const config: SiteConfig | null = getSiteConfig();
-
-if (config) {
-  // Inject loading styles immediately at document_start, before DOM is ready,
-  // so CSS that hides Google/YouTube content is present from the very start.
-  injectLoadingStyles();
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => initSite(config));
+// Check if Vilify was disabled for this session
+try {
+  if (sessionStorage.getItem('vilify-disabled') === 'true') {
+    console.log('[Vilify] Disabled for this session.');
+    // To re-enable, the user can click the extension icon or open a new tab.
+    // We can also add a command to re-enable it.
   } else {
-    initSite(config);
+    // Ensure any old session flags are cleared when starting a new session.
+    sessionStorage.removeItem('vilify-disabled');
+    initialize();
   }
-} else {
-  console.log('[Vilify] No supported site detected');
+} catch (e) {
+  console.error('[Vilify] Failed to access sessionStorage:', e);
+  initialize(); // Proceed if sessionStorage is inaccessible
+}
+
+
+function initialize() {
+  // Initialize UI when DOM is ready
+  const config: SiteConfig | null = getSiteConfig();
+
+  if (config) {
+    // Inject loading styles immediately at document_start, before DOM is ready,
+    // so CSS that hides Google/YouTube content is present from the very start.
+    injectLoadingStyles();
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => initSite(config));
+    } else {
+      initSite(config);
+    }
+  } else {
+    console.log('[Vilify] No supported site detected');
+  }
 }

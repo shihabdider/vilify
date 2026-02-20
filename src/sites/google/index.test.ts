@@ -199,11 +199,13 @@ describe('merged keys (C-f, C-b, G) in getKeySequences', () => {
 describe('listing page navigation keys in getKeySequences', () => {
   const listingCtx = makeContext({ pageType: 'search', filterActive: false, searchActive: false });
 
-  it('includes ArrowDown, ArrowUp, Enter on listing pages', () => {
+  it('includes ArrowDown, ArrowUp, ArrowLeft, ArrowRight, Enter on listing pages', () => {
     const app = { navigate: vi.fn(), select: vi.fn() };
     const seqs = googleConfig.getKeySequences(app, listingCtx);
     expect(seqs).toHaveProperty('ArrowDown');
     expect(seqs).toHaveProperty('ArrowUp');
+    expect(seqs).toHaveProperty('ArrowLeft');
+    expect(seqs).toHaveProperty('ArrowRight');
     expect(seqs).toHaveProperty('Enter');
   });
 
@@ -219,6 +221,20 @@ describe('listing page navigation keys in getKeySequences', () => {
     const seqs = googleConfig.getKeySequences(app, listingCtx);
     seqs['ArrowUp']();
     expect(app.navigate).toHaveBeenCalledWith('up');
+  });
+
+  it('ArrowLeft calls app.navigate("left")', () => {
+    const app = { navigate: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    seqs['ArrowLeft']();
+    expect(app.navigate).toHaveBeenCalledWith('left');
+  });
+
+  it('ArrowRight calls app.navigate("right")', () => {
+    const app = { navigate: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    seqs['ArrowRight']();
+    expect(app.navigate).toHaveBeenCalledWith('right');
   });
 
   it('Enter calls app.select(false)', () => {
@@ -253,7 +269,19 @@ describe('listing page navigation keys in getKeySequences', () => {
     expect(seqs).not.toHaveProperty('k');
   });
 
-  it('does NOT include h or l (no grid navigation for Google search)', () => {
+  it('includes h and l on images page', () => {
+    const app = { navigate: vi.fn() };
+    const ctx = makeContext({ pageType: 'images' });
+    const seqs = googleConfig.getKeySequences(app, ctx);
+    expect(seqs).toHaveProperty('h');
+    expect(seqs).toHaveProperty('l');
+    seqs['h']();
+    expect(app.navigate).toHaveBeenCalledWith('left');
+    seqs['l']();
+    expect(app.navigate).toHaveBeenCalledWith('right');
+  });
+
+  it('does NOT include h or l on regular search page', () => {
     const seqs = googleConfig.getKeySequences({}, listingCtx);
     expect(seqs).not.toHaveProperty('h');
     expect(seqs).not.toHaveProperty('l');

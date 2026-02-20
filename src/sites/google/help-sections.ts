@@ -7,6 +7,8 @@ export function getGoogleHelpSections() {
       keybinds: [
         { keys: ['j', '\u2193'], description: 'Navigate down' },
         { keys: ['k', '\u2191'], description: 'Navigate up' },
+        { keys: ['h', '\u2190'], description: 'Navigate left (images)' },
+        { keys: ['l', '\u2192'], description: 'Navigate right (images)' },
         { keys: ['gg'], description: 'Go to top' },
         { keys: ['G'], description: 'Go to bottom' },
         { keys: ['Enter'], description: 'Open result' },
