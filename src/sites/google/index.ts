@@ -199,6 +199,8 @@ function getGoogleKeySequences(app: any, context: KeyContext): Record<string, Fu
   // (3) Listing-page navigation (always on listing pages)
   sequences['ArrowDown'] = () => app?.navigate?.('down');
   sequences['ArrowUp'] = () => app?.navigate?.('up');
+  sequences['ArrowLeft'] = () => app?.navigate?.('left');
+  sequences['ArrowRight'] = () => app?.navigate?.('right');
   sequences['Enter'] = () => app?.select?.(false);
 
   // (4) Listing + !filterActive + !searchActive: j/k/h/l navigate
