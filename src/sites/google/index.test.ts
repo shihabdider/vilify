@@ -253,8 +253,27 @@ describe('listing page navigation keys in getKeySequences', () => {
     expect(seqs).not.toHaveProperty('k');
   });
 
-  it('does NOT include h or l (no grid navigation for Google search)', () => {
-    const seqs = googleConfig.getKeySequences({}, listingCtx);
+  it('includes h and l when !filterActive and !searchActive', () => {
+    const app = { navigate: vi.fn() };
+    const seqs = googleConfig.getKeySequences(app, listingCtx);
+    expect(seqs).toHaveProperty('h');
+    expect(seqs).toHaveProperty('l');
+    seqs['h']();
+    expect(app.navigate).toHaveBeenCalledWith('left');
+    seqs['l']();
+    expect(app.navigate).toHaveBeenCalledWith('right');
+  });
+
+  it('excludes h and l when filterActive is true', () => {
+    const ctx = makeContext({ pageType: 'search', filterActive: true, searchActive: false });
+    const seqs = googleConfig.getKeySequences({}, ctx);
+    expect(seqs).not.toHaveProperty('h');
+    expect(seqs).not.toHaveProperty('l');
+  });
+
+  it('excludes h and l when searchActive is true', () => {
+    const ctx = makeContext({ pageType: 'search', filterActive: false, searchActive: true });
+    const seqs = googleConfig.getKeySequences({}, ctx);
     expect(seqs).not.toHaveProperty('h');
     expect(seqs).not.toHaveProperty('l');
   });

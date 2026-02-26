@@ -201,10 +201,12 @@ function getGoogleKeySequences(app: any, context: KeyContext): Record<string, Fu
   sequences['ArrowUp'] = () => app?.navigate?.('up');
   sequences['Enter'] = () => app?.select?.(false);
 
-  // (4) Listing + !filterActive + !searchActive: j/k navigate
+  // (4) Listing + !filterActive + !searchActive: j/k/h/l navigate
   if (!context?.filterActive && !context?.searchActive) {
     sequences['j'] = () => app?.navigate?.('down');
     sequences['k'] = () => app?.navigate?.('up');
+    sequences['h'] = () => app?.navigate?.('left');
+    sequences['l'] = () => app?.navigate?.('right');
   }
 
   return sequences;
