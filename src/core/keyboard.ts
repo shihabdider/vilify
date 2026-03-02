@@ -268,11 +268,34 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     }
   }
 
+  // Block keyup for native-blocked keys to prevent the browser's default
+  // "activate" behavior (spacebar keyup clicks the focused element) and
+  // YouTube's own keyup handlers from toggling play/pause a second time.
+  function keyupHandler(event: KeyboardEvent) {
+    const state = getState();
+    if (!state?.core?.focusModeActive) return;
+    if (isInputElement(event.target as Element)) return;
+
+    const key = normalizeKey(event);
+    if (key === null) return;
+
+    const pageType = config.getPageType?.() ?? null;
+    const context = { pageType, filterActive: state.ui.filterActive, searchActive: state.ui.searchActive, drawer: state.ui.drawer };
+    const blockedKeys = config.getBlockedNativeKeys?.(context) ?? [];
+
+    if (blockedKeys.includes(key)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }
+
   document.addEventListener('keydown', handler, true); // capture phase
+  document.addEventListener('keyup', keyupHandler, true); // capture phase
 
   // Cleanup function
   return function cleanup() {
     document.removeEventListener('keydown', handler, true);
+    document.removeEventListener('keyup', keyupHandler, true);
     if (keyTimer) {
       clearTimeout(keyTimer);
       keyTimer = null;
