@@ -160,7 +160,7 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
         if (event.key === 'Escape') {
           target.blur();
           event.preventDefault();
-          event.stopPropagation();
+          event.stopImmediatePropagation();
         }
         return;
       }
@@ -174,7 +174,7 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     // 3. Escape handling (generic modal stack: drawer > filter > search)
     if (event.key === 'Escape') {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
       if (drawer !== null) {
         setState({ ...state, ui: { ...state.ui, drawer: null, paletteQuery: '', paletteSelectedIdx: 0 } });
         appCallbacks.render?.();
@@ -191,7 +191,7 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     // 4. Drawer key delegation (not palette, not recommended)
     if (drawer !== null && drawer !== 'palette' && drawer !== 'recommended') {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
       appCallbacks.onDrawerKey?.(event.key);
       return;
     }
@@ -209,10 +209,11 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     const sequences = config.getKeySequences(appCallbacks, context);
     const blockedKeys = config.getBlockedNativeKeys?.(context) ?? [];
 
-    // 8. Block native keys
+    // 8. Block native keys (stopImmediatePropagation prevents same-element listeners
+    //    like YouTube's own capture-phase keydown handler from also firing)
     if (blockedKeys.includes(key)) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     }
 
     // 9. Clear existing timeout
@@ -228,7 +229,7 @@ export function setupKeyboardEngine(config: any, getState: any, setState: any, a
     // 11. For any match (exact, pending, or prefix): block event
     if (result.shouldPrevent) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     }
 
     // 12. Execute action or handle pending/timeout
