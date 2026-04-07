@@ -395,6 +395,199 @@ function getPlaylistItemData(videoId: string): { setVideoId: string; position: n
   return null;
 }
 
+// =============================================================================
+// TRANSCRIPT API
+// =============================================================================
+
+/**
+ * Extract transcript endpoint params from ytInitialData engagement panels.
+ * The transcript panel has targetId "engagement-panel-searchable-transcript".
+ * @param {string} videoId - Video ID (unused but kept for logging)
+ * @returns {string|null} Base64-encoded params for get_transcript API
+ */
+function getTranscriptParams(videoId: string): string | null {
+  if (typeof ytInitialData === 'undefined' || !ytInitialData) {
+    console.log('[Vilify Bridge] No ytInitialData available for transcript');
+    return null;
+  }
+  
+  const panels = ytInitialData?.engagementPanels || [];
+  
+  for (const panel of panels) {
+    const renderer = panel?.engagementPanelSectionListRenderer;
+    if (!renderer) continue;
+    
+    // Find the transcript panel by targetId
+    if (renderer.targetId === 'engagement-panel-searchable-transcript') {
+      // Extract params from continuation endpoint
+      const content = renderer.content;
+      
+      // Path: content.continuationItemRenderer.continuationEndpoint.getTranscriptEndpoint.params
+      const params = content?.continuationItemRenderer?.continuationEndpoint
+        ?.getTranscriptEndpoint?.params;
+      
+      if (params) {
+        console.log('[Vilify Bridge] Found transcript params from engagement panel');
+        return params;
+      }
+      
+      console.log('[Vilify Bridge] Transcript panel found but no params');
+      return null;
+    }
+  }
+  
+  console.log('[Vilify Bridge] No transcript engagement panel found');
+  return null;
+}
+
+/**
+ * Parse transcript segments from get_transcript API response.
+ * Response format:
+ *   actions[].updateEngagementPanelAction.content.transcriptRenderer.content
+ *     .transcriptSearchPanelRenderer.body.transcriptSegmentListRenderer
+ *     .initialSegments[].transcriptSegmentRenderer
+ * 
+ * Each segment has:
+ *   - snippet.runs[].text (text content)
+ *   - startMs (string, milliseconds)
+ *   - endMs (string, milliseconds)
+ *   - startTimeText.simpleText (formatted time e.g. "0:00")
+ * 
+ * @param {Object} data - API response JSON
+ * @returns {Array} Parsed transcript lines
+ */
+function parseTranscriptResponse(data: any): Array<{ time: number; timeText: string; duration: number; text: string }> {
+  const lines: Array<{ time: number; timeText: string; duration: number; text: string }> = [];
+  
+  // Navigate to transcript segments in the response
+  const actions = data?.actions || [];
+  
+  for (const action of actions) {
+    const panelContent = action?.updateEngagementPanelAction?.content;
+    const transcriptRenderer = panelContent?.transcriptRenderer?.content;
+    const searchPanel = transcriptRenderer?.transcriptSearchPanelRenderer;
+    const segmentList = searchPanel?.body?.transcriptSegmentListRenderer;
+    const segments = segmentList?.initialSegments || [];
+    
+    for (const segment of segments) {
+      const renderer = segment?.transcriptSegmentRenderer;
+      if (!renderer) continue;
+      
+      // Extract text from snippet runs
+      const textParts = renderer.snippet?.runs?.map((r: any) => r.text) || [];
+      const text = textParts.join('').trim();
+      if (!text) continue;
+      
+      const startMs = parseInt(renderer.startMs || '0', 10);
+      const endMs = parseInt(renderer.endMs || '0', 10);
+      const time = Math.floor(startMs / 1000);
+      const duration = Math.max(0, Math.floor((endMs - startMs) / 1000));
+      const timeText = renderer.startTimeText?.simpleText || formatSeconds(time);
+      
+      lines.push({ time, timeText, duration, text });
+    }
+  }
+  
+  return lines;
+}
+
+/**
+ * Format seconds to time string (e.g. 65 -> "1:05", 3661 -> "1:01:01")
+ */
+function formatSeconds(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/**
+ * Fetch transcript via YouTube InnerTube API.
+ * Extracts params from ytInitialData, calls /youtubei/v1/get_transcript.
+ * 
+ * @param {string} videoId - Video ID
+ * @returns {Promise<Object>} Transcript result with status and lines
+ */
+async function fetchTranscriptApi(videoId: string): Promise<{ status: string; videoId: string; lines: any[]; language: string | null }> {
+  try {
+    // Get transcript params from engagement panels
+    const params = getTranscriptParams(videoId);
+    if (!params) {
+      return { status: 'unavailable', videoId, lines: [], language: null };
+    }
+    
+    // Get API context
+    const context = getFullApiContext();
+    if (!context) {
+      console.log('[Vilify Bridge] No API context for transcript');
+      return { status: 'unavailable', videoId, lines: [], language: null };
+    }
+    
+    const apiKey = typeof ytcfg !== 'undefined' && ytcfg.get ? ytcfg.get('INNERTUBE_API_KEY') : null;
+    const url = `https://www.youtube.com/youtubei/v1/get_transcript?prettyPrint=false${apiKey ? `&key=${apiKey}` : ''}`;
+    
+    const body = {
+      context,
+      params
+    };
+    
+    console.log('[Vilify Bridge] Fetching transcript from API for', videoId);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      console.log('[Vilify Bridge] Transcript API returned', response.status);
+      return { status: 'unavailable', videoId, lines: [], language: null };
+    }
+    
+    const data = await response.json();
+    const lines = parseTranscriptResponse(data);
+    
+    if (lines.length === 0) {
+      console.log('[Vilify Bridge] Transcript API returned no segments');
+      return { status: 'unavailable', videoId, lines: [], language: null };
+    }
+    
+    // Try to extract language from response
+    let language: string | null = null;
+    try {
+      const actions = data?.actions || [];
+      for (const action of actions) {
+        const footer = action?.updateEngagementPanelAction?.content
+          ?.transcriptRenderer?.content?.transcriptSearchPanelRenderer?.footer
+          ?.transcriptFooterRenderer?.languageMenu?.sortFilterSubMenuRenderer
+          ?.subMenuItems;
+        if (footer) {
+          const selected = footer.find((item: any) => item.selected);
+          if (selected) {
+            language = selected.title || null;
+          }
+          break;
+        }
+      }
+    } catch (e) {
+      // Language extraction is best-effort
+    }
+    
+    console.log('[Vilify Bridge] Transcript fetched:', lines.length, 'lines, language:', language);
+    return { status: 'loaded', videoId, lines, language };
+  } catch (e) {
+    console.error('[Vilify Bridge] Transcript API error:', e);
+    return { status: 'unavailable', videoId, lines: [], language: null };
+  }
+}
+
 /**
  * Listen for commands from content script
  */
@@ -429,6 +622,14 @@ document.addEventListener('__vilify_command__', async (event: Event) => {
   if (command === 'undoRemoveFromWatchLater' && data?.videoId !== undefined) {
     const result = await undoRemoveFromWatchLater(data.videoId, data.position);
     console.log('[Vilify Bridge] Undo result:', result);
+    document.dispatchEvent(new CustomEvent('__vilify_response__', {
+      detail: { requestId, result }
+    }));
+  }
+  
+  if (command === 'fetchTranscript' && data?.videoId) {
+    const result = await fetchTranscriptApi(data.videoId);
+    console.log('[Vilify Bridge] Transcript result:', result.status, result.lines?.length, 'lines');
     document.dispatchEvent(new CustomEvent('__vilify_response__', {
       detail: { requestId, result }
     }));
