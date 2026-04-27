@@ -24,7 +24,7 @@ export function createStaticOmnibarMode(input: StaticOmnibarModeInput): OmnibarM
     providers: [
       {
         id: `${input.id}:static`,
-        getItems: () => input.items,
+        getItems: (_context, query) => filterOmnibarItems(input.items, query),
       },
     ],
   };
@@ -177,8 +177,7 @@ export function collectOmnibarItems(
   providerContext: ProviderContext = {},
 ): readonly OmnibarItem[] {
   const mode = getActiveOmnibarMode(state);
-  const items = mode.providers.flatMap((provider) => Array.from(provider.getItems(providerContext)));
-  return filterOmnibarItems(items, state.query);
+  return mode.providers.flatMap((provider) => Array.from(provider.getItems(providerContext, state.query)));
 }
 
 export function resolveSelectedOmnibarItem(

@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { createOmnibarRuntime } from './runtime';
 import { createStaticOmnibarMode, getActiveOmnibarMode } from './state';
+import type { SitePlugin } from '../plugins/types';
 import type { OmnibarItem, OmnibarMode } from './types';
 
-function makeDom(): JSDOM {
+function makeDom(url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'): JSDOM {
   return new JSDOM('<!doctype html><html><body><main id="page"><button>Native page control</button></main></body></html>', {
-    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    url,
   });
 }
 
@@ -43,6 +44,10 @@ function itemIds(document: Document): string[] {
 
 function selectedItemId(document: Document): string | undefined {
   return document.querySelector<HTMLElement>('[data-vilify-omnibar-item][data-selected="true"]')?.dataset.itemId;
+}
+
+function modeTitle(document: Document): string | null {
+  return document.querySelector('.vilify-omnibar-title')?.textContent ?? null;
 }
 
 describe('createOmnibarRuntime', () => {
@@ -183,5 +188,57 @@ describe('createOmnibarRuntime', () => {
     expect(getActiveOmnibarMode(runtime.getState()).id).toBe('root');
     expect(itemIds(dom.window.document)).toEqual(['open-nested']);
     expect(dom.window.document.getElementById('page')?.outerHTML).toBe(beforePageHtml);
+  });
+
+  it('renders a fake plugin mode and provider without YouTube coupling', () => {
+    const dom = makeDom('https://example.test/tool');
+    const url = new URL(dom.window.location.href);
+    const provider = vi.fn((_context, query: string) => [
+      {
+        id: query ? `fake-${query}` : 'fake-all',
+        title: query ? `Fake result for ${query}` : 'All fake results',
+        action: { kind: 'noop' as const },
+      },
+    ]);
+    const fakeMode: OmnibarMode = {
+      id: 'fake-root',
+      title: 'Fake Site',
+      placeholder: 'Search fake provider',
+      providers: [{ id: 'fake-provider', getItems: provider }],
+    };
+    const fakePlugin: SitePlugin = {
+      id: 'fake-site',
+      matches: () => true,
+      defaultModeId: fakeMode.id,
+      modes: [fakeMode],
+    };
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: fakeMode,
+      providerContext: {
+        location: dom.window.location,
+        activePlugin: { plugin: fakePlugin, url },
+      },
+    });
+
+    runtime.open();
+
+    expect(modeTitle(dom.window.document)).toBe('Fake Site');
+    expect(input(dom.window.document).placeholder).toBe('Search fake provider');
+    expect(itemIds(dom.window.document)).toEqual(['fake-all']);
+    expect(provider).toHaveBeenLastCalledWith(
+      expect.objectContaining({ activePlugin: { plugin: fakePlugin, url } }),
+      '',
+    );
+
+    const search = input(dom.window.document);
+    search.value = 'needle';
+    search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+
+    expect(itemIds(dom.window.document)).toEqual(['fake-needle']);
+    expect(provider).toHaveBeenLastCalledWith(
+      expect.objectContaining({ activePlugin: { plugin: fakePlugin, url } }),
+      'needle',
+    );
   });
 });

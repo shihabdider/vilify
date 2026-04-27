@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { detectSupportedPage, initContentScript } from './content';
+import { youtubeDefaultMode, youtubePlugin } from './sites/youtube/plugin';
 
 function makeDom(url: string): JSDOM {
   return new JSDOM('<!doctype html><html><body><main id="page"><button>Native page control</button></main></body></html>', {
@@ -22,14 +23,18 @@ function getOmnibarInput(document: Document): HTMLInputElement | null {
   return document.querySelector('[data-vilify-omnibar-input="true"]');
 }
 
+function getOmnibarTitle(document: Document): string | null {
+  return document.querySelector('.vilify-omnibar-title')?.textContent ?? null;
+}
+
 describe('detectSupportedPage', () => {
-  it('detects YouTube watch pages and extracts the video id', () => {
+  it('detects the active YouTube plugin for watch pages', () => {
     const url = new URL('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s');
 
     expect(detectSupportedPage(url)).toEqual({
-      kind: 'youtube-watch',
+      kind: 'active-plugin',
       url,
-      videoId: 'dQw4w9WgXcQ',
+      plugin: youtubePlugin,
     });
   });
 
@@ -43,6 +48,8 @@ describe('detectSupportedPage', () => {
     const urls = [
       new URL('https://www.youtube.com/'),
       new URL('https://www.youtube.com/results?search_query=vim'),
+      new URL('https://www.youtube.com/@vilify'),
+      new URL('https://www.youtube.com/playlist?list=PL123'),
       new URL('https://www.youtube.com/shorts/dQw4w9WgXcQ'),
     ];
 
@@ -69,7 +76,7 @@ describe('initContentScript', () => {
     vi.restoreAllMocks();
   });
 
-  it('installs a closed-state opener on supported YouTube watch pages that intercepts only :', () => {
+  it('installs a closed-state opener on active YouTube plugin pages that intercepts only :', () => {
     const dom = makeDom('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     const page = dom.window.document.getElementById('page');
     const beforePageHtml = page?.outerHTML;
@@ -79,7 +86,8 @@ describe('initContentScript', () => {
       document: dom.window.document,
     });
 
-    expect(result).toMatchObject({ kind: 'youtube-watch', videoId: 'dQw4w9WgXcQ' });
+    expect(result).toMatchObject({ kind: 'active-plugin' });
+    expect(result.kind === 'active-plugin' ? result.plugin : null).toBe(youtubePlugin);
 
     const nativeKey = pressKey(dom.window, dom.window.document.body, 'a');
     expect(nativeKey.defaultPrevented).toBe(false);
@@ -90,6 +98,8 @@ describe('initContentScript', () => {
 
     const input = getOmnibarInput(dom.window.document);
     expect(input).not.toBeNull();
+    expect(input?.placeholder).toBe(youtubeDefaultMode.placeholder);
+    expect(getOmnibarTitle(dom.window.document)).toBe(youtubeDefaultMode.title);
     expect(dom.window.document.activeElement).toBe(input);
     expect(page?.outerHTML).toBe(beforePageHtml);
   });
@@ -121,7 +131,7 @@ describe('initContentScript', () => {
     }
   });
 
-  it('leaves unsupported pages without a listener, opener interception, or omnibar UI', () => {
+  it('leaves pages with no active plugin without a listener, opener interception, or omnibar UI', () => {
     const dom = makeDom('https://www.youtube.com/results?search_query=vilify');
     const beforeHtml = dom.window.document.documentElement.outerHTML;
     const documentAddEventListener = vi.spyOn(dom.window.document, 'addEventListener');

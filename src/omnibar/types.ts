@@ -1,8 +1,11 @@
+import type { ActivePluginContext } from '../plugins/types';
+
 export type OmnibarModeId = string;
 
 export interface ProviderContext {
   readonly document?: Document;
   readonly location?: Location;
+  readonly activePlugin?: ActivePluginContext;
   readonly page?: unknown;
 }
 
@@ -33,7 +36,7 @@ export interface OmnibarItem {
 
 export interface OmnibarProvider {
   readonly id: string;
-  readonly getItems: (context: ProviderContext) => readonly OmnibarItem[];
+  readonly getItems: (context: ProviderContext, query: string) => readonly OmnibarItem[];
 }
 
 export interface OmnibarMode {

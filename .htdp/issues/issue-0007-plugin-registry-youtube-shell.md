@@ -1,6 +1,6 @@
 ---
 id: issue-0007
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -63,7 +63,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-27: Added stateless plugin registry, YouTube watch-page plugin shell, default/transcript mode declarations, and content-script plugin selection.
 
 ## Out of scope
 

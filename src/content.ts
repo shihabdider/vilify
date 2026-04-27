@@ -1,32 +1,30 @@
 import { createOmnibarRuntime } from './omnibar/runtime';
-import { createDefaultOmnibarMode } from './omnibar/state';
+import { getActivePlugin, getPluginDefaultMode, sitePlugins } from './plugins/registry';
 import type { OmnibarActionExecutor, OmnibarMode } from './omnibar/types';
+import type { SitePlugin } from './plugins/types';
 
 export type SupportedPage =
-  | { kind: 'youtube-watch'; url: URL; videoId: string }
+  | { kind: 'active-plugin'; url: URL; plugin: SitePlugin }
   | { kind: 'unsupported'; url: URL };
 
 export interface ContentScriptEnv {
   location?: Location;
   document?: Document;
+  plugins?: readonly SitePlugin[];
   omnibarMode?: OmnibarMode;
   actionExecutor?: OmnibarActionExecutor;
 }
 
-function isYouTubeHost(hostname: string): boolean {
-  const normalizedHostname = hostname.toLowerCase();
-  return normalizedHostname === 'youtube.com' || normalizedHostname.endsWith('.youtube.com');
-}
-
-export function detectSupportedPage(url: URL): SupportedPage {
-  if (isYouTubeHost(url.hostname) && url.pathname === '/watch') {
-    const videoId = url.searchParams.get('v')?.trim() ?? '';
-    if (videoId.length > 0) {
-      return { kind: 'youtube-watch', url, videoId };
-    }
+export function detectSupportedPage(
+  url: URL,
+  plugins: readonly SitePlugin[] = sitePlugins,
+): SupportedPage {
+  const plugin = getActivePlugin(url, plugins);
+  if (!plugin) {
+    return { kind: 'unsupported', url };
   }
 
-  return { kind: 'unsupported', url };
+  return { kind: 'active-plugin', url, plugin };
 }
 
 function readRuntimeUrl(env: ContentScriptEnv): URL {
@@ -40,16 +38,18 @@ function readRuntimeUrl(env: ContentScriptEnv): URL {
 }
 
 export function initContentScript(env: ContentScriptEnv = {}): SupportedPage {
-  const page = detectSupportedPage(readRuntimeUrl(env));
+  const url = readRuntimeUrl(env);
+  const page = detectSupportedPage(url, env.plugins);
   const document = env.document ?? globalThis.document;
 
-  if (page.kind !== 'unsupported' && document) {
+  if (page.kind === 'active-plugin' && document) {
     createOmnibarRuntime({
       document,
-      rootMode: env.omnibarMode ?? createDefaultOmnibarMode(),
+      rootMode: env.omnibarMode ?? getPluginDefaultMode(page.plugin),
       providerContext: {
         document,
         location: env.location ?? document.location,
+        activePlugin: { plugin: page.plugin, url: page.url },
         page,
       },
       actionExecutor: env.actionExecutor,
