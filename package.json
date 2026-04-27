@@ -1,6 +1,6 @@
 {
   "name": "vilify",
-  "version": "0.6.55",
+  "version": "0.6.57",
   "description": "Minimal YouTube omnibar scaffold",
   "scripts": {
     "build": "node build.js",

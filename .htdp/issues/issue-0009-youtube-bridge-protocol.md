@@ -1,6 +1,6 @@
 ---
 id: issue-0009
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -71,7 +71,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-27: Added typed YouTube bridge request/response protocol, isolated bridge client, main-world listener, structured metadata extraction, InnerTube transcript parsing/fetch, caption fallback parsing, and tests.
 
 ## Out of scope
 

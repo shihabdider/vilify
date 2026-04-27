@@ -43,7 +43,8 @@ describe('youtubePlugin', () => {
     expect(youtubePlugin.id).toBe('youtube');
     expect(youtubePlugin.defaultModeId).toBe(youtubeDefaultMode.id);
     expect(youtubePlugin.modes).toEqual([youtubeDefaultMode, youtubeTranscriptMode]);
-    expect(Object.keys(youtubePlugin).sort()).toEqual(['defaultModeId', 'id', 'matches', 'modes']);
+    expect(youtubePlugin.bridge).toEqual({ id: 'youtube-main-world' });
+    expect(Object.keys(youtubePlugin).sort()).toEqual(['bridge', 'defaultModeId', 'id', 'matches', 'modes']);
 
     for (const forbiddenKey of ['state', 'install', 'render', 'mount', 'unmount', 'keybindings', 'ambientKeybindings']) {
       expect(youtubePlugin).not.toHaveProperty(forbiddenKey);

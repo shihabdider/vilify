@@ -26,4 +26,5 @@ export const youtubePlugin: SitePlugin = {
   matches: isYouTubeWatchUrl,
   defaultModeId: youtubeDefaultMode.id,
   modes: [youtubeDefaultMode, youtubeTranscriptMode],
+  bridge: { id: 'youtube-main-world' },
 };
