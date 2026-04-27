@@ -2,7 +2,14 @@
 id: prd-0001
 status: draft
 source: conversation
-related_issues: []
+related_issues:
+  - .htdp/issues/issue-0005-backup-reset-scaffold.md
+  - .htdp/issues/issue-0006-omnibar-opener-primitive.md
+  - .htdp/issues/issue-0007-plugin-registry-youtube-shell.md
+  - .htdp/issues/issue-0008-youtube-default-mode-actions.md
+  - .htdp/issues/issue-0009-youtube-bridge-protocol.md
+  - .htdp/issues/issue-0010-transcript-mode-provider.md
+  - .htdp/issues/issue-0011-retire-legacy-scope-docs.md
 related_architecture:
   - .htdp/architecture/review-0001-render-site-boundaries.md
 remote:

@@ -1,6 +1,6 @@
 ---
 id: issue-0003
-status: draft
+status: superseded
 type: architecture
 mode: HITL
 source_prd: null
@@ -11,6 +11,8 @@ remote:
 ---
 
 # Deepen the YouTube data and bridge boundary
+
+> Superseded for implementation planning by `.htdp/prds/prd-0001-omnibar-reset.md` and reset issues `issue-0005` through `issue-0011`. Keep this as historical architecture context only.
 
 ## What to build
 

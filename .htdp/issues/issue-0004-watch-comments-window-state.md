@@ -1,6 +1,6 @@
 ---
 id: issue-0004
-status: draft
+status: superseded
 type: architecture
 mode: HITL
 source_prd: null
@@ -12,6 +12,8 @@ remote:
 ---
 
 # Reify watch comments window state
+
+> Superseded for implementation planning by `.htdp/prds/prd-0001-omnibar-reset.md` and reset issues `issue-0005` through `issue-0011`. Keep this as historical architecture context only.
 
 ## What to build
 
