@@ -1,6 +1,6 @@
 ---
 id: issue-0005
-status: draft
+status: done
 type: reset
 mode: HITL
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -57,11 +57,11 @@ Constraints:
 
 ## Blocked by
 
-- Human confirmation to perform the destructive reset on `main` after the backup branch/tag plan is reviewed.
+- None - completed after user requested implementation of all issues.
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-27: Minimal MV3 scaffold reset implemented on `main`; backup branch/tag verified before destructive reset.
 
 ## Out of scope
 

@@ -1,53 +1,89 @@
 # Iteration
 
-anchor: 3d7de2da46b83af1c67c190a1d4527a296fb2fe2
-started: 2026-02-11T23:46:00-05:00
-mode: data-definition-driven
-language: JavaScript → TypeScript
+anchor: 6f6952a1151950fc877e2c9beb5fde7f58d992f7
+started: 2026-04-27T16:30:00-04:00
+stubber-mode: data-definition-driven
+workflow-mode: autonomous
+language: TypeScript
 transparent: true
+
+## Source Artifacts
+
+- PRD: .htdp/prds/prd-0001-omnibar-reset.md
+- Issues:
+  - .htdp/issues/issue-0005-backup-reset-scaffold.md
+  - .htdp/issues/issue-0006-omnibar-opener-primitive.md
+  - .htdp/issues/issue-0007-plugin-registry-youtube-shell.md
+  - .htdp/issues/issue-0008-youtube-default-mode-actions.md
+  - .htdp/issues/issue-0009-youtube-bridge-protocol.md
+  - .htdp/issues/issue-0010-transcript-mode-provider.md
+  - .htdp/issues/issue-0011-retire-legacy-scope-docs.md
+- Architecture review: .htdp/architecture/review-0001-render-site-boundaries.md (historical/superseded)
 
 ## Problem
 
-Convert the entire Vilify codebase from JavaScript to TypeScript. The project has 42 source files and 21 test files (~21K lines total) across src/core/, src/sites/google/, and src/sites/youtube/. The code already uses JSDoc type annotations extensively (AppState, UIState, SiteConfig, PageState, etc.), which should become proper TypeScript interfaces.
-
-Strategy: gradual — start with `strict: false` / `noImplicitAny: false`, get it compiling, tests passing.
+Implement the omnibar reset PRD by replacing the active broad site-replacement extension with a focused MV3 TypeScript extension. The final active scope is a single custom UI primitive (omnibar) on YouTube watch pages, URL navigation, native video actions, and transcript search through structured YouTube protocols/data. Google support, focus-mode layout replacement, listing UI, drawers, comments, Watch Later/dismiss/subscribe menu flows, and ambient multi-key bindings are retired from active scope.
 
 ## Data Definition Plan
 
-### New: src/types.ts — Central type definitions file
-Extract all JSDoc type annotations into proper TypeScript interfaces/types:
+Greenfield/data-definition-driven reset. Define the new runtime around:
 
-**Core types:**
-- `AppState = { core: AppCore, ui: UIState, site: any, page: PageState | null }`
-- `AppCore = { focusModeActive: boolean, lastUrl: string }`
-- `UIState = { drawer, paletteQuery, paletteSelectedIdx, selectedIdx, filterActive, filterQuery, searchActive, searchQuery, keySeq, sort, message, boundaryFlash, watchLaterAdded, watchLaterRemoved, lastWatchLaterRemoval, dismissedVideos, lastDismissal }`
-- `SortConfig = { field: string | null, direction: 'asc' | 'desc' }`
-- `Message = { text: string, timestamp: number }`
-- `BoundaryFlash = { edge: 'top' | 'bottom', timestamp: number }`
-- `KeyContext = { pageType: string | null, filterActive: boolean, searchActive: boolean, drawer: string | null }`
+- `OmnibarState`: open/query/selected index/mode stack.
+- `SitePlugin`, `OmnibarMode`, `OmnibarProvider`, and `ProviderContext`: stateless plugin declarations and provider-owned data.
+- `OmnibarItem`, `OmnibarItemKind`, `OmnibarAction`, and action execution adapters: typed command execution with platform APIs.
+- `YouTubeBridgeRequest` / `YouTubeBridgeResponse`, `VideoMetadata`, `TranscriptLine`, `TranscriptResult`, `CaptionTrack`: YouTube-specific structured bridge protocol.
+- `TranscriptProviderState` / `TranscriptLoadState`: provider-owned per-video cache.
 
-**Site types:**
-- `SiteConfig` — the big interface (name, theme, pageConfigs, getKeySequences, etc.)
-- `SiteTheme = { bg1, bg2, bg3, txt1, txt2, txt3, txt4, accent, accentHover }`
-- `PageConfig = { scrape, render, ... }`
-- `DrawerHandler = { element, update?, setQuery?, navigateDrawer?, getSelected? }`
+## Polya Ledger
 
-**Content types:**
-- `ContentItem = { title, url, meta, description, ... }`
-- `PageState = ListPageState | WatchPageState`
-- `ListPageState = { type: 'list', videos: ContentItem[] }`
-- `WatchPageState = { type: 'watch', videoContext, recommended, chapters, ... }`
+### Knowns
 
-**YouTube-specific:**
-- `YouTubeState = { chapterQuery, chapterSelectedIdx, commentPage, ... transcript, chapters }`
-- `TranscriptResult`, `ChaptersResult`
+- Backup branch `backup/pre-omnibar-reset` and tag `pre-omnibar-reset-2026-04-27` already exist locally and on `origin`, dereferencing to commit `41d48410083f9fb4a1a676136ce4d3b168a5bf57`.
+- Current branch is `main`; current head at iteration start is `6f6952a1151950fc877e2c9beb5fde7f58d992f7`.
+- Build/test commands are `bun run build` and `bun run test`.
+- `htdp.mode` is configured as `autonomous`; `htdp.transparent` is true.
 
-**Google-specific:**
-- `GoogleState = {}`
+### Constraints
 
-### Infrastructure changes:
-- Add `tsconfig.json` with loose settings
-- Add `typescript` and `@types/chrome` devDependencies
-- Update `build.js` entry points from .js to .ts
-- Rename all 63 .js files to .ts
-- Fix all import paths (remove .js extensions)
+- Closed state intercepts only `:` on supported pages and ignores editable targets.
+- Supported page scope is YouTube watch pages only for v1.
+- Use web-platform APIs and structured YouTube protocol/data only.
+- Do not click visible target-site controls, drive hidden menus, scrape visible UI text/layout, or replace target-site layout.
+- Follow repo policy: bump `package.json` and `manifest.json` for implementation changes; commit and push after each issue/change.
+
+### Unknowns That Matter
+
+- [resolved by PRD/issues as v1 default] Escape in nested modes pops to the previous mode; Escape at root closes the omnibar.
+- [resolved by PRD/issues as v1 default] Transcript mode entry is via a selectable default-mode item.
+- [resolved by PRD/issues as v1 default] Copy title is omitted unless structured metadata is available.
+- [resolved by PRD/issues as v1 default] Omnibar visual styling is minimal and unobtrusive.
+
+### Out of Scope
+
+- Google support.
+- Full-site focus mode and page/listing replacement.
+- YouTube comments UI, drawers, persistent transcript sidebar.
+- Watch Later/dismiss/subscribe mutations.
+- Captions/theater/fullscreen commands through visible-control clicking.
+- External transcript backend service.
+
+### Assumptions
+
+- Existing backup branch/tag are sufficient preservation points because they contain the pre-reset implementation; no force-updating remote tag is needed.
+- The reset can replace old tests with new scope tests rather than preserving legacy behavioral tests.
+- Issue 0008 and issue 0009 may be worked in parallel after the plugin shell if their files remain disjoint except for stable shared types.
+
+### Alternatives Considered
+
+- Keep old architecture and progressively disable features — rejected because it preserves brittle seams and contradicts greenfield reset direction.
+- Force-update backup tag to current head — rejected to avoid rewriting an existing remote tag; code preservation requirement is already met.
+- Add a broad `SiteRuntime` — rejected for v1; provider-owned state is sufficient until shared mutable resources are proven.
+- Chosen: greenfield reset with small generic omnibar runtime, stateless plugins, typed platform actions, YouTube-specific bridge, and provider-owned transcript cache.
+
+### Decision Log
+
+- 2026-04-27T16:30:00-04:00 — User requested implementation of all local issues in dependency order with HtDP parallelization where reasonable; treat as confirmation to proceed with the destructive reset after verifying backup branch/tag exists.
+
+### Look Back
+
+- Leave empty until implementation verification.

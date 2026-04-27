@@ -1,61 +1,42 @@
-// Vilify - Content Script Entry Point
-// Loads when matching site patterns are detected
-// Note: data-bridge.js runs separately in MAIN world to capture ytInitialData
+export type SupportedPage =
+  | { kind: 'youtube-watch'; url: URL; videoId: string }
+  | { kind: 'unsupported'; url: URL };
 
-import type { SiteConfig } from './types';
-import { initSite } from './core/index';
-import { injectLoadingStyles } from './core/loading';
-import { youtubeConfig } from './sites/youtube/index';
-import { googleConfig } from './sites/google/index';
-
-/**
- * Detect current site and return appropriate config.
- * 
- * Signature: getSiteConfig : () → SiteConfig | null
- * Purpose: Detect current site and return appropriate config
- * 
- * Examples:
- *   // On youtube.com
- *   getSiteConfig() => youtubeConfig
- *   // On google.com
- *   getSiteConfig() => googleConfig
- *   // On other site
- *   getSiteConfig() => null
- * 
- * @returns {SiteConfig|null} Site config or null if unsupported site
- */
-export function getSiteConfig(): SiteConfig | null {
-  const hostname = location.hostname;
-  
-  if (hostname === 'www.youtube.com' || hostname === 'youtube.com') {
-    return youtubeConfig;
-  }
-  
-  if (hostname === 'www.google.com' || hostname === 'google.com') {
-    if (location.pathname.startsWith('/search')) {
-      return googleConfig;
-    }
-    return null;
-  }
-  
-  return null;
+export interface ContentScriptEnv {
+  location?: Location;
+  document?: Document;
 }
 
-console.log('[Vilify] Content script loaded');
+function isYouTubeHost(hostname: string): boolean {
+  const normalizedHostname = hostname.toLowerCase();
+  return normalizedHostname === 'youtube.com' || normalizedHostname.endsWith('.youtube.com');
+}
 
-// Initialize UI when DOM is ready
-const config: SiteConfig | null = getSiteConfig();
-
-if (config) {
-  // Inject loading styles immediately at document_start, before DOM is ready,
-  // so CSS that hides Google/YouTube content is present from the very start.
-  injectLoadingStyles();
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => initSite(config));
-  } else {
-    initSite(config);
+export function detectSupportedPage(url: URL): SupportedPage {
+  if (isYouTubeHost(url.hostname) && url.pathname === '/watch') {
+    const videoId = url.searchParams.get('v')?.trim() ?? '';
+    if (videoId.length > 0) {
+      return { kind: 'youtube-watch', url, videoId };
+    }
   }
-} else {
-  console.log('[Vilify] No supported site detected');
+
+  return { kind: 'unsupported', url };
+}
+
+function readRuntimeUrl(env: ContentScriptEnv): URL {
+  const href = env.location?.href ?? globalThis.location?.href ?? 'about:blank';
+
+  try {
+    return new URL(href);
+  } catch {
+    return new URL('about:blank');
+  }
+}
+
+export function initContentScript(env: ContentScriptEnv = {}): SupportedPage {
+  return detectSupportedPage(readRuntimeUrl(env));
+}
+
+if (typeof globalThis.location !== 'undefined') {
+  initContentScript();
 }

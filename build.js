@@ -14,9 +14,9 @@ const contentOptions = {
   logLevel: 'info',
 };
 
-// Data bridge script (runs in MAIN world)
+// YouTube bridge script (runs in MAIN world)
 const bridgeOptions = {
-  entryPoints: ['src/sites/youtube/data-bridge.ts'],
+  entryPoints: ['src/sites/youtube/main-world-bridge.ts'],
   bundle: true,
   outfile: 'dist/data-bridge.js',
   format: 'iife',

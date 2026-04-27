@@ -1,96 +1,91 @@
-// Content script getSiteConfig() tests
-// Verifies URL-based site detection including Google /search restriction
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { JSDOM } from 'jsdom';
+import { detectSupportedPage, initContentScript } from './content';
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+function makeDom(url: string): JSDOM {
+  return new JSDOM('<!doctype html><html><body><main id="page"><button>Native page control</button></main></body></html>', {
+    url,
+  });
+}
 
-// Mock DOM APIs needed at import time by transitive dependencies
-vi.stubGlobal('document', {
-  readyState: 'complete',
-  querySelector: vi.fn(() => null),
-  querySelectorAll: vi.fn(() => []),
-  createElement: vi.fn(() => ({
-    style: {},
-    setAttribute: vi.fn(),
-    appendChild: vi.fn(),
-    classList: { add: vi.fn(), contains: vi.fn(() => false) },
-  })),
-  head: { appendChild: vi.fn() },
-  getElementById: vi.fn(() => null),
-  addEventListener: vi.fn(),
+describe('detectSupportedPage', () => {
+  it('detects YouTube watch pages and extracts the video id', () => {
+    const url = new URL('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s');
+
+    expect(detectSupportedPage(url)).toEqual({
+      kind: 'youtube-watch',
+      url,
+      videoId: 'dQw4w9WgXcQ',
+    });
+  });
+
+  it('treats YouTube watch URLs without a video id as unsupported', () => {
+    const url = new URL('https://www.youtube.com/watch?t=42s');
+
+    expect(detectSupportedPage(url)).toEqual({ kind: 'unsupported', url });
+  });
+
+  it('treats YouTube non-watch pages as unsupported', () => {
+    const urls = [
+      new URL('https://www.youtube.com/'),
+      new URL('https://www.youtube.com/results?search_query=vim'),
+      new URL('https://www.youtube.com/shorts/dQw4w9WgXcQ'),
+    ];
+
+    for (const url of urls) {
+      expect(detectSupportedPage(url)).toEqual({ kind: 'unsupported', url });
+    }
+  });
+
+  it('treats Google and unrelated pages as unsupported', () => {
+    const urls = [
+      new URL('https://www.google.com/search?q=vilify'),
+      new URL('https://google.com/search?q=vilify'),
+      new URL('https://example.com/watch?v=dQw4w9WgXcQ'),
+    ];
+
+    for (const url of urls) {
+      expect(detectSupportedPage(url)).toEqual({ kind: 'unsupported', url });
+    }
+  });
 });
 
-vi.stubGlobal('window', {
-  location: { hostname: 'www.google.com', pathname: '/search', href: 'https://www.google.com/search?q=test' },
-});
-
-// Default location stub — tests override per case
-vi.stubGlobal('location', {
-  hostname: 'www.google.com',
-  pathname: '/search',
-  href: 'https://www.google.com/search?q=test',
-});
-
-// Mock initSite so content.js doesn't actually run site init
-vi.mock('./core/index', () => ({ initSite: vi.fn() }));
-// Mock loading.js so early injectLoadingStyles() call doesn't need full DOM
-vi.mock('./core/loading', () => ({ injectLoadingStyles: vi.fn() }));
-
-const { getSiteConfig } = await import('./content');
-const { googleConfig } = await import('./sites/google/index');
-const { youtubeConfig } = await import('./sites/youtube/index');
-
-describe('getSiteConfig', () => {
-  it('returns googleConfig for www.google.com/search', () => {
-    location.hostname = 'www.google.com';
-    location.pathname = '/search';
-    expect(getSiteConfig()).toBe(googleConfig);
+describe('initContentScript', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it('returns googleConfig for google.com/search', () => {
-    location.hostname = 'google.com';
-    location.pathname = '/search';
-    expect(getSiteConfig()).toBe(googleConfig);
+  it('returns the supported YouTube watch page without mutating the page DOM or installing key handlers', () => {
+    const dom = makeDom('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    const beforeHtml = dom.window.document.documentElement.outerHTML;
+    const documentAddEventListener = vi.spyOn(dom.window.document, 'addEventListener');
+    const windowAddEventListener = vi.spyOn(dom.window, 'addEventListener');
+
+    const result = initContentScript({
+      location: dom.window.location,
+      document: dom.window.document,
+    });
+
+    expect(result).toMatchObject({ kind: 'youtube-watch', videoId: 'dQw4w9WgXcQ' });
+    expect(dom.window.document.documentElement.outerHTML).toBe(beforeHtml);
+    expect(documentAddEventListener).not.toHaveBeenCalled();
+    expect(windowAddEventListener).not.toHaveBeenCalled();
   });
 
-  it('returns googleConfig for /search with query params', () => {
-    location.hostname = 'www.google.com';
-    location.pathname = '/search';
-    expect(getSiteConfig()).toBe(googleConfig);
-  });
+  it('returns unsupported for Google pages without mutating the page DOM or installing key handlers', () => {
+    const dom = makeDom('https://www.google.com/search?q=vilify');
+    const beforeHtml = dom.window.document.documentElement.outerHTML;
+    const documentAddEventListener = vi.spyOn(dom.window.document, 'addEventListener');
+    const windowAddEventListener = vi.spyOn(dom.window, 'addEventListener');
 
-  it('returns null for www.google.com/maps', () => {
-    location.hostname = 'www.google.com';
-    location.pathname = '/maps';
-    expect(getSiteConfig()).toBeNull();
-  });
+    const result = initContentScript({
+      location: dom.window.location,
+      document: dom.window.document,
+    });
 
-  it('returns null for www.google.com/ (homepage)', () => {
-    location.hostname = 'www.google.com';
-    location.pathname = '/';
-    expect(getSiteConfig()).toBeNull();
-  });
-
-  it('returns null for www.google.com/docs', () => {
-    location.hostname = 'www.google.com';
-    location.pathname = '/docs';
-    expect(getSiteConfig()).toBeNull();
-  });
-
-  it('returns youtubeConfig for www.youtube.com', () => {
-    location.hostname = 'www.youtube.com';
-    location.pathname = '/';
-    expect(getSiteConfig()).toBe(youtubeConfig);
-  });
-
-  it('returns youtubeConfig for youtube.com', () => {
-    location.hostname = 'youtube.com';
-    location.pathname = '/watch';
-    expect(getSiteConfig()).toBe(youtubeConfig);
-  });
-
-  it('returns null for unsupported sites', () => {
-    location.hostname = 'www.example.com';
-    location.pathname = '/';
-    expect(getSiteConfig()).toBeNull();
+    expect(result).toEqual({ kind: 'unsupported', url: new URL('https://www.google.com/search?q=vilify') });
+    expect(dom.window.document.documentElement.outerHTML).toBe(beforeHtml);
+    expect(documentAddEventListener).not.toHaveBeenCalled();
+    expect(windowAddEventListener).not.toHaveBeenCalled();
   });
 });
