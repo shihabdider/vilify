@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vilify",
-  "version": "0.6.52",
+  "version": "0.6.53",
   "description": "Minimal YouTube omnibar scaffold",
   "content_scripts": [
     {

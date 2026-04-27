@@ -1,3 +1,7 @@
+import { createOmnibarRuntime } from './omnibar/runtime';
+import { createDefaultOmnibarMode } from './omnibar/state';
+import type { OmnibarActionExecutor, OmnibarMode } from './omnibar/types';
+
 export type SupportedPage =
   | { kind: 'youtube-watch'; url: URL; videoId: string }
   | { kind: 'unsupported'; url: URL };
@@ -5,6 +9,8 @@ export type SupportedPage =
 export interface ContentScriptEnv {
   location?: Location;
   document?: Document;
+  omnibarMode?: OmnibarMode;
+  actionExecutor?: OmnibarActionExecutor;
 }
 
 function isYouTubeHost(hostname: string): boolean {
@@ -34,7 +40,23 @@ function readRuntimeUrl(env: ContentScriptEnv): URL {
 }
 
 export function initContentScript(env: ContentScriptEnv = {}): SupportedPage {
-  return detectSupportedPage(readRuntimeUrl(env));
+  const page = detectSupportedPage(readRuntimeUrl(env));
+  const document = env.document ?? globalThis.document;
+
+  if (page.kind !== 'unsupported' && document) {
+    createOmnibarRuntime({
+      document,
+      rootMode: env.omnibarMode ?? createDefaultOmnibarMode(),
+      providerContext: {
+        document,
+        location: env.location ?? document.location,
+        page,
+      },
+      actionExecutor: env.actionExecutor,
+    });
+  }
+
+  return page;
 }
 
 if (typeof globalThis.location !== 'undefined') {

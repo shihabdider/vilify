@@ -5,10 +5,10 @@ This iteration implements the omnibar reset issues in dependency order. Function
 ## Completed
 
 - `issue-0005` — preserve backup refs and reset active code to a minimal MV3 scaffold.
+- `issue-0006` — implement omnibar opener and generic interaction primitive.
 
 ## Pending
 
-- `issue-0006` — omnibar opener and generic interaction primitive.
 - `issue-0007` — stateless plugin registry and YouTube watch-page plugin shell.
 - `issue-0008` — YouTube default mode navigation and native video actions.
 - `issue-0009` — typed YouTube main-world bridge protocol.

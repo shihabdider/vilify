@@ -1,6 +1,6 @@
 ---
 id: issue-0006
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -62,7 +62,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-27: Implemented generic omnibar runtime, `:` opener on supported pages, placeholder mode/items, keyboard handling, and jsdom coverage.
 
 ## Out of scope
 
