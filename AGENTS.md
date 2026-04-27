@@ -27,4 +27,5 @@ if (el) { /* update element */ }
 
 This is needed because the render chain (`renderWatchWithRetry` → `renderWatchPage` → `renderVideoInfoBox`) may not always propagate state changes to the info box reliably — the direct DOM update is the primary mechanism for immediate visual feedback.
 
+htdp.mode: autonomous
 htdp.transparent: true
