@@ -15,19 +15,33 @@ export interface OmnibarActionContext {
   readonly providerContext: ProviderContext;
 }
 
+export type OmnibarItemKind = 'navigation' | 'video-action' | 'command' | 'status';
+
 export type OmnibarActionResult =
   | { kind: 'none' }
   | { kind: 'close' }
-  | { kind: 'push-mode'; mode: OmnibarMode };
+  | { kind: 'push-mode'; mode: OmnibarMode }
+  | { kind: 'status'; message: string; tone?: 'info' | 'warning' | 'error' };
+
+export type OmnibarCopySource =
+  | { kind: 'current-url' }
+  | { kind: 'current-url-at-video-time' }
+  | { kind: 'text'; text: string };
 
 export type OmnibarAction =
   | { kind: 'noop' }
   | { kind: 'close' }
   | { kind: 'push-mode'; mode: OmnibarMode }
-  | { kind: 'custom'; execute: (context: OmnibarActionContext) => OmnibarActionResult | void };
+  | { kind: 'navigate'; url: string }
+  | { kind: 'copy'; source: OmnibarCopySource }
+  | { kind: 'seek'; seconds: number }
+  | { kind: 'playPause' }
+  | { kind: 'setPlaybackRate'; rate: number }
+  | { kind: 'custom'; execute: (context: OmnibarActionContext) => OmnibarActionExecution };
 
 export interface OmnibarItem {
   readonly id: string;
+  readonly kind: OmnibarItemKind;
   readonly title: string;
   readonly subtitle?: string;
   readonly keywords?: readonly string[];
@@ -53,7 +67,9 @@ export interface OmnibarState {
   readonly modeStack: readonly OmnibarMode[];
 }
 
+export type OmnibarActionExecution = OmnibarActionResult | void | Promise<OmnibarActionResult | void>;
+
 export type OmnibarActionExecutor = (
   action: OmnibarAction,
   context: OmnibarActionContext,
-) => OmnibarActionResult | void;
+) => OmnibarActionExecution;

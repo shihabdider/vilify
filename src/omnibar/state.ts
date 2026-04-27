@@ -1,7 +1,8 @@
+import { executeOmnibarAction as executeDefaultOmnibarAction } from './actions';
 import type {
   OmnibarAction,
   OmnibarActionContext,
-  OmnibarActionResult,
+  OmnibarActionExecution,
   OmnibarItem,
   OmnibarMode,
   OmnibarModeId,
@@ -38,6 +39,7 @@ export function createDefaultOmnibarMode(): OmnibarMode {
     items: [
       {
         id: 'placeholder-nested-item',
+        kind: 'status',
         title: 'Nested placeholder item',
         subtitle: 'Static placeholder result for future Vilify modes',
         keywords: ['nested', 'placeholder'],
@@ -53,6 +55,7 @@ export function createDefaultOmnibarMode(): OmnibarMode {
     items: [
       {
         id: 'placeholder-command',
+        kind: 'command',
         title: 'Placeholder command',
         subtitle: 'Static command placeholder for the omnibar primitive',
         keywords: ['placeholder', 'command'],
@@ -60,6 +63,7 @@ export function createDefaultOmnibarMode(): OmnibarMode {
       },
       {
         id: 'open-placeholder-mode',
+        kind: 'command',
         title: 'Open placeholder mode',
         subtitle: 'Demonstrates nested omnibar mode navigation',
         keywords: ['nested', 'mode', 'placeholder'],
@@ -195,20 +199,11 @@ export function resolveSelectedOmnibarItem(
 export function executeOmnibarAction(
   action: OmnibarAction,
   context: OmnibarActionContext,
-): OmnibarActionResult {
-  switch (action.kind) {
-    case 'noop':
-      return { kind: 'none' };
-    case 'close':
-      return { kind: 'close' };
-    case 'push-mode':
-      return { kind: 'push-mode', mode: action.mode };
-    case 'custom':
-      return action.execute(context) ?? { kind: 'none' };
-  }
+): OmnibarActionExecution {
+  return executeDefaultOmnibarAction(action, context);
 }
 
-function filterOmnibarItems(items: readonly OmnibarItem[], query: string): readonly OmnibarItem[] {
+export function filterOmnibarItems(items: readonly OmnibarItem[], query: string): readonly OmnibarItem[] {
   const normalizedQuery = query.trim().toLowerCase();
   if (normalizedQuery.length === 0) {
     return items;

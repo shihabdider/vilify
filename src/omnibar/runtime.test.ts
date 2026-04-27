@@ -56,8 +56,8 @@ describe('createOmnibarRuntime', () => {
     const runtime = createOmnibarRuntime({
       document: dom.window.document,
       rootMode: makeMode([
-        { id: 'alpha', title: 'Alpha command', action: { kind: 'noop' } },
-        { id: 'beta', title: 'Beta command', action: { kind: 'noop' } },
+        { id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } },
+        { id: 'beta', kind: 'command', title: 'Beta command', action: { kind: 'noop' } },
       ]),
     });
 
@@ -78,8 +78,8 @@ describe('createOmnibarRuntime', () => {
     const runtime = createOmnibarRuntime({
       document: dom.window.document,
       rootMode: makeMode([
-        { id: 'alpha', title: 'Alpha command', action: { kind: 'noop' } },
-        { id: 'beta', title: 'Beta command', action: { kind: 'noop' } },
+        { id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } },
+        { id: 'beta', kind: 'command', title: 'Beta command', action: { kind: 'noop' } },
       ]),
     });
 
@@ -114,6 +114,7 @@ describe('createOmnibarRuntime', () => {
       rootMode: makeMode([
         {
           id: 'run-placeholder',
+          kind: 'command',
           title: 'Run placeholder action',
           action: { kind: 'custom', execute },
         },
@@ -139,7 +140,7 @@ describe('createOmnibarRuntime', () => {
     const dom = makeDom();
     const runtime = createOmnibarRuntime({
       document: dom.window.document,
-      rootMode: makeMode([{ id: 'alpha', title: 'Alpha command', action: { kind: 'noop' } }]),
+      rootMode: makeMode([{ id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } }]),
     });
 
     runtime.open();
@@ -157,13 +158,14 @@ describe('createOmnibarRuntime', () => {
     const dom = makeDom();
     const beforePageHtml = dom.window.document.getElementById('page')?.outerHTML;
     const nestedMode = makeMode(
-      [{ id: 'nested-item', title: 'Nested placeholder item', action: { kind: 'noop' } }],
+      [{ id: 'nested-item', kind: 'status', title: 'Nested placeholder item', action: { kind: 'noop' } }],
       'nested',
       'Nested',
     );
     const rootMode = makeMode([
       {
         id: 'open-nested',
+        kind: 'command',
         title: 'Open nested placeholder mode',
         action: { kind: 'push-mode', mode: nestedMode },
       },
@@ -196,6 +198,7 @@ describe('createOmnibarRuntime', () => {
     const provider = vi.fn((_context, query: string) => [
       {
         id: query ? `fake-${query}` : 'fake-all',
+        kind: 'command' as const,
         title: query ? `Fake result for ${query}` : 'All fake results',
         action: { kind: 'noop' as const },
       },

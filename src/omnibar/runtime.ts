@@ -14,6 +14,7 @@ import {
 } from './state';
 import { getOpenOmnibarKeyIntent, isEditableTarget, isOmnibarOpenerKey } from './keyboard';
 import type {
+  OmnibarActionExecution,
   OmnibarActionExecutor,
   OmnibarActionResult,
   OmnibarItem,
@@ -244,6 +245,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     row.className = 'vilify-omnibar-row';
     row.dataset.vilifyOmnibarItem = 'true';
     row.dataset.itemId = item.id;
+    row.dataset.itemKind = item.kind;
     row.dataset.selected = selected ? 'true' : 'false';
     row.setAttribute('role', 'option');
     row.setAttribute('aria-selected', selected ? 'true' : 'false');
@@ -274,9 +276,23 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
       case 'push-mode':
         state = pushOmnibarMode(state, result.mode);
         break;
+      case 'status':
+        state = normalizeOmnibarSelection(state, getVisibleItems().length);
+        break;
     }
 
     render();
+  }
+
+  function applyActionExecution(execution: OmnibarActionExecution): void {
+    if (isPromiseLike(execution)) {
+      execution
+        .then((result) => applyActionResult(result))
+        .catch((error) => applyActionResult(statusFromActionError(error)));
+      return;
+    }
+
+    applyActionResult(execution);
   }
 
   function executeSelectedItem(): void {
@@ -294,7 +310,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
       providerContext,
     });
 
-    applyActionResult(result);
+    applyActionExecution(result);
   }
 
   function handleDocumentKeyDown(event: KeyboardEvent): void {
@@ -338,6 +354,23 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     event.stopPropagation();
     state = openOmnibar(state);
     render();
+  }
+
+  function isPromiseLike(value: unknown): value is PromiseLike<OmnibarActionResult | void> {
+    return (
+      value !== null &&
+      typeof value === 'object' &&
+      typeof (value as PromiseLike<unknown>).then === 'function'
+    );
+  }
+
+  function statusFromActionError(error: unknown): OmnibarActionResult {
+    const detail = error instanceof Error && error.message ? `: ${error.message}` : '';
+    return {
+      kind: 'status',
+      tone: 'error',
+      message: `Could not execute omnibar action${detail}`,
+    };
   }
 
   document.addEventListener('keydown', handleDocumentKeyDown, true);

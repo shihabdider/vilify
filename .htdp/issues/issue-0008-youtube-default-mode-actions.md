@@ -1,6 +1,6 @@
 ---
 id: issue-0008
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -70,7 +70,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-27: Added typed omnibar action variants/executor, YouTube navigation provider, native video actions, clipboard URL actions, and tests.
 
 ## Out of scope
 
