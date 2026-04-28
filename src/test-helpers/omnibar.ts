@@ -21,6 +21,21 @@ export function makeYouTubeWatchDom(videoId: string, body = DEFAULT_YOUTUBE_WATC
   return makeOmnibarTestDom(`https://www.youtube.com/watch?v=${videoId}`, body);
 }
 
+export function domDocumentLocation(dom: JSDOM): { readonly document: Document; readonly location: Location } {
+  return {
+    document: dom.window.document,
+    location: dom.window.location,
+  };
+}
+
+export function pushDomHistory(dom: JSDOM, url: string): void {
+  dom.window.history.pushState({}, '', url);
+}
+
+export function reconfigureDomUrl(dom: JSDOM, url: string): void {
+  dom.reconfigure({ url });
+}
+
 export function createKeyDownEvent(
   window: Window,
   key: string,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { makeOmnibarTestDom } from '../test-helpers/omnibar';
+import { domDocumentLocation, makeOmnibarTestDom, pushDomHistory } from '../test-helpers/omnibar';
 import { createOmnibarActionExecutor } from './actions';
 import { createInitialOmnibarState, createStaticOmnibarMode } from './state';
 import type {
@@ -171,14 +171,11 @@ describe('createOmnibarActionExecutor', () => {
     const writeClipboardText = vi.fn();
     const context: OmnibarActionContext = {
       ...makeContext(),
-      providerContext: {
-        document: dom.window.document,
-        location: dom.window.location,
-      },
+      providerContext: domDocumentLocation(dom),
     };
     const execute = createOmnibarActionExecutor({ writeClipboardText });
 
-    dom.window.history.pushState({}, '', '/watch?v=new-video&list=PL123');
+    pushDomHistory(dom, '/watch?v=new-video&list=PL123');
 
     await expect(
       resolveActionResult(execute({ kind: 'copy', source: { kind: 'current-url' } }, context)),
@@ -193,10 +190,7 @@ describe('createOmnibarActionExecutor', () => {
     const dom = makeOmnibarTestDom('https://www.youtube.com/watch?v=abc123', '<main id="page"></main>');
     const context: OmnibarActionContext = {
       ...makeContext(),
-      providerContext: {
-        document: dom.window.document,
-        location: dom.window.location,
-      },
+      providerContext: domDocumentLocation(dom),
     };
     const execute = createOmnibarActionExecutor();
     const seekAction: OmnibarAction = { kind: 'seek', seconds: 12, seekMode: 'absolute' };

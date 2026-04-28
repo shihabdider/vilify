@@ -1,28 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detectSupportedPage, initContentScript } from './content';
 import {
+  domDocumentLocation,
   getOmnibarInput,
   makeOmnibarTestDom as makeDom,
   omnibarItemIds,
   omnibarModeLabel as getOmnibarModeLabel,
   pressKey,
+  pushDomHistory,
   requireOmnibarInput,
 } from './test-helpers/omnibar';
 import { youtubeDefaultMode, youtubePlugin } from './sites/youtube/plugin';
 import type { OmnibarMode } from './omnibar/types';
+import {
+  NON_YOUTUBE_URLS,
+  YOUTUBE_NON_WATCH_URLS,
+  YOUTUBE_SUPPORTED_URLS,
+  YOUTUBE_WATCH_URL,
+} from './test-helpers/youtube-url-fixtures';
 
 describe('detectSupportedPage', () => {
   it('detects the active YouTube plugin for YouTube host-level pages', () => {
-    const urls = [
-      new URL('https://www.youtube.com/'),
-      new URL('https://www.youtube.com/results?search_query=vim'),
-      new URL('https://www.youtube.com/@vilify'),
-      new URL('https://www.youtube.com/channel/UC123'),
-      new URL('https://www.youtube.com/playlist?list=PL123'),
-      new URL('https://www.youtube.com/shorts/dQw4w9WgXcQ'),
-      new URL('https://www.youtube.com/watch?t=42s'),
-      new URL('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s'),
-    ];
+    const urls = YOUTUBE_SUPPORTED_URLS.map((url) => new URL(url));
 
     for (const url of urls) {
       expect(detectSupportedPage(url)).toEqual({
@@ -34,12 +33,7 @@ describe('detectSupportedPage', () => {
   });
 
   it('treats Google, youtu.be, and unrelated pages as unsupported', () => {
-    const urls = [
-      new URL('https://www.google.com/search?q=vilify'),
-      new URL('https://google.com/search?q=vilify'),
-      new URL('https://youtu.be/dQw4w9WgXcQ'),
-      new URL('https://example.com/watch?v=dQw4w9WgXcQ'),
-    ];
+    const urls = NON_YOUTUBE_URLS.map((url) => new URL(url));
 
     for (const url of urls) {
       expect(detectSupportedPage(url)).toEqual({ kind: 'unsupported', url });
@@ -57,10 +51,7 @@ describe('initContentScript', () => {
     const page = dom.window.document.getElementById('page');
     const beforePageHtml = page?.outerHTML;
 
-    const result = initContentScript({
-      location: dom.window.location,
-      document: dom.window.document,
-    });
+    const result = initContentScript(domDocumentLocation(dom));
 
     expect(result).toMatchObject({ kind: 'active-plugin' });
     expect(result.kind === 'active-plugin' ? result.plugin : null).toBe(youtubePlugin);
@@ -88,21 +79,10 @@ describe('initContentScript', () => {
   });
 
   it('installs a closed-state opener on YouTube non-watch plugin pages', () => {
-    for (const pageUrl of [
-      'https://www.youtube.com/',
-      'https://www.youtube.com/results?search_query=vilify',
-      'https://www.youtube.com/@vilify',
-      'https://www.youtube.com/channel/UC123',
-      'https://www.youtube.com/playlist?list=PL123',
-      'https://www.youtube.com/shorts/dQw4w9WgXcQ',
-      'https://www.youtube.com/watch?t=42s',
-    ]) {
+    for (const pageUrl of YOUTUBE_NON_WATCH_URLS) {
       const dom = makeDom(pageUrl);
 
-      const result = initContentScript({
-        location: dom.window.location,
-        document: dom.window.document,
-      });
+      const result = initContentScript(domDocumentLocation(dom));
 
       expect(result, pageUrl).toMatchObject({ kind: 'active-plugin' });
       expect(result.kind === 'active-plugin' ? result.plugin : null, pageUrl).toBe(youtubePlugin);
@@ -114,15 +94,7 @@ describe('initContentScript', () => {
   });
 
   it('bypasses : when focus is inside editable targets on supported YouTube pages', () => {
-    for (const pageUrl of [
-      'https://www.youtube.com/',
-      'https://www.youtube.com/results?search_query=vilify',
-      'https://www.youtube.com/channel/UC123',
-      'https://www.youtube.com/playlist?list=PL123',
-      'https://www.youtube.com/shorts/dQw4w9WgXcQ',
-      'https://www.youtube.com/watch?t=42s',
-      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    ]) {
+    for (const pageUrl of [...YOUTUBE_NON_WATCH_URLS, YOUTUBE_WATCH_URL]) {
       const dom = makeDom(
         pageUrl,
         '<main id="page">' +
@@ -134,10 +106,7 @@ describe('initContentScript', () => {
           '</main>',
       );
 
-      initContentScript({
-        location: dom.window.location,
-        document: dom.window.document,
-      });
+      initContentScript(domDocumentLocation(dom));
 
       for (const id of ['input', 'textarea', 'select', 'editable', 'editable-child']) {
         const target = dom.window.document.getElementById(id);
@@ -173,14 +142,12 @@ describe('initContentScript', () => {
     const documentAddEventListener = vi.spyOn(dom.window.document, 'addEventListener');
 
     const first = initContentScript({
-      location: dom.window.location,
-      document: dom.window.document,
+      ...domDocumentLocation(dom),
       omnibarMode,
       actionExecutor,
     });
     const second = initContentScript({
-      location: dom.window.location,
-      document: dom.window.document,
+      ...domDocumentLocation(dom),
       omnibarMode,
       actionExecutor,
     });
@@ -247,7 +214,7 @@ describe('initContentScript', () => {
     expect(root).not.toBeNull();
 
     pressKey(dom.window, requireOmnibarInput(dom.window.document), 'Escape');
-    dom.window.history.pushState({}, '', '/watch?v=spa-video-0012');
+    pushDomHistory(dom, '/watch?v=spa-video-0012');
 
     const secondOpen = pressKey(dom.window, dom.window.document.body, ':');
     expect(secondOpen.defaultPrevented).toBe(true);
@@ -262,20 +229,13 @@ describe('initContentScript', () => {
   });
 
   it('leaves Google, youtu.be, and unrelated pages without a listener, opener interception, or omnibar UI', () => {
-    for (const pageUrl of [
-      'https://www.google.com/search?q=vilify',
-      'https://youtu.be/dQw4w9WgXcQ',
-      'https://example.com/watch?v=dQw4w9WgXcQ',
-    ]) {
+    for (const pageUrl of NON_YOUTUBE_URLS) {
       const dom = makeDom(pageUrl);
       const beforeHtml = dom.window.document.documentElement.outerHTML;
       const documentAddEventListener = vi.spyOn(dom.window.document, 'addEventListener');
       const windowAddEventListener = vi.spyOn(dom.window, 'addEventListener');
 
-      const result = initContentScript({
-        location: dom.window.location,
-        document: dom.window.document,
-      });
+      const result = initContentScript(domDocumentLocation(dom));
 
       expect(result, pageUrl).toEqual({ kind: 'unsupported', url: new URL(pageUrl) });
       expect(documentAddEventListener, pageUrl).not.toHaveBeenCalled();

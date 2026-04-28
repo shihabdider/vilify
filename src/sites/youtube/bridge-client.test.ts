@@ -1,23 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { createYouTubeBridgeClient } from './bridge-client';
+import { YOUTUBE_BRIDGE_PROTOCOL, YOUTUBE_BRIDGE_RESPONSE_EVENT } from './bridge-types';
 import {
-  YOUTUBE_BRIDGE_PROTOCOL,
-  YOUTUBE_BRIDGE_REQUEST_EVENT,
-  YOUTUBE_BRIDGE_RESPONSE_EVENT,
-  type YouTubeBridgeRequest,
-  type YouTubeBridgeResponse,
-} from './bridge-types';
+  dispatchYouTubeBridgeResponse,
+  recordYouTubeBridgeRequests,
+} from '../../test-helpers/youtube-bridge';
 
 function makeDom(): JSDOM {
   return new JSDOM('<!doctype html><html><body></body></html>', {
     url: 'https://www.youtube.com/watch?v=old-video',
   });
-}
-
-function dispatchResponse(document: Document, response: YouTubeBridgeResponse): void {
-  const CustomEventCtor = document.defaultView?.CustomEvent ?? CustomEvent;
-  document.dispatchEvent(new CustomEventCtor(YOUTUBE_BRIDGE_RESPONSE_EVENT, { detail: response }));
 }
 
 describe('createYouTubeBridgeClient', () => {
@@ -29,10 +22,7 @@ describe('createYouTubeBridgeClient', () => {
   it('returns a typed timeout result and removes its listener when the bridge is absent', async () => {
     vi.useFakeTimers();
     const dom = makeDom();
-    const requests: YouTubeBridgeRequest[] = [];
-    dom.window.document.addEventListener(YOUTUBE_BRIDGE_REQUEST_EVENT, (event) => {
-      requests.push((event as CustomEvent<YouTubeBridgeRequest>).detail);
-    });
+    const requests = recordYouTubeBridgeRequests(dom.window.document);
     const removeEventListener = vi.spyOn(dom.window.document, 'removeEventListener');
     const client = createYouTubeBridgeClient({
       document: dom.window.document,
@@ -65,10 +55,7 @@ describe('createYouTubeBridgeClient', () => {
   it('matches concurrent responses only by their corresponding request ids and cleans up both listeners', async () => {
     vi.useFakeTimers();
     const dom = makeDom();
-    const requests: YouTubeBridgeRequest[] = [];
-    dom.window.document.addEventListener(YOUTUBE_BRIDGE_REQUEST_EVENT, (event) => {
-      requests.push((event as CustomEvent<YouTubeBridgeRequest>).detail);
-    });
+    const requests = recordYouTubeBridgeRequests(dom.window.document);
     const removeEventListener = vi.spyOn(dom.window.document, 'removeEventListener');
     const requestIds = ['req-meta', 'req-transcript'];
     const client = createYouTubeBridgeClient({
@@ -87,7 +74,7 @@ describe('createYouTubeBridgeClient', () => {
 
     expect(requests.map((request) => request.requestId)).toEqual(['req-meta', 'req-transcript']);
 
-    dispatchResponse(dom.window.document, {
+    dispatchYouTubeBridgeResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'transcript-response',
       requestId: 'req-transcript',
@@ -110,7 +97,7 @@ describe('createYouTubeBridgeClient', () => {
     await Promise.resolve();
     expect(metadataResolved).toBe(false);
 
-    dispatchResponse(dom.window.document, {
+    dispatchYouTubeBridgeResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'video-metadata-response',
       requestId: 'req-meta',
@@ -136,10 +123,7 @@ describe('createYouTubeBridgeClient', () => {
   it('uses the current video id at getTranscript call time when no explicit id is provided', async () => {
     vi.useFakeTimers();
     const dom = makeDom();
-    const requests: YouTubeBridgeRequest[] = [];
-    dom.window.document.addEventListener(YOUTUBE_BRIDGE_REQUEST_EVENT, (event) => {
-      requests.push((event as CustomEvent<YouTubeBridgeRequest>).detail);
-    });
+    const requests = recordYouTubeBridgeRequests(dom.window.document);
     let currentVideoId = 'first-video';
     const requestIds = ['req-first-transcript', 'req-second-transcript'];
     const client = createYouTubeBridgeClient({
@@ -157,7 +141,7 @@ describe('createYouTubeBridgeClient', () => {
       requestId: 'req-first-transcript',
       videoId: 'first-video',
     });
-    dispatchResponse(dom.window.document, {
+    dispatchYouTubeBridgeResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'transcript-response',
       requestId: 'req-first-transcript',
@@ -186,7 +170,7 @@ describe('createYouTubeBridgeClient', () => {
       requestId: 'req-second-transcript',
       videoId: 'second-video',
     });
-    dispatchResponse(dom.window.document, {
+    dispatchYouTubeBridgeResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'transcript-response',
       requestId: 'req-second-transcript',
@@ -210,10 +194,7 @@ describe('createYouTubeBridgeClient', () => {
   it('uses the current video id at getVideoMetadata call time when no explicit expected id is provided', async () => {
     vi.useFakeTimers();
     const dom = makeDom();
-    const requests: YouTubeBridgeRequest[] = [];
-    dom.window.document.addEventListener(YOUTUBE_BRIDGE_REQUEST_EVENT, (event) => {
-      requests.push((event as CustomEvent<YouTubeBridgeRequest>).detail);
-    });
+    const requests = recordYouTubeBridgeRequests(dom.window.document);
     let currentVideoId = 'initial-video';
     const client = createYouTubeBridgeClient({
       document: dom.window.document,
@@ -231,7 +212,7 @@ describe('createYouTubeBridgeClient', () => {
       requestId: 'req-current-metadata',
       expectedVideoId: 'metadata-video',
     });
-    dispatchResponse(dom.window.document, {
+    dispatchYouTubeBridgeResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'video-metadata-response',
       requestId: 'req-current-metadata',
@@ -267,7 +248,7 @@ describe('createYouTubeBridgeClient', () => {
     const result = client.getTranscript();
     currentVideoId = 'new-video';
 
-    dispatchResponse(dom.window.document, {
+    dispatchYouTubeBridgeResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'transcript-response',
       requestId: 'req-stale',
@@ -302,7 +283,7 @@ describe('createYouTubeBridgeClient', () => {
     const result = client.getVideoMetadata();
     currentVideoId = 'new-video';
 
-    dispatchResponse(dom.window.document, {
+    dispatchYouTubeBridgeResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'video-metadata-response',
       requestId: 'req-stale-metadata',

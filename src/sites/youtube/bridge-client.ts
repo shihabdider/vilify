@@ -96,6 +96,20 @@ type BridgeUnavailableResult = {
   readonly videoId?: string;
 };
 
+type VideoMetadataResponse = Extract<YouTubeBridgeResponse, { readonly kind: 'video-metadata-response' }>;
+type TranscriptResponse = Extract<YouTubeBridgeResponse, { readonly kind: 'transcript-response' }>;
+
+interface VideoScopedBridgeRequestConfig<Result, Response extends YouTubeBridgeResponse> {
+  readonly requestKind: YouTubeBridgeRequest['kind'];
+  readonly responseKind: Response['kind'];
+  readonly videoIdField: 'expectedVideoId' | 'videoId';
+  readonly applyStaleCheck: (
+    result: Result,
+    requestedVideoId: string | undefined,
+    activeVideoId: string | null,
+  ) => Result;
+}
+
 function unavailableBridgeResult(
   env: YouTubeBridgeClientEnv,
   videoId: string | undefined,
@@ -106,6 +120,23 @@ function unavailableBridgeResult(
     ...(videoId ? { videoId } : {}),
   };
 }
+
+const videoMetadataRequestConfig: VideoScopedBridgeRequestConfig<
+  VideoMetadataResult,
+  VideoMetadataResponse
+> = {
+  requestKind: 'get-video-metadata',
+  responseKind: 'video-metadata-response',
+  videoIdField: 'expectedVideoId',
+  applyStaleCheck: applyMetadataStaleCheck,
+};
+
+const transcriptRequestConfig: VideoScopedBridgeRequestConfig<TranscriptResult, TranscriptResponse> = {
+  requestKind: 'get-transcript',
+  responseKind: 'transcript-response',
+  videoIdField: 'videoId',
+  applyStaleCheck: applyTranscriptStaleCheck,
+};
 
 function sendBridgeRequest<Result>(
   env: YouTubeBridgeClientEnv,
@@ -162,60 +193,43 @@ function sendBridgeRequest<Result>(
   });
 }
 
+function requestVideoScopedBridgeData<Result, Response extends YouTubeBridgeResponse>(
+  env: YouTubeBridgeClientEnv,
+  createRequestId: () => YouTubeBridgeRequestId,
+  videoId: string | undefined,
+  config: VideoScopedBridgeRequestConfig<Result, Response>,
+): Promise<Result> {
+  const requestId = createRequestId();
+  const requestedVideoId = videoId?.trim() || readCurrentVideoId(env) || undefined;
+  const request = {
+    protocol: YOUTUBE_BRIDGE_PROTOCOL,
+    kind: config.requestKind,
+    requestId,
+    ...(requestedVideoId ? { [config.videoIdField]: requestedVideoId } : {}),
+  } as YouTubeBridgeRequest;
+  const timeoutResult = unavailableBridgeResult(env, requestedVideoId) as Result;
+
+  return sendBridgeRequest(env, request, config.responseKind, timeoutResult, (response) => {
+    if (response.kind !== config.responseKind) {
+      return null;
+    }
+
+    return config.applyStaleCheck(
+      (response as Response).result as Result,
+      requestedVideoId,
+      readCurrentVideoId(env),
+    );
+  });
+}
+
 export function createYouTubeBridgeClient(env: YouTubeBridgeClientEnv = {}): YouTubeBridgeClient {
   const createRequestId = env.createRequestId ?? createYouTubeBridgeRequestId;
 
   return {
-    getVideoMetadata(expectedVideoId?: string): Promise<VideoMetadataResult> {
-      const requestId = createRequestId();
-      const requestedVideoId = expectedVideoId?.trim() || readCurrentVideoId(env) || undefined;
-      const request: YouTubeBridgeRequest = requestedVideoId
-        ? {
-            protocol: YOUTUBE_BRIDGE_PROTOCOL,
-            kind: 'get-video-metadata',
-            requestId,
-            expectedVideoId: requestedVideoId,
-          }
-        : {
-            protocol: YOUTUBE_BRIDGE_PROTOCOL,
-            kind: 'get-video-metadata',
-            requestId,
-          };
-      const timeoutResult: VideoMetadataResult = unavailableBridgeResult(env, requestedVideoId);
+    getVideoMetadata: (expectedVideoId) =>
+      requestVideoScopedBridgeData(env, createRequestId, expectedVideoId, videoMetadataRequestConfig),
 
-      return sendBridgeRequest(env, request, 'video-metadata-response', timeoutResult, (response) => {
-        if (response.kind !== 'video-metadata-response') {
-          return null;
-        }
-
-        return applyMetadataStaleCheck(response.result, requestedVideoId, readCurrentVideoId(env));
-      });
-    },
-
-    getTranscript(videoId?: string): Promise<TranscriptResult> {
-      const requestId = createRequestId();
-      const requestedVideoId = videoId?.trim() || readCurrentVideoId(env) || undefined;
-      const request: YouTubeBridgeRequest = requestedVideoId
-        ? {
-            protocol: YOUTUBE_BRIDGE_PROTOCOL,
-            kind: 'get-transcript',
-            requestId,
-            videoId: requestedVideoId,
-          }
-        : {
-            protocol: YOUTUBE_BRIDGE_PROTOCOL,
-            kind: 'get-transcript',
-            requestId,
-          };
-      const timeoutResult: TranscriptResult = unavailableBridgeResult(env, requestedVideoId);
-
-      return sendBridgeRequest(env, request, 'transcript-response', timeoutResult, (response) => {
-        if (response.kind !== 'transcript-response') {
-          return null;
-        }
-
-        return applyTranscriptStaleCheck(response.result, requestedVideoId, readCurrentVideoId(env));
-      });
-    },
+    getTranscript: (videoId) =>
+      requestVideoScopedBridgeData(env, createRequestId, videoId, transcriptRequestConfig),
   };
 }

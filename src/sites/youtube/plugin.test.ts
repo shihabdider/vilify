@@ -8,31 +8,22 @@ import {
   youtubePlugin,
   youtubeTranscriptMode,
 } from './plugin';
+import {
+  NON_YOUTUBE_URLS,
+  YOUTUBE_NON_WATCH_URLS,
+  YOUTUBE_SUPPORTED_URLS,
+  YOUTUBE_WATCH_URL,
+} from '../../test-helpers/youtube-url-fixtures';
 
 describe('YouTube URL helpers', () => {
   it('supports YouTube host-level pages on youtube.com and subdomains', () => {
-    for (const url of [
-      'https://youtube.com/',
-      'https://www.youtube.com/results?search_query=vilify',
-      'https://www.youtube.com/@channel',
-      'https://www.youtube.com/channel/UC123',
-      'https://www.youtube.com/playlist?list=PL123',
-      'https://www.youtube.com/shorts/abc123',
-      'https://www.youtube.com/watch?v=abc123',
-      'https://www.youtube.com/watch?t=42s',
-      'https://m.youtube.com/feed/subscriptions',
-    ]) {
+    for (const url of YOUTUBE_SUPPORTED_URLS) {
       expect(isSupportedYouTubeUrl(new URL(url)), url).toBe(true);
     }
   });
 
   it('does not support Google, youtu.be, or unrelated hosts', () => {
-    for (const url of [
-      'https://www.google.com/search?q=vilify',
-      'https://google.com/search?q=vilify',
-      'https://youtu.be/abc123',
-      'https://example.com/watch?v=abc123',
-    ]) {
+    for (const url of NON_YOUTUBE_URLS) {
       expect(isSupportedYouTubeUrl(new URL(url)), url).toBe(false);
     }
   });
@@ -44,16 +35,7 @@ describe('YouTube URL helpers', () => {
   });
 
   it('returns null for YouTube pages without watch video capability', () => {
-    for (const url of [
-      'https://www.youtube.com/',
-      'https://www.youtube.com/results?search_query=vilify',
-      'https://www.youtube.com/@channel',
-      'https://www.youtube.com/channel/UC123',
-      'https://www.youtube.com/playlist?list=PL123',
-      'https://www.youtube.com/shorts/abc123',
-      'https://www.youtube.com/watch?t=42s',
-      'https://www.youtube.com/watch?v=%20%20',
-    ]) {
+    for (const url of [...YOUTUBE_NON_WATCH_URLS, 'https://www.youtube.com/watch?v=%20%20']) {
       expect(getYouTubeVideoId(new URL(url)), url).toBeNull();
     }
 
@@ -62,32 +44,19 @@ describe('YouTube URL helpers', () => {
   });
 
   it('returns null for Google, youtu.be, and unrelated hosts', () => {
-    for (const url of [
-      'https://www.google.com/search?q=vilify',
-      'https://google.com/watch?v=abc123',
-      'https://youtu.be/abc123',
-      'https://example.com/watch?v=abc123',
-    ]) {
+    for (const url of [...NON_YOUTUBE_URLS, 'https://google.com/watch?v=abc123']) {
       expect(getYouTubeVideoId(new URL(url)), url).toBeNull();
     }
   });
 
   it('matches only YouTube watch pages with a non-empty video id', () => {
-    expect(isYouTubeWatchUrl(new URL('https://www.youtube.com/watch?v=abc123'))).toBe(true);
+    expect(isYouTubeWatchUrl(new URL(YOUTUBE_WATCH_URL))).toBe(true);
 
     for (const url of [
-      'https://www.youtube.com/',
-      'https://www.youtube.com/results?search_query=vilify',
-      'https://www.youtube.com/@channel',
-      'https://www.youtube.com/channel/UC123',
-      'https://www.youtube.com/playlist?list=PL123',
-      'https://www.youtube.com/shorts/abc123',
-      'https://www.youtube.com/watch?t=42s',
+      ...YOUTUBE_NON_WATCH_URLS,
       'https://www.youtube.com/watch?v=',
       'https://www.youtube.com/watch?v=%20%20',
-      'https://www.google.com/search?q=vilify',
-      'https://youtu.be/abc123',
-      'https://example.com/watch?v=abc123',
+      ...NON_YOUTUBE_URLS,
     ]) {
       expect(isYouTubeWatchUrl(new URL(url)), url).toBe(false);
     }
@@ -96,25 +65,11 @@ describe('YouTube URL helpers', () => {
 
 describe('youtubePlugin', () => {
   it('matches YouTube host-level pages for plugin activation', () => {
-    for (const url of [
-      'https://www.youtube.com/',
-      'https://www.youtube.com/results?search_query=vilify',
-      'https://www.youtube.com/@channel',
-      'https://www.youtube.com/channel/UC123',
-      'https://www.youtube.com/playlist?list=PL123',
-      'https://www.youtube.com/shorts/abc123',
-      'https://www.youtube.com/watch?t=42s',
-      'https://www.youtube.com/watch?v=abc123',
-    ]) {
+    for (const url of YOUTUBE_SUPPORTED_URLS) {
       expect(youtubePlugin.matches(new URL(url)), url).toBe(true);
     }
 
-    for (const url of [
-      'https://www.google.com/search?q=vilify',
-      'https://google.com/search?q=vilify',
-      'https://youtu.be/abc123',
-      'https://example.com/watch?v=abc123',
-    ]) {
+    for (const url of NON_YOUTUBE_URLS) {
       expect(youtubePlugin.matches(new URL(url)), url).toBe(false);
     }
   });

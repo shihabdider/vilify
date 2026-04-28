@@ -3,11 +3,14 @@ import { createOmnibarActionExecutor } from '../../omnibar/actions';
 import { createOmnibarRuntime } from '../../omnibar/runtime';
 import { collectOmnibarItems, createInitialOmnibarState, setOmnibarQuery } from '../../omnibar/state';
 import {
+  domDocumentLocation,
   makeOmnibarTestDom,
   makeYouTubeWatchDom as makeDom,
   omnibarItemIds as itemIds,
   omnibarModeLabel as modeLabel,
   pressKey,
+  pushDomHistory,
+  reconfigureDomUrl,
   requireOmnibarInput as input,
   setOmnibarInputValue,
 } from '../../test-helpers/omnibar';
@@ -16,19 +19,20 @@ import type { OmnibarItem, OmnibarMode, ProviderContext } from '../../omnibar/ty
 import type { YouTubeBridgeClient } from './bridge-client';
 import {
   YOUTUBE_BRIDGE_PROTOCOL,
-  YOUTUBE_BRIDGE_REQUEST_EVENT,
-  YOUTUBE_BRIDGE_RESPONSE_EVENT,
   type TranscriptResult,
   type YouTubeBridgeRequest,
   type YouTubeBridgeResponse,
 } from './bridge-types';
+import {
+  dispatchYouTubeBridgeResponse,
+  recordYouTubeBridgeRequests as recordBridgeRequests,
+} from '../../test-helpers/youtube-bridge';
 import { youtubeDefaultMode, youtubePlugin, youtubeTranscriptMode } from './plugin';
 import { createTranscriptProviderState, createYouTubeTranscriptMode } from './transcript-mode';
 
 function providerContext(dom: JSDOM): ProviderContext {
   return {
-    document: dom.window.document,
-    location: dom.window.location,
+    ...domDocumentLocation(dom),
     activePlugin: {
       plugin: youtubePlugin,
       url: new URL(dom.window.location.href),
@@ -67,14 +71,6 @@ function pendingBridgeFactory() {
   return { createBridgeClient, getTranscript };
 }
 
-function recordBridgeRequests(document: Document): YouTubeBridgeRequest[] {
-  const requests: YouTubeBridgeRequest[] = [];
-  document.addEventListener(YOUTUBE_BRIDGE_REQUEST_EVENT, (event) => {
-    requests.push((event as CustomEvent<YouTubeBridgeRequest>).detail);
-  });
-  return requests;
-}
-
 function dispatchTranscriptResponse(
   document: Document,
   request: YouTubeBridgeRequest,
@@ -86,8 +82,7 @@ function dispatchTranscriptResponse(
     requestId: request.requestId,
     result,
   };
-  const CustomEventCtor = document.defaultView?.CustomEvent ?? CustomEvent;
-  document.dispatchEvent(new CustomEventCtor(YOUTUBE_BRIDGE_RESPONSE_EVENT, { detail: response }));
+  dispatchYouTubeBridgeResponse(document, response);
 }
 
 async function flushBridgeSettlement(): Promise<void> {
@@ -138,7 +133,7 @@ describe('youtubeTranscriptMode provider', () => {
     const context = providerContext(dom);
     const requests = recordBridgeRequests(dom.window.document);
 
-    dom.window.history.pushState({}, '', '/watch?v=spa-new-video-0012');
+    pushDomHistory(dom, '/watch?v=spa-new-video-0012');
 
     expect(transcriptItemsForContext(context)).toEqual([
       expect.objectContaining({
@@ -166,7 +161,7 @@ describe('youtubeTranscriptMode provider', () => {
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({ kind: 'get-transcript', videoId: 'resolver-old-video-0012' });
 
-    dom.window.history.pushState({}, '', '/watch?v=resolver-new-video-0012');
+    pushDomHistory(dom, '/watch?v=resolver-new-video-0012');
     dispatchTranscriptResponse(dom.window.document, requests[0], {
       status: 'loaded',
       videoId: 'resolver-old-video-0012',
@@ -176,7 +171,7 @@ describe('youtubeTranscriptMode provider', () => {
     });
     await flushBridgeSettlement();
 
-    dom.window.history.pushState({}, '', '/watch?v=resolver-old-video-0012');
+    pushDomHistory(dom, '/watch?v=resolver-old-video-0012');
 
     expect(transcriptItemsForContext(context, 'stale resolver line')).toEqual([
       expect.objectContaining({
@@ -236,7 +231,7 @@ describe('youtubeTranscriptMode provider', () => {
     const context = providerContext(dom);
     const requests = recordBridgeRequests(dom.window.document);
 
-    dom.reconfigure({ url: 'https://www.youtube.com/watch?v=live-state-wins-0012' });
+    reconfigureDomUrl(dom, 'https://www.youtube.com/watch?v=live-state-wins-0012');
 
     expect(transcriptItemsForContext(context)).toEqual([
       expect.objectContaining({
@@ -416,7 +411,7 @@ describe('youtubeTranscriptMode provider', () => {
     ]);
     expect(createBridgeClient).not.toHaveBeenCalled();
 
-    dom.window.history.pushState({}, '', '/watch?v=cached-current-video-0012');
+    pushDomHistory(dom, '/watch?v=cached-current-video-0012');
     const currentWatchItems = transcriptItemsForMode(mode, context, 'cached old');
 
     expect(currentWatchItems).toEqual([
@@ -437,7 +432,7 @@ describe('youtubeTranscriptMode provider', () => {
     expect(createBridgeClient).toHaveBeenCalledTimes(1);
     expect(getTranscript).toHaveBeenCalledWith('cached-current-video-0012');
 
-    dom.window.history.pushState({}, '', '/results?search_query=vilify');
+    pushDomHistory(dom, '/results?search_query=vilify');
     const nonWatchItems = transcriptItemsForMode(mode, context, 'cached old');
 
     expect(nonWatchItems).toEqual([
@@ -499,7 +494,7 @@ describe('youtubeTranscriptMode provider', () => {
     transcriptItems(dom);
     expect(requests).toHaveLength(1);
 
-    dom.reconfigure({ url: 'https://www.youtube.com/watch?v=new-video-0010' });
+    reconfigureDomUrl(dom, 'https://www.youtube.com/watch?v=new-video-0010');
     dispatchTranscriptResponse(dom.window.document, requests[0], {
       status: 'loaded',
       videoId: 'old-video-0010',

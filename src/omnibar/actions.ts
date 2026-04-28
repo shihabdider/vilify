@@ -150,14 +150,10 @@ function resolveCopyText(
       return source.text;
     case 'current-url':
       return platform.getCurrentUrl(context);
-    case 'current-url-at-video-time': {
-      const video = platform.getVideoElement(context);
-      if (!video) {
-        return missingVideoStatus();
-      }
-
-      return platform.formatUrlAtVideoTime(platform.getCurrentUrl(context), video.currentTime, context);
-    }
+    case 'current-url-at-video-time':
+      return withNativeVideoElement(context, platform, (video) =>
+        platform.formatUrlAtVideoTime(platform.getCurrentUrl(context), video.currentTime, context),
+      );
   }
 }
 
@@ -167,40 +163,34 @@ function executeSeekAction(
   context: OmnibarActionContext,
   platform: OmnibarActionPlatform,
 ): OmnibarActionResult {
-  const video = platform.getVideoElement(context);
-  if (!video) {
-    return missingVideoStatus();
-  }
+  return withNativeVideoElement(context, platform, (video) => {
+    if (!Number.isFinite(seconds)) {
+      return {
+        kind: 'status',
+        tone: 'warning',
+        message: 'Cannot seek by a non-finite number of seconds.',
+      };
+    }
 
-  if (!Number.isFinite(seconds)) {
-    return {
-      kind: 'status',
-      tone: 'warning',
-      message: 'Cannot seek by a non-finite number of seconds.',
-    };
-  }
-
-  const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
-  const targetTime = seekMode === 'absolute' ? seconds : currentTime + seconds;
-  video.currentTime = clampVideoTime(targetTime, video.duration);
-  return closeResult;
+    const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    const targetTime = seekMode === 'absolute' ? seconds : currentTime + seconds;
+    video.currentTime = clampVideoTime(targetTime, video.duration);
+    return closeResult;
+  });
 }
 
 function executePlayPauseAction(
   context: OmnibarActionContext,
   platform: OmnibarActionPlatform,
 ): OmnibarActionExecution {
-  const video = platform.getVideoElement(context);
-  if (!video) {
-    return missingVideoStatus();
-  }
+  return withNativeVideoElement(context, platform, (video) => {
+    if (video.paused) {
+      return closeAfter(video.play(), 'Could not play the native video element');
+    }
 
-  if (video.paused) {
-    return closeAfter(video.play(), 'Could not play the native video element');
-  }
-
-  video.pause();
-  return closeResult;
+    video.pause();
+    return closeResult;
+  });
 }
 
 function executeSetPlaybackRateAction(
@@ -208,21 +198,31 @@ function executeSetPlaybackRateAction(
   context: OmnibarActionContext,
   platform: OmnibarActionPlatform,
 ): OmnibarActionResult {
+  return withNativeVideoElement(context, platform, (video) => {
+    if (!Number.isFinite(rate) || rate <= 0) {
+      return {
+        kind: 'status',
+        tone: 'warning',
+        message: 'Cannot set a non-positive or non-finite playback rate.',
+      };
+    }
+
+    video.playbackRate = rate;
+    return closeResult;
+  });
+}
+
+function withNativeVideoElement<Result>(
+  context: OmnibarActionContext,
+  platform: OmnibarActionPlatform,
+  execute: (video: OmnibarVideoElement) => Result,
+): Result | OmnibarActionResult {
   const video = platform.getVideoElement(context);
   if (!video) {
     return missingVideoStatus();
   }
 
-  if (!Number.isFinite(rate) || rate <= 0) {
-    return {
-      kind: 'status',
-      tone: 'warning',
-      message: 'Cannot set a non-positive or non-finite playback rate.',
-    };
-  }
-
-  video.playbackRate = rate;
-  return closeResult;
+  return execute(video);
 }
 
 function closeAfter(value: void | Promise<void>, failureMessage: string): OmnibarActionExecution {
