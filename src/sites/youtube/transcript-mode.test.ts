@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { JSDOM } from 'jsdom';
 import { createOmnibarActionExecutor } from '../../omnibar/actions';
 import { createOmnibarRuntime } from '../../omnibar/runtime';
 import { collectOmnibarItems, createInitialOmnibarState, setOmnibarQuery } from '../../omnibar/state';
+import {
+  makeYouTubeWatchDom as makeDom,
+  omnibarItemIds as itemIds,
+  omnibarModeLabel as modeLabel,
+  pressKey,
+  requireOmnibarInput as input,
+  setOmnibarInputValue,
+} from '../../test-helpers/omnibar';
+import type { JSDOM } from 'jsdom';
 import type { OmnibarItem, ProviderContext } from '../../omnibar/types';
 import {
   YOUTUBE_BRIDGE_PROTOCOL,
@@ -13,15 +21,6 @@ import {
   type YouTubeBridgeResponse,
 } from './bridge-types';
 import { youtubeDefaultMode, youtubePlugin, youtubeTranscriptMode } from './plugin';
-
-function makeDom(
-  videoId: string,
-  body = '<main id="page"><button id="native-control">Native page control</button></main>',
-): JSDOM {
-  return new JSDOM(`<!doctype html><html><body>${body}</body></html>`, {
-    url: `https://www.youtube.com/watch?v=${videoId}`,
-  });
-}
 
 function providerContext(dom: JSDOM): ProviderContext {
   return {
@@ -67,32 +66,6 @@ function dispatchTranscriptResponse(
 async function flushBridgeSettlement(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
-}
-
-function pressKey(window: Window, target: EventTarget, key: string): KeyboardEvent {
-  const event = new window.KeyboardEvent('keydown', {
-    key,
-    bubbles: true,
-    cancelable: true,
-  });
-  target.dispatchEvent(event);
-  return event;
-}
-
-function input(document: Document): HTMLInputElement {
-  const element = document.querySelector<HTMLInputElement>('[data-vilify-omnibar-input="true"]');
-  expect(element).not.toBeNull();
-  return element!;
-}
-
-function itemIds(document: Document): string[] {
-  return Array.from(document.querySelectorAll<HTMLElement>('[data-vilify-omnibar-item]')).map(
-    (element) => element.dataset.itemId ?? '',
-  );
-}
-
-function modeLabel(document: Document): string | null {
-  return document.querySelector('.vilify-omnibar-mode')?.textContent ?? null;
 }
 
 describe('youtubeTranscriptMode provider', () => {
@@ -237,9 +210,7 @@ describe('YouTube transcript omnibar integration', () => {
     });
 
     runtime.open();
-    const search = input(dom.window.document);
-    search.value = 'search transcript';
-    search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    setOmnibarInputValue(dom.window, dom.window.document, 'search transcript');
 
     expect(itemIds(dom.window.document)).toEqual(['youtube-open-transcript']);
     const enter = pressKey(dom.window, input(dom.window.document), 'Enter');
@@ -277,9 +248,7 @@ describe('YouTube transcript omnibar integration', () => {
     });
 
     runtime.open();
-    const search = input(dom.window.document);
-    search.value = 'search transcript';
-    search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    setOmnibarInputValue(dom.window, dom.window.document, 'search transcript');
     pressKey(dom.window, input(dom.window.document), 'Enter');
     expect(requests).toHaveLength(1);
 

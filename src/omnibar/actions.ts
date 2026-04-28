@@ -1,3 +1,4 @@
+import { isPromiseLike } from './async';
 import type {
   OmnibarAction,
   OmnibarActionContext,
@@ -232,14 +233,6 @@ function closeAfter(value: void | Promise<void>, failureMessage: string): Omniba
   }
 
   return closeResult;
-}
-
-function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    typeof (value as PromiseLike<unknown>).then === 'function'
-  );
 }
 
 function clampVideoTime(value: number, duration: number): number {

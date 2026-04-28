@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { JSDOM } from 'jsdom';
+import { createKeyDownEvent, makeOmnibarTestDom } from '../test-helpers/omnibar';
 import { getOpenOmnibarKeyIntent, isOmnibarOpenerKey } from './keyboard';
 
 function keyEvent(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
-  const dom = new JSDOM('<!doctype html><html><body></body></html>');
-  return new dom.window.KeyboardEvent('keydown', {
-    key,
-    bubbles: true,
-    cancelable: true,
-    ...init,
-  });
+  return createKeyDownEvent(makeOmnibarTestDom().window, key, init);
 }
 
 describe('getOpenOmnibarKeyIntent', () => {

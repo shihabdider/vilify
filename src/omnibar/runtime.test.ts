@@ -1,15 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { JSDOM } from 'jsdom';
 import { createOmnibarRuntime } from './runtime';
 import { createStaticOmnibarMode, getActiveOmnibarMode } from './state';
+import {
+  makeOmnibarTestDom as makeDom,
+  omnibarItemIds as itemIds,
+  omnibarModeLabel as modeLabel,
+  pressKey,
+  requireOmnibarInput as input,
+  setOmnibarInputValue,
+} from '../test-helpers/omnibar';
 import type { SitePlugin } from '../plugins/types';
 import type { OmnibarItem, OmnibarMode } from './types';
-
-function makeDom(url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'): JSDOM {
-  return new JSDOM('<!doctype html><html><body><main id="page"><button>Native page control</button></main></body></html>', {
-    url,
-  });
-}
 
 function makeMode(items: readonly OmnibarItem[], id = 'root', title = 'Root'): OmnibarMode {
   return createStaticOmnibarMode({
@@ -20,38 +21,10 @@ function makeMode(items: readonly OmnibarItem[], id = 'root', title = 'Root'): O
   });
 }
 
-function pressKey(
-  window: Window,
-  target: EventTarget,
-  key: string,
-  init: KeyboardEventInit = {},
-): KeyboardEvent {
-  const event = new window.KeyboardEvent('keydown', {
-    key,
-    bubbles: true,
-    cancelable: true,
-    ...init,
-  });
-  target.dispatchEvent(event);
-  return event;
-}
-
-function input(document: Document): HTMLInputElement {
-  const element = document.querySelector<HTMLInputElement>('[data-vilify-omnibar-input="true"]');
-  expect(element).not.toBeNull();
-  return element!;
-}
-
 function resultsList(document: Document): HTMLElement {
   const element = document.querySelector<HTMLElement>('[data-vilify-omnibar-results="true"]');
   expect(element).not.toBeNull();
   return element!;
-}
-
-function itemIds(document: Document): string[] {
-  return Array.from(document.querySelectorAll<HTMLElement>('[data-vilify-omnibar-item]')).map(
-    (element) => element.dataset.itemId ?? '',
-  );
 }
 
 function selectedItemId(document: Document): string | undefined {
@@ -62,10 +35,6 @@ function itemRow(document: Document, id: string): HTMLElement {
   const element = document.querySelector<HTMLElement>(`[data-vilify-omnibar-item][data-item-id="${id}"]`);
   expect(element).not.toBeNull();
   return element!;
-}
-
-function modeLabel(document: Document): string | null {
-  return document.querySelector('.vilify-omnibar-mode')?.textContent ?? null;
 }
 
 function footerLine(document: Document): string | null {
@@ -348,8 +317,7 @@ describe('createOmnibarRuntime', () => {
 
     const search = input(dom.window.document);
     expect(dom.window.document.activeElement).toBe(search);
-    search.value = 'bet';
-    search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    setOmnibarInputValue(dom.window, dom.window.document, 'bet');
 
     expect(runtime.getState().query).toBe('bet');
     expect(itemIds(dom.window.document)).toEqual(['beta']);
@@ -572,9 +540,7 @@ describe('createOmnibarRuntime', () => {
       '',
     );
 
-    const search = input(dom.window.document);
-    search.value = 'needle';
-    search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    setOmnibarInputValue(dom.window, dom.window.document, 'needle');
 
     expect(itemIds(dom.window.document)).toEqual(['fake-needle']);
     expect(provider).toHaveBeenLastCalledWith(

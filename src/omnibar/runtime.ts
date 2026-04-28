@@ -1,3 +1,4 @@
+import { isPromiseLike } from './async';
 import {
   closeOmnibar,
   collectOmnibarItems,
@@ -457,14 +458,6 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     event.stopPropagation();
     state = openOmnibar(state);
     render();
-  }
-
-  function isPromiseLike(value: unknown): value is PromiseLike<OmnibarActionResult | void> {
-    return (
-      value !== null &&
-      typeof value === 'object' &&
-      typeof (value as PromiseLike<unknown>).then === 'function'
-    );
   }
 
   function statusFromActionError(error: unknown): OmnibarActionResult {

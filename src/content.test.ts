@@ -1,31 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { JSDOM } from 'jsdom';
 import { detectSupportedPage, initContentScript } from './content';
+import {
+  getOmnibarInput,
+  makeOmnibarTestDom as makeDom,
+  omnibarModeLabel as getOmnibarModeLabel,
+  pressKey,
+} from './test-helpers/omnibar';
 import { youtubeDefaultMode, youtubePlugin } from './sites/youtube/plugin';
-
-function makeDom(url: string): JSDOM {
-  return new JSDOM('<!doctype html><html><body><main id="page"><button>Native page control</button></main></body></html>', {
-    url,
-  });
-}
-
-function pressKey(window: Window, target: EventTarget, key: string): KeyboardEvent {
-  const event = new window.KeyboardEvent('keydown', {
-    key,
-    bubbles: true,
-    cancelable: true,
-  });
-  target.dispatchEvent(event);
-  return event;
-}
-
-function getOmnibarInput(document: Document): HTMLInputElement | null {
-  return document.querySelector('[data-vilify-omnibar-input="true"]');
-}
-
-function getOmnibarModeLabel(document: Document): string | null {
-  return document.querySelector('.vilify-omnibar-mode')?.textContent ?? null;
-}
 
 describe('detectSupportedPage', () => {
   it('detects the active YouTube plugin for watch pages', () => {
@@ -105,15 +86,15 @@ describe('initContentScript', () => {
   });
 
   it('bypasses : when focus is inside editable targets', () => {
-    const dom = new JSDOM(
-      '<!doctype html><html><body><main id="page">' +
+    const dom = makeDom(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      '<main id="page">' +
         '<input id="input" />' +
         '<textarea id="textarea"></textarea>' +
         '<select id="select"><option>One</option></select>' +
         '<div id="editable" contenteditable="true"></div>' +
         '<div id="editable-parent" contenteditable="true"><span id="editable-child"></span></div>' +
-        '</main></body></html>',
-      { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        '</main>',
     );
 
     initContentScript({
