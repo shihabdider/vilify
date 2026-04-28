@@ -20,11 +20,17 @@ function makeMode(items: readonly OmnibarItem[], id = 'root', title = 'Root'): O
   });
 }
 
-function pressKey(window: Window, target: EventTarget, key: string): KeyboardEvent {
+function pressKey(
+  window: Window,
+  target: EventTarget,
+  key: string,
+  init: KeyboardEventInit = {},
+): KeyboardEvent {
   const event = new window.KeyboardEvent('keydown', {
     key,
     bubbles: true,
     cancelable: true,
+    ...init,
   });
   target.dispatchEvent(event);
   return event;
@@ -104,6 +110,59 @@ describe('createOmnibarRuntime', () => {
     pressKey(dom.window, input(dom.window.document), 'ArrowUp');
     expect(runtime.getState().selectedIndex).toBe(0);
     expect(selectedItemId(dom.window.document)).toBe('alpha');
+  });
+
+  it('keeps Ctrl+n and Ctrl+p selection navigation in the same bounds as arrows', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([
+        { id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } },
+        { id: 'beta', kind: 'command', title: 'Beta command', action: { kind: 'noop' } },
+      ]),
+    });
+
+    runtime.open();
+    expect(runtime.getState().selectedIndex).toBe(0);
+    expect(selectedItemId(dom.window.document)).toBe('alpha');
+
+    const down = pressKey(dom.window, input(dom.window.document), 'n', { ctrlKey: true });
+    expect(down.defaultPrevented).toBe(true);
+    expect(runtime.getState().selectedIndex).toBe(1);
+    expect(selectedItemId(dom.window.document)).toBe('beta');
+
+    pressKey(dom.window, input(dom.window.document), 'n', { ctrlKey: true });
+    expect(runtime.getState().selectedIndex).toBe(1);
+    expect(selectedItemId(dom.window.document)).toBe('beta');
+
+    const up = pressKey(dom.window, input(dom.window.document), 'p', { ctrlKey: true });
+    expect(up.defaultPrevented).toBe(true);
+    expect(runtime.getState().selectedIndex).toBe(0);
+    expect(selectedItemId(dom.window.document)).toBe('alpha');
+
+    pressKey(dom.window, input(dom.window.document), 'p', { ctrlKey: true });
+    expect(runtime.getState().selectedIndex).toBe(0);
+    expect(selectedItemId(dom.window.document)).toBe('alpha');
+  });
+
+  it('does not intercept Ctrl+n or Ctrl+p while closed', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([{ id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } }]),
+    });
+    const pageButton = dom.window.document.querySelector('button');
+    expect(pageButton).not.toBeNull();
+
+    const ctrlN = pressKey(dom.window, pageButton!, 'n', { ctrlKey: true });
+    expect(ctrlN.defaultPrevented).toBe(false);
+    expect(runtime.getState().open).toBe(false);
+    expect(dom.window.document.querySelector('[data-vilify-omnibar-input="true"]')).toBeNull();
+
+    const ctrlP = pressKey(dom.window, pageButton!, 'p', { ctrlKey: true });
+    expect(ctrlP.defaultPrevented).toBe(false);
+    expect(runtime.getState().open).toBe(false);
+    expect(dom.window.document.querySelector('[data-vilify-omnibar-input="true"]')).toBeNull();
   });
 
   it('invokes the selected custom action through Enter', () => {

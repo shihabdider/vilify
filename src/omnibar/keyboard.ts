@@ -21,6 +21,15 @@ export function isOmnibarOpenerKey(event: KeyboardEvent): boolean {
 }
 
 export function getOpenOmnibarKeyIntent(event: KeyboardEvent): OpenOmnibarKeyIntent | null {
+  if (event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+    switch (event.key.toLowerCase()) {
+      case 'p':
+        return 'move-up';
+      case 'n':
+        return 'move-down';
+    }
+  }
+
   switch (event.key) {
     case 'ArrowUp':
       return 'move-up';
