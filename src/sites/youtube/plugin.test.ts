@@ -37,16 +37,39 @@ describe('YouTube URL helpers', () => {
     }
   });
 
-  it('extracts non-empty video ids from YouTube watch URLs', () => {
+  it('extracts non-empty video ids from YouTube watch URLs on youtube.com and subdomains', () => {
+    expect(getYouTubeVideoId(new URL('https://youtube.com/watch?v=bare-host-id'))).toBe('bare-host-id');
     expect(getYouTubeVideoId(new URL('https://www.youtube.com/watch?v=abc123&t=42s'))).toBe('abc123');
     expect(getYouTubeVideoId(new URL('https://m.youtube.com/watch?v=xyz789'))).toBe('xyz789');
   });
 
-  it('treats watch URLs without a video id as unsupported', () => {
-    expect(getYouTubeVideoId(new URL('https://www.youtube.com/watch?t=42s'))).toBeNull();
-    expect(getYouTubeVideoId(new URL('https://www.youtube.com/watch?v=%20%20'))).toBeNull();
-    expect(getYouTubeVideoId(new URL('https://www.youtube.com/shorts/abc123'))).toBeNull();
+  it('returns null for YouTube pages without watch video capability', () => {
+    for (const url of [
+      'https://www.youtube.com/',
+      'https://www.youtube.com/results?search_query=vilify',
+      'https://www.youtube.com/@channel',
+      'https://www.youtube.com/channel/UC123',
+      'https://www.youtube.com/playlist?list=PL123',
+      'https://www.youtube.com/shorts/abc123',
+      'https://www.youtube.com/watch?t=42s',
+      'https://www.youtube.com/watch?v=%20%20',
+    ]) {
+      expect(getYouTubeVideoId(new URL(url)), url).toBeNull();
+    }
+
+    expect(getYouTubeVideoId(undefined)).toBeNull();
     expect(isYouTubeWatchUrl(new URL('https://www.youtube.com/watch?t=42s'))).toBe(false);
+  });
+
+  it('returns null for Google, youtu.be, and unrelated hosts', () => {
+    for (const url of [
+      'https://www.google.com/search?q=vilify',
+      'https://google.com/watch?v=abc123',
+      'https://youtu.be/abc123',
+      'https://example.com/watch?v=abc123',
+    ]) {
+      expect(getYouTubeVideoId(new URL(url)), url).toBeNull();
+    }
   });
 
   it('matches only YouTube watch pages with a video id', () => {
