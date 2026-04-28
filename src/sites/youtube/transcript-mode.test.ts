@@ -3,6 +3,7 @@ import { createOmnibarActionExecutor } from '../../omnibar/actions';
 import { createOmnibarRuntime } from '../../omnibar/runtime';
 import { collectOmnibarItems, createInitialOmnibarState, setOmnibarQuery } from '../../omnibar/state';
 import {
+  makeOmnibarTestDom,
   makeYouTubeWatchDom as makeDom,
   omnibarItemIds as itemIds,
   omnibarModeLabel as modeLabel,
@@ -33,11 +34,15 @@ function providerContext(dom: JSDOM): ProviderContext {
   };
 }
 
-function transcriptItems(dom: JSDOM, query = ''): readonly OmnibarItem[] {
+function transcriptItemsForContext(context: ProviderContext, query = ''): readonly OmnibarItem[] {
   const initialState = createInitialOmnibarState(youtubeTranscriptMode);
   const state = query ? setOmnibarQuery(initialState, query) : initialState;
 
-  return collectOmnibarItems(state, providerContext(dom));
+  return collectOmnibarItems(state, context);
+}
+
+function transcriptItems(dom: JSDOM, query = ''): readonly OmnibarItem[] {
+  return transcriptItemsForContext(providerContext(dom), query);
 }
 
 function recordBridgeRequests(document: Document): YouTubeBridgeRequest[] {
@@ -69,6 +74,107 @@ async function flushBridgeSettlement(): Promise<void> {
 }
 
 describe('youtubeTranscriptMode provider', () => {
+  it('uses the live watch video id after starting on a non-watch page and navigating by SPA', () => {
+    const dom = makeOmnibarTestDom('https://www.youtube.com/results?search_query=vilify');
+    const context = providerContext(dom);
+    const requests = recordBridgeRequests(dom.window.document);
+
+    dom.reconfigure({ url: 'https://www.youtube.com/watch?v=spa-new-video-0012' });
+
+    expect(transcriptItemsForContext(context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-spa-new-video-0012',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ kind: 'get-transcript', videoId: 'spa-new-video-0012' });
+  });
+
+  it('shows missing-video status on non-watch YouTube pages instead of requesting a stale activePlugin id', () => {
+    const dom = makeOmnibarTestDom('https://www.youtube.com/results?search_query=vilify');
+    const requests = recordBridgeRequests(dom.window.document);
+    const context: ProviderContext = {
+      ...providerContext(dom),
+      activePlugin: {
+        plugin: youtubePlugin,
+        url: new URL('https://www.youtube.com/watch?v=stale-active-plugin-0012'),
+      },
+    };
+
+    expect(transcriptItemsForContext(context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-missing-video',
+        kind: 'status',
+        title: 'No active YouTube video',
+      }),
+    ]);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('shows missing-video status on Shorts instead of requesting a stale activePlugin id', () => {
+    const dom = makeOmnibarTestDom('https://www.youtube.com/shorts/shorts-video-0012');
+    const requests = recordBridgeRequests(dom.window.document);
+    const context: ProviderContext = {
+      ...providerContext(dom),
+      activePlugin: {
+        plugin: youtubePlugin,
+        url: new URL('https://www.youtube.com/watch?v=stale-shorts-video-0012'),
+      },
+    };
+
+    expect(transcriptItemsForContext(context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-missing-video',
+        kind: 'status',
+        title: 'No active YouTube video',
+      }),
+    ]);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('prefers live location state over a stale activePlugin watch URL after SPA navigation', () => {
+    const dom = makeDom('stale-active-plugin-0012');
+    const context = providerContext(dom);
+    const requests = recordBridgeRequests(dom.window.document);
+
+    dom.reconfigure({ url: 'https://www.youtube.com/watch?v=live-state-wins-0012' });
+
+    expect(transcriptItemsForContext(context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-live-state-wins-0012',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ kind: 'get-transcript', videoId: 'live-state-wins-0012' });
+  });
+
+  it('prefers a non-empty service current video id over live location state', () => {
+    const dom = makeDom('live-service-loses-0012');
+    const requests = recordBridgeRequests(dom.window.document);
+    const context: ProviderContext = {
+      ...providerContext(dom),
+      services: {
+        youtube: {
+          getCurrentVideoId: () => 'service-video-0012',
+        },
+      },
+    };
+
+    expect(transcriptItemsForContext(context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-service-video-0012',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ kind: 'get-transcript', videoId: 'service-video-0012' });
+  });
+
   it('starts one bridge transcript request for a video and shares pending load state across calls', () => {
     const dom = makeDom('pending-video-0010');
     const requests = recordBridgeRequests(dom.window.document);

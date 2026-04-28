@@ -2,7 +2,7 @@ import type { OmnibarItem, OmnibarMode, OmnibarProvider, ProviderContext } from 
 import { createYouTubeBridgeClient, type YouTubeBridgeClient } from './bridge-client';
 import type { TranscriptLine, TranscriptResult } from './bridge-types';
 import { formatTranscriptTimestamp } from './transcript-parser';
-import { getYouTubeVideoId } from './url';
+import { getYouTubeVideoId, isSupportedYouTubeUrl } from './url';
 
 const MAX_TRANSCRIPT_RESULTS = 50;
 
@@ -319,13 +319,24 @@ function resolveActiveVideoId(context: ProviderContext): string | null {
     return serviceVideoId;
   }
 
-  return (
-    videoIdFromLocation(context.location) ??
-    videoIdFromLocation(context.document?.location) ??
-    videoIdFromLocation(globalThis.location) ??
-    getYouTubeVideoId(context.activePlugin?.url) ??
-    null
-  );
+  const liveUrls = [
+    urlFromLocation(context.location),
+    urlFromLocation(context.document?.location),
+    urlFromLocation(globalThis.location),
+  ].filter((url): url is URL => url !== null);
+
+  for (const url of liveUrls) {
+    const videoId = getYouTubeVideoId(url);
+    if (videoId) {
+      return videoId;
+    }
+  }
+
+  if (liveUrls.some(isSupportedYouTubeUrl)) {
+    return null;
+  }
+
+  return getYouTubeVideoId(context.activePlugin?.url) ?? null;
 }
 
 function readServiceVideoId(services: YouTubeProviderServices): string | null {
@@ -362,13 +373,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function videoIdFromLocation(location: Location | undefined): string | null {
+function urlFromLocation(location: Location | undefined): URL | null {
   if (!location) {
     return null;
   }
 
   try {
-    return getYouTubeVideoId(new URL(location.href));
+    return new URL(location.href);
   } catch {
     return null;
   }
