@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { collectOmnibarItems, createInitialOmnibarState } from '../../omnibar/state';
 import {
   getYouTubeVideoId,
+  isSupportedYouTubeUrl,
   isYouTubeWatchUrl,
   youtubeDefaultMode,
   youtubePlugin,
@@ -9,6 +10,33 @@ import {
 } from './plugin';
 
 describe('YouTube URL helpers', () => {
+  it('supports YouTube host-level pages on youtube.com and subdomains', () => {
+    for (const url of [
+      'https://youtube.com/',
+      'https://www.youtube.com/results?search_query=vilify',
+      'https://www.youtube.com/@channel',
+      'https://www.youtube.com/channel/UC123',
+      'https://www.youtube.com/playlist?list=PL123',
+      'https://www.youtube.com/shorts/abc123',
+      'https://www.youtube.com/watch?v=abc123',
+      'https://www.youtube.com/watch?t=42s',
+      'https://m.youtube.com/feed/subscriptions',
+    ]) {
+      expect(isSupportedYouTubeUrl(new URL(url)), url).toBe(true);
+    }
+  });
+
+  it('does not support Google, youtu.be, or unrelated hosts', () => {
+    for (const url of [
+      'https://www.google.com/search?q=vilify',
+      'https://google.com/search?q=vilify',
+      'https://youtu.be/abc123',
+      'https://example.com/watch?v=abc123',
+    ]) {
+      expect(isSupportedYouTubeUrl(new URL(url)), url).toBe(false);
+    }
+  });
+
   it('extracts non-empty video ids from YouTube watch URLs', () => {
     expect(getYouTubeVideoId(new URL('https://www.youtube.com/watch?v=abc123&t=42s'))).toBe('abc123');
     expect(getYouTubeVideoId(new URL('https://m.youtube.com/watch?v=xyz789'))).toBe('xyz789');
@@ -17,6 +45,7 @@ describe('YouTube URL helpers', () => {
   it('treats watch URLs without a video id as unsupported', () => {
     expect(getYouTubeVideoId(new URL('https://www.youtube.com/watch?t=42s'))).toBeNull();
     expect(getYouTubeVideoId(new URL('https://www.youtube.com/watch?v=%20%20'))).toBeNull();
+    expect(getYouTubeVideoId(new URL('https://www.youtube.com/shorts/abc123'))).toBeNull();
     expect(isYouTubeWatchUrl(new URL('https://www.youtube.com/watch?t=42s'))).toBe(false);
   });
 

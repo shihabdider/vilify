@@ -3,7 +3,7 @@ import { youtubeDefaultMode, youtubeTranscriptMode } from './default-mode';
 import { isYouTubeWatchUrl } from './url';
 
 export { youtubeDefaultMode, youtubeTranscriptMode } from './default-mode';
-export { getYouTubeVideoId, isYouTubeWatchUrl } from './url';
+export { getYouTubeVideoId, isSupportedYouTubeUrl, isYouTubeWatchUrl } from './url';
 
 export const youtubePlugin: SitePlugin = {
   id: 'youtube',
