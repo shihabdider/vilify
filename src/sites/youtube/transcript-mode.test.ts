@@ -91,8 +91,8 @@ function itemIds(document: Document): string[] {
   );
 }
 
-function modeTitle(document: Document): string | null {
-  return document.querySelector('.vilify-omnibar-title')?.textContent ?? null;
+function modeLabel(document: Document): string | null {
+  return document.querySelector('.vilify-omnibar-mode')?.textContent ?? null;
 }
 
 describe('youtubeTranscriptMode provider', () => {
@@ -246,14 +246,14 @@ describe('YouTube transcript omnibar integration', () => {
 
     expect(enter.defaultPrevented).toBe(true);
     expect(runtime.getState().modeStack.map((mode) => mode.id)).toEqual(['youtube-root', 'youtube-transcript']);
-    expect(modeTitle(dom.window.document)).toBe('Search transcript');
+    expect(modeLabel(dom.window.document)).toBe('search transcript');
     expect(input(dom.window.document).placeholder).toBe('Search this video transcript');
 
     const escape = pressKey(dom.window, input(dom.window.document), 'Escape');
 
     expect(escape.defaultPrevented).toBe(true);
     expect(runtime.getState().modeStack.map((mode) => mode.id)).toEqual(['youtube-root']);
-    expect(modeTitle(dom.window.document)).toBe('YouTube');
+    expect(modeLabel(dom.window.document)).toBe('youtube');
     expect(input(dom.window.document).placeholder).toBe('Search YouTube commands');
   });
 

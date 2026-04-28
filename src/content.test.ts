@@ -23,8 +23,8 @@ function getOmnibarInput(document: Document): HTMLInputElement | null {
   return document.querySelector('[data-vilify-omnibar-input="true"]');
 }
 
-function getOmnibarTitle(document: Document): string | null {
-  return document.querySelector('.vilify-omnibar-title')?.textContent ?? null;
+function getOmnibarModeLabel(document: Document): string | null {
+  return document.querySelector('.vilify-omnibar-mode')?.textContent ?? null;
 }
 
 describe('detectSupportedPage', () => {
@@ -99,7 +99,7 @@ describe('initContentScript', () => {
     const input = getOmnibarInput(dom.window.document);
     expect(input).not.toBeNull();
     expect(input?.placeholder).toBe(youtubeDefaultMode.placeholder);
-    expect(getOmnibarTitle(dom.window.document)).toBe(youtubeDefaultMode.title);
+    expect(getOmnibarModeLabel(dom.window.document)).toBe(youtubeDefaultMode.title.toLowerCase());
     expect(dom.window.document.activeElement).toBe(input);
     expect(page?.outerHTML).toBe(beforePageHtml);
   });

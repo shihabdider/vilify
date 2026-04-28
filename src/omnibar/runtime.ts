@@ -259,6 +259,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
   }
 
   function renderOverlay(items: readonly OmnibarItem[]): HTMLDivElement {
+    const activeMode = getActiveOmnibarMode(state);
     const overlay = document.createElement('div');
     overlay.className = 'vilify-omnibar-overlay';
     overlay.setAttribute('role', 'presentation');
@@ -268,17 +269,22 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'Vilify omnibar');
 
-    const header = document.createElement('div');
-    header.className = 'vilify-omnibar-header';
+    const prompt = document.createElement('div');
+    prompt.className = 'vilify-omnibar-prompt';
 
-    const title = document.createElement('div');
-    title.className = 'vilify-omnibar-title';
-    title.textContent = getActiveOmnibarMode(state).title;
+    const promptLabel = document.createElement('span');
+    const mode = document.createElement('span');
+    mode.className = 'vilify-omnibar-mode';
+    mode.textContent = activeMode.title.toLowerCase();
+
+    const promptMark = document.createElement('span');
+    promptMark.className = 'vilify-omnibar-prompt-mark';
+    promptMark.textContent = '❯ :';
 
     const input = document.createElement('input');
     input.type = 'text';
     input.value = state.query;
-    input.placeholder = getActiveOmnibarMode(state).placeholder ?? 'Search Vilify';
+    input.placeholder = activeMode.placeholder ?? 'Search Vilify';
     input.autocomplete = 'off';
     input.spellcheck = false;
     input.dataset.vilifyOmnibarInput = 'true';
@@ -293,8 +299,14 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
       }
     });
 
-    header.append(title, input);
-    panel.append(header, renderResults(items));
+    const footer = document.createElement('div');
+    footer.className = 'vilify-omnibar-footer';
+    footer.setAttribute('role', 'status');
+    footer.textContent = `${items.length} ${items.length === 1 ? 'result' : 'results'} · ↑/↓ or ctrl+n/ctrl+p move · enter select · esc close`;
+
+    promptLabel.append(mode, ' ', promptMark);
+    prompt.append(promptLabel, input);
+    panel.append(prompt, renderResults(items), footer);
     overlay.append(panel);
     return overlay;
   }

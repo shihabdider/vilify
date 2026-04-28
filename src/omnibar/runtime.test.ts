@@ -64,8 +64,12 @@ function itemRow(document: Document, id: string): HTMLElement {
   return element!;
 }
 
-function modeTitle(document: Document): string | null {
-  return document.querySelector('.vilify-omnibar-title')?.textContent ?? null;
+function modeLabel(document: Document): string | null {
+  return document.querySelector('.vilify-omnibar-mode')?.textContent ?? null;
+}
+
+function footerLine(document: Document): string | null {
+  return document.querySelector('.vilify-omnibar-footer')?.textContent ?? null;
 }
 
 function omnibarStyleText(document: Document): string {
@@ -158,6 +162,39 @@ describe('createOmnibarRuntime', () => {
     expect(cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-empty')).toMatch(
       /color:\s*var\(--vilify-omnibar-muted\)/,
     );
+  });
+
+  it('renders the active mode as a terminal prompt with focused input and footer status', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode(
+        [
+          { id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } },
+          { id: 'beta', kind: 'command', title: 'Beta command', action: { kind: 'noop' } },
+        ],
+        'youtube-root',
+        'YouTube',
+      ),
+    });
+
+    runtime.open();
+    const prompt = dom.window.document.querySelector<HTMLElement>('.vilify-omnibar-prompt');
+    const search = input(dom.window.document);
+    const footer = dom.window.document.querySelector<HTMLElement>('.vilify-omnibar-footer');
+
+    expect(prompt).not.toBeNull();
+    expect(dom.window.document.querySelector('.vilify-omnibar-header')).toBeNull();
+    expect(dom.window.document.querySelector('.vilify-omnibar-title')).toBeNull();
+    expect(prompt?.querySelector('.vilify-omnibar-mode')?.textContent).toBe('youtube');
+    expect(prompt?.querySelector('.vilify-omnibar-prompt-mark')?.textContent).toBe('❯ :');
+    expect(prompt?.contains(search)).toBe(true);
+    expect(search.placeholder).toBe('Search YouTube');
+    expect(dom.window.document.activeElement).toBe(search);
+    expect(footer).not.toBeNull();
+    expect(footer?.textContent).toContain('2 results');
+    expect(footer?.textContent?.toLowerCase()).toContain('enter');
+    expect(footer?.textContent?.toLowerCase()).toContain('esc');
   });
 
   it('renders empty result collections as an inline terminal no-matches row', () => {
@@ -307,14 +344,18 @@ describe('createOmnibarRuntime', () => {
 
     runtime.open();
     expect(itemIds(dom.window.document)).toEqual(['alpha', 'beta']);
+    expect(footerLine(dom.window.document)).toContain('2 results');
 
     const search = input(dom.window.document);
+    expect(dom.window.document.activeElement).toBe(search);
     search.value = 'bet';
     search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 
     expect(runtime.getState().query).toBe('bet');
     expect(itemIds(dom.window.document)).toEqual(['beta']);
     expect(input(dom.window.document).value).toBe('bet');
+    expect(dom.window.document.activeElement).toBe(input(dom.window.document));
+    expect(footerLine(dom.window.document)).toContain('1 result');
   });
 
   it('keeps ArrowUp and ArrowDown selection navigation in bounds and marks the selected row', () => {
@@ -523,7 +564,7 @@ describe('createOmnibarRuntime', () => {
 
     runtime.open();
 
-    expect(modeTitle(dom.window.document)).toBe('Fake Site');
+    expect(modeLabel(dom.window.document)).toBe('fake site');
     expect(input(dom.window.document).placeholder).toBe('Search fake provider');
     expect(itemIds(dom.window.document)).toEqual(['fake-all']);
     expect(provider).toHaveBeenLastCalledWith(
