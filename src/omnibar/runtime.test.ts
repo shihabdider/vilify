@@ -42,6 +42,12 @@ function input(document: Document): HTMLInputElement {
   return element!;
 }
 
+function resultsList(document: Document): HTMLElement {
+  const element = document.querySelector<HTMLElement>('[data-vilify-omnibar-results="true"]');
+  expect(element).not.toBeNull();
+  return element!;
+}
+
 function itemIds(document: Document): string[] {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-vilify-omnibar-item]')).map(
     (element) => element.dataset.itemId ?? '',
@@ -152,6 +158,59 @@ describe('createOmnibarRuntime', () => {
     expect(cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-empty')).toMatch(
       /color:\s*var\(--vilify-omnibar-muted\)/,
     );
+  });
+
+  it('renders empty result collections as an inline terminal no-matches row', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([]),
+    });
+
+    runtime.open();
+    const results = resultsList(dom.window.document);
+    const empty = results.querySelector<HTMLElement>('.vilify-omnibar-empty, .vilify-omnibar-status-row');
+
+    expect(results.getAttribute('role')).toBe('listbox');
+    expect(results.dataset.vilifyOmnibarResults).toBe('true');
+    expect(empty).not.toBeNull();
+    expect(empty?.textContent).toBe('-- no matches --');
+    expect(
+      Boolean(
+        empty?.classList.contains('vilify-omnibar-empty') ||
+          empty?.classList.contains('vilify-omnibar-status-row'),
+      ),
+    ).toBe(true);
+    expect(results.querySelector('[data-vilify-omnibar-item]')).toBeNull();
+    expect(results.textContent).not.toContain('No placeholder results');
+  });
+
+  it('renders non-empty result collections as a listbox of selectable item rows', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([
+        { id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } },
+        { id: 'beta', kind: 'video-action', title: 'Beta video action', action: { kind: 'noop' } },
+        { id: 'gamma', kind: 'search-result', title: 'Gamma result', action: { kind: 'noop' } },
+      ]),
+    });
+
+    runtime.open();
+    pressKey(dom.window, input(dom.window.document), 'ArrowDown');
+
+    const results = resultsList(dom.window.document);
+    const rows = Array.from(results.querySelectorAll<HTMLElement>('[data-vilify-omnibar-item="true"]'));
+
+    expect(runtime.getState().selectedIndex).toBe(1);
+    expect(results.getAttribute('role')).toBe('listbox');
+    expect(results.dataset.vilifyOmnibarResults).toBe('true');
+    expect(rows.map((row) => row.dataset.itemId)).toEqual(['alpha', 'beta', 'gamma']);
+    expect(rows.map((row) => row.dataset.itemKind)).toEqual(['command', 'video-action', 'search-result']);
+    expect(rows.map((row) => row.getAttribute('role'))).toEqual(['option', 'option', 'option']);
+    expect(rows.map((row) => row.dataset.selected)).toEqual(['false', 'true', 'false']);
+    expect(rows.map((row) => row.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    expect(selectedItemId(dom.window.document)).toBe('beta');
   });
 
   it('renders each item as a one-line terminal row with cursor, kind, title, and subtitle hooks', () => {

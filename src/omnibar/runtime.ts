@@ -308,7 +308,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     if (items.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'vilify-omnibar-empty';
-      empty.textContent = 'No placeholder results';
+      empty.textContent = '-- no matches --';
       results.append(empty);
       return results;
     }
