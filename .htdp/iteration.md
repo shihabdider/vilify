@@ -66,6 +66,7 @@ Reuse existing `OmnibarState`, `OmnibarMode`, `OmnibarItem`, and `OmnibarItemKin
 ### Decision Log
 
 - 2026-04-28T00:00:00Z — User confirmed the ordered plan and clarified they never watch Shorts, so issue 0012 should not add Shorts transcript/video-id semantics.
+- 2026-04-28T00:00:00Z — User accepted stubber-flagged version assertion updates for the required 0.6.61 bump in issue 0013.
 
 ### Look Back
 
