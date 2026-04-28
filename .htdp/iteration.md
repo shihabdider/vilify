@@ -73,6 +73,7 @@ Change the YouTube support predicate from watch-with-video-id to YouTube-host-le
 
 - 2026-04-28T17:37:28Z — Started issue 0012 after issue 0013 passed final human verification and was marked done.
 - 2026-04-28T17:37:28Z — Reused prior user confirmation that Shorts do not need transcript/watch video-id semantics.
+- 2026-04-28T17:37:28Z — User accepted stubber-flagged assertion updates for all-YouTube activation, manifest broadening, and required version bump.
 
 ### Look Back
 
