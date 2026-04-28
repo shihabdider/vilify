@@ -2,14 +2,14 @@
 
 phase: 2
 layer: 4
-updated: 2026-04-28T17:52:14.692Z
+updated: 2026-04-28T17:54:23.190Z
 
 ## Wishes
 
 | wish | file | layer | status | time |
 |------|------|-------|--------|------|
 | isSupportedYouTubeUrl | src/sites/youtube/url.ts | 4 | pass | 161.0s |
-| getYouTubeVideoId | src/sites/youtube/url.ts | 4 | pending | - |
+| getYouTubeVideoId | src/sites/youtube/url.ts | 4 | pass | 118.7s |
 | createYouTubeBridgeClient | src/sites/youtube/bridge-client.ts | 4 | pending | - |
 | executeWithPlatform | src/omnibar/actions.ts | 4 | pending | - |
 | youtubePlugin.matches(url: URL): boolean | src/sites/youtube/plugin.ts | 3 | pending | - |
@@ -28,3 +28,6 @@ updated: 2026-04-28T17:52:14.692Z
 - 13:49:31 isSupportedYouTubeUrl: running
 - 13:52:12 isSupportedYouTubeUrl: pass (161.0s, $0.9182)
 - 13:52:14 implementer_post verification for isSupportedYouTubeUrl: pass
+- 13:52:22 getYouTubeVideoId: running
+- 13:54:21 getYouTubeVideoId: pass (118.7s, $0.3838)
+- 13:54:23 implementer_post verification for getYouTubeVideoId: pass
