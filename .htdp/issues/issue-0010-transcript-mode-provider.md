@@ -1,6 +1,6 @@
 ---
 id: issue-0010
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -21,14 +21,14 @@ This slice should preserve the v1 interaction defaults from the omnibar primitiv
 
 ## Acceptance examples
 
-- [ ] Given the YouTube default mode is open, when the user selects "Search transcript", then the omnibar enters transcript mode and updates title/placeholder to transcript-search copy.
-- [ ] Given transcript mode is entered for a video id with no cache entry, when results are requested, then the provider starts one bridge transcript request and shows a loading/status item until it resolves.
-- [ ] Given transcript mode is queried repeatedly while the first request is still pending, when provider results are requested, then all calls share the same per-video load state instead of sending duplicate bridge requests.
-- [ ] Given a loaded transcript, when the user types a query, then matching transcript lines are shown with timestamp, text, stable ids, and `search-result` kind.
-- [ ] Given a selected transcript result at time `123`, when the user presses Enter, then Vilify executes a typed seek action that sets the native video element to `123` seconds without clicking YouTube UI.
-- [ ] Given transcript retrieval returns unavailable, when transcript mode renders, then it shows an unavailable/status item and does not mutate the page outside Vilify's own omnibar DOM.
-- [ ] Given the active video id changes while a transcript request is pending, when the old response resolves, then stale lines are not shown for the new video.
-- [ ] Given transcript mode is open, when the user presses Escape, then the omnibar returns to the default mode according to the mode-stack rule.
+- [x] Given the YouTube default mode is open, when the user selects "Search transcript", then the omnibar enters transcript mode and updates title/placeholder to transcript-search copy.
+- [x] Given transcript mode is entered for a video id with no cache entry, when results are requested, then the provider starts one bridge transcript request and shows a loading/status item until it resolves.
+- [x] Given transcript mode is queried repeatedly while the first request is still pending, when provider results are requested, then all calls share the same per-video load state instead of sending duplicate bridge requests.
+- [x] Given a loaded transcript, when the user types a query, then matching transcript lines are shown with timestamp, text, stable ids, and `search-result` kind.
+- [x] Given a selected transcript result at time `123`, when the user presses Enter, then Vilify executes a typed seek action that sets the native video element to `123` seconds without clicking YouTube UI.
+- [x] Given transcript retrieval returns unavailable, when transcript mode renders, then it shows an unavailable/status item and does not mutate the page outside Vilify's own omnibar DOM.
+- [x] Given the active video id changes while a transcript request is pending, when the old response resolves, then stale lines are not shown for the new video.
+- [x] Given transcript mode is open, when the user presses Escape, then the omnibar returns to the default mode according to the mode-stack rule.
 
 ## Data definition impact
 
@@ -65,7 +65,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-28: Added the YouTube transcript omnibar mode/provider with provider-owned per-video cache, lazy bridge loading, duplicate pending request suppression, loaded filtering/ranking, unavailable/stale status handling, absolute native-video seek actions, runtime re-render callback for async provider settlement, tests, and version bump to 0.6.58.
 
 ## Out of scope
 

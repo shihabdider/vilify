@@ -94,7 +94,8 @@ describe('youtubeDefaultMode', () => {
 
     expect(byId.get('youtube-open-transcript')).toMatchObject({
       kind: 'command',
-      title: 'Transcript',
+      title: 'Search transcript',
+      subtitle: 'Search this video transcript and jump to a matching timestamp.',
       action: { kind: 'push-mode', mode: youtubeTranscriptMode },
     });
   });
@@ -103,6 +104,7 @@ describe('youtubeDefaultMode', () => {
     expect(itemIds('subscriptions')).toEqual(['youtube-nav-subscriptions']);
     expect(itemIds('1.25')).toEqual(['youtube-video-rate-1-25']);
     expect(itemIds('captions')).toEqual(['youtube-open-transcript']);
+    expect(itemIds('search transcript')).toEqual(['youtube-open-transcript']);
     expect(itemIds('copy time')).toEqual(['youtube-copy-url-at-current-time']);
     expect(itemIds('not a youtube command')).toEqual([]);
   });

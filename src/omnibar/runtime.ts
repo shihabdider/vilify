@@ -45,6 +45,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     document,
     location: document.location ?? undefined,
     ...(options.providerContext ?? {}),
+    requestRender: () => render(),
   };
   const actionExecutor = options.actionExecutor ?? executeOmnibarAction;
   const root = document.createElement('div');

@@ -108,6 +108,15 @@ describe('createOmnibarActionExecutor', () => {
     expect(video.currentTime).toBe(0);
   });
 
+  it('seeks absolutely when a typed seek action targets an exact transcript timestamp', () => {
+    const video = makeVideo({ currentTime: 10, duration: 300 });
+    const context = makeContext();
+    const execute = createOmnibarActionExecutor({ getVideoElement: () => video });
+
+    expect(execute({ kind: 'seek', seconds: 123, seekMode: 'absolute' }, context)).toEqual({ kind: 'close' });
+    expect(video.currentTime).toBe(123);
+  });
+
   it('sets playbackRate on the native video element', () => {
     const video = makeVideo({ playbackRate: 1 });
     const context = makeContext();

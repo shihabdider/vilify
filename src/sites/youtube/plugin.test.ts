@@ -51,28 +51,31 @@ describe('youtubePlugin', () => {
     }
   });
 
-  it('declares a default mode with a transcript mode shell action', () => {
+  it('declares a default mode with a transcript search action', () => {
     const items = collectOmnibarItems(createInitialOmnibarState(youtubeDefaultMode));
 
     expect(items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: 'youtube-open-transcript',
-          title: 'Transcript',
+          title: 'Search transcript',
           action: { kind: 'push-mode', mode: youtubeTranscriptMode },
         }),
       ]),
     );
   });
 
-  it('declares transcript mode as status-only placeholder UI', () => {
+  it('declares transcript mode as the transcript search provider UI', () => {
     const items = collectOmnibarItems(createInitialOmnibarState(youtubeTranscriptMode));
 
     expect(youtubeTranscriptMode.id).toBe('youtube-transcript');
+    expect(youtubeTranscriptMode.title).toBe('Search transcript');
+    expect(youtubeTranscriptMode.placeholder).toBe('Search this video transcript');
     expect(items).toEqual([
       expect.objectContaining({
-        id: 'youtube-transcript-placeholder',
-        title: 'Transcript search coming soon',
+        id: 'youtube-transcript-missing-video',
+        kind: 'status',
+        title: 'No active YouTube video',
         action: { kind: 'noop' },
       }),
     ]);

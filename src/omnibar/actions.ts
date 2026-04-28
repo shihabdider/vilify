@@ -113,7 +113,7 @@ function executeWithPlatform(
       case 'copy':
         return executeCopyAction(action.source, context, platform);
       case 'seek':
-        return executeSeekAction(action.seconds, context, platform);
+        return executeSeekAction(action.seconds, action.seekMode ?? 'relative', context, platform);
       case 'playPause':
         return executePlayPauseAction(context, platform);
       case 'setPlaybackRate':
@@ -162,6 +162,7 @@ function resolveCopyText(
 
 function executeSeekAction(
   seconds: number,
+  seekMode: 'relative' | 'absolute',
   context: OmnibarActionContext,
   platform: OmnibarActionPlatform,
 ): OmnibarActionResult {
@@ -179,7 +180,8 @@ function executeSeekAction(
   }
 
   const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
-  video.currentTime = clampVideoTime(currentTime + seconds, video.duration);
+  const targetTime = seekMode === 'absolute' ? seconds : currentTime + seconds;
+  video.currentTime = clampVideoTime(targetTime, video.duration);
   return closeResult;
 }
 

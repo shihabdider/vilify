@@ -1,28 +1,10 @@
 import { filterOmnibarItems } from '../../omnibar/state';
 import type { OmnibarItem, OmnibarMode } from '../../omnibar/types';
+import { youtubeTranscriptMode } from './transcript-mode';
+
+export { youtubeTranscriptMode } from './transcript-mode';
 
 const YOUTUBE_BASE_URL = 'https://www.youtube.com';
-
-export const youtubeTranscriptMode: OmnibarMode = {
-  id: 'youtube-transcript',
-  title: 'YouTube Transcript',
-  placeholder: 'Search transcript (coming soon)',
-  providers: [
-    {
-      id: 'youtube-transcript-status',
-      getItems: () => [
-        {
-          id: 'youtube-transcript-placeholder',
-          kind: 'status',
-          title: 'Transcript search coming soon',
-          subtitle: 'Transcript loading and search will be added in a later issue.',
-          keywords: ['transcript', 'placeholder', 'coming soon', 'status'],
-          action: { kind: 'noop' },
-        },
-      ],
-    },
-  ],
-};
 
 const youtubeNavigationItems: readonly OmnibarItem[] = [
   {
@@ -125,9 +107,9 @@ const youtubeCommandItems: readonly OmnibarItem[] = [
   {
     id: 'youtube-open-transcript',
     kind: 'command',
-    title: 'Transcript',
-    subtitle: 'Open the transcript mode shell. Transcript loading arrives in a later issue.',
-    keywords: ['transcript', 'captions', 'caption', 'shell', 'command'],
+    title: 'Search transcript',
+    subtitle: 'Search this video transcript and jump to a matching timestamp.',
+    keywords: ['transcript', 'search transcript', 'captions', 'caption', 'search', 'timestamp', 'command'],
     action: { kind: 'push-mode', mode: youtubeTranscriptMode },
   },
 ];

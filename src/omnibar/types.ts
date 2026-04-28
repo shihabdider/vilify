@@ -7,6 +7,8 @@ export interface ProviderContext {
   readonly location?: Location;
   readonly activePlugin?: ActivePluginContext;
   readonly page?: unknown;
+  readonly services?: Record<string, unknown>;
+  readonly requestRender?: () => void;
 }
 
 export interface OmnibarActionContext {
@@ -15,7 +17,7 @@ export interface OmnibarActionContext {
   readonly providerContext: ProviderContext;
 }
 
-export type OmnibarItemKind = 'navigation' | 'video-action' | 'command' | 'status';
+export type OmnibarItemKind = 'navigation' | 'video-action' | 'command' | 'search-result' | 'status';
 
 export type OmnibarActionResult =
   | { kind: 'none' }
@@ -34,7 +36,7 @@ export type OmnibarAction =
   | { kind: 'push-mode'; mode: OmnibarMode }
   | { kind: 'navigate'; url: string }
   | { kind: 'copy'; source: OmnibarCopySource }
-  | { kind: 'seek'; seconds: number }
+  | { kind: 'seek'; seconds: number; seekMode?: 'relative' | 'absolute' }
   | { kind: 'playPause' }
   | { kind: 'setPlaybackRate'; rate: number }
   | { kind: 'custom'; execute: (context: OmnibarActionContext) => OmnibarActionExecution };

@@ -56,3 +56,5 @@
 {"ts":"2026-04-27T20:55:03.414Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":51,"input":81982,"output":30984,"cacheRead":2197504,"cost":2.4382,"duration":464.2}
 {"ts":"2026-04-27T21:04:17.155Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":43,"input":77143,"output":38906,"cacheRead":1688576,"cost":2.3972,"duration":487.2}
 {"ts":"2026-04-27T21:25:40.574Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":55,"input":91686,"output":14714,"cacheRead":2702848,"cost":2.2513,"duration":1254.1}
+{"ts":"2026-04-28T03:12:59.569Z","agent":"implementer","wish":null,"layer":null,"status":"fail","turns":21,"input":40733,"output":1775,"cacheRead":350208,"cost":0.432,"duration":20773.1}
+{"ts":"2026-04-28T14:07:52.624Z","agent":"implementer","wish":null,"layer":null,"status":"fail","turns":9,"input":22445,"output":616,"cacheRead":9216,"cost":0.1353,"duration":30770.5}
