@@ -12,7 +12,8 @@ import {
   setOmnibarInputValue,
 } from '../../test-helpers/omnibar';
 import type { JSDOM } from 'jsdom';
-import type { OmnibarItem, ProviderContext } from '../../omnibar/types';
+import type { OmnibarItem, OmnibarMode, ProviderContext } from '../../omnibar/types';
+import type { YouTubeBridgeClient } from './bridge-client';
 import {
   YOUTUBE_BRIDGE_PROTOCOL,
   YOUTUBE_BRIDGE_REQUEST_EVENT,
@@ -22,6 +23,7 @@ import {
   type YouTubeBridgeResponse,
 } from './bridge-types';
 import { youtubeDefaultMode, youtubePlugin, youtubeTranscriptMode } from './plugin';
+import { createTranscriptProviderState, createYouTubeTranscriptMode } from './transcript-mode';
 
 function providerContext(dom: JSDOM): ProviderContext {
   return {
@@ -34,15 +36,35 @@ function providerContext(dom: JSDOM): ProviderContext {
   };
 }
 
-function transcriptItemsForContext(context: ProviderContext, query = ''): readonly OmnibarItem[] {
-  const initialState = createInitialOmnibarState(youtubeTranscriptMode);
+function transcriptItemsForMode(
+  mode: OmnibarMode,
+  context: ProviderContext,
+  query = '',
+): readonly OmnibarItem[] {
+  const initialState = createInitialOmnibarState(mode);
   const state = query ? setOmnibarQuery(initialState, query) : initialState;
 
   return collectOmnibarItems(state, context);
 }
 
+function transcriptItemsForContext(context: ProviderContext, query = ''): readonly OmnibarItem[] {
+  return transcriptItemsForMode(youtubeTranscriptMode, context, query);
+}
+
 function transcriptItems(dom: JSDOM, query = ''): readonly OmnibarItem[] {
   return transcriptItemsForContext(providerContext(dom), query);
+}
+
+function pendingBridgeFactory() {
+  const getTranscript = vi.fn((_videoId?: string) => new Promise<TranscriptResult>(() => {}));
+  const createBridgeClient = vi.fn(
+    (): YouTubeBridgeClient => ({
+      getVideoMetadata: async () => ({ status: 'unavailable', reason: 'bridge-unavailable' }),
+      getTranscript,
+    }),
+  );
+
+  return { createBridgeClient, getTranscript };
 }
 
 function recordBridgeRequests(document: Document): YouTubeBridgeRequest[] {
@@ -74,6 +96,43 @@ async function flushBridgeSettlement(): Promise<void> {
 }
 
 describe('youtubeTranscriptMode provider', () => {
+  it('returns missing-video status without creating a bridge client on non-watch and Shorts pages', () => {
+    const { createBridgeClient } = pendingBridgeFactory();
+    const mode = createYouTubeTranscriptMode({ createBridgeClient });
+    const cases = [
+      {
+        url: 'https://www.youtube.com/results?search_query=vilify',
+        staleWatchUrl: 'https://www.youtube.com/watch?v=stale-results-video-0012',
+      },
+      {
+        url: 'https://www.youtube.com/shorts/shorts-video-0012',
+        staleWatchUrl: 'https://www.youtube.com/watch?v=stale-shorts-video-0012',
+      },
+    ];
+
+    for (const testCase of cases) {
+      const dom = makeOmnibarTestDom(testCase.url);
+      const context: ProviderContext = {
+        ...providerContext(dom),
+        activePlugin: {
+          plugin: youtubePlugin,
+          url: new URL(testCase.staleWatchUrl),
+        },
+      };
+
+      expect(transcriptItemsForMode(mode, context)).toEqual([
+        expect.objectContaining({
+          id: 'youtube-transcript-missing-video',
+          kind: 'status',
+          title: 'No active YouTube video',
+          action: { kind: 'noop' },
+        }),
+      ]);
+    }
+
+    expect(createBridgeClient).not.toHaveBeenCalled();
+  });
+
   it('uses the live watch video id after starting on a non-watch page and navigating by SPA history', () => {
     const dom = makeOmnibarTestDom('https://www.youtube.com/results?search_query=vilify');
     const context = providerContext(dom);
@@ -329,6 +388,108 @@ describe('youtubeTranscriptMode provider', () => {
       }),
     ]);
     expect(page?.outerHTML).toBe(beforePageHtml);
+  });
+
+  it('ignores a loaded old-video cache when live navigation points to another watch page or non-watch page', () => {
+    const state = createTranscriptProviderState();
+    state.cacheByVideoId.set('cached-old-video-0012', {
+      status: 'loaded',
+      result: {
+        status: 'loaded',
+        videoId: 'cached-old-video-0012',
+        language: 'en',
+        source: 'caption-json3',
+        lines: [{ time: 12, timeText: '0:12', duration: 2, text: 'Cached old transcript line' }],
+      },
+    });
+    const { createBridgeClient, getTranscript } = pendingBridgeFactory();
+    const mode = createYouTubeTranscriptMode({ state, createBridgeClient });
+    const dom = makeDom('cached-old-video-0012');
+    const context = providerContext(dom);
+
+    expect(transcriptItemsForMode(mode, context, 'cached old')).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-line-cached-old-video-0012-0-12000',
+        kind: 'search-result',
+        title: '0:12 Cached old transcript line',
+      }),
+    ]);
+    expect(createBridgeClient).not.toHaveBeenCalled();
+
+    dom.window.history.pushState({}, '', '/watch?v=cached-current-video-0012');
+    const currentWatchItems = transcriptItemsForMode(mode, context, 'cached old');
+
+    expect(currentWatchItems).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-cached-current-video-0012',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(currentWatchItems).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'search-result',
+          title: expect.stringContaining('Cached old transcript line'),
+        }),
+      ]),
+    );
+    expect(createBridgeClient).toHaveBeenCalledTimes(1);
+    expect(getTranscript).toHaveBeenCalledWith('cached-current-video-0012');
+
+    dom.window.history.pushState({}, '', '/results?search_query=vilify');
+    const nonWatchItems = transcriptItemsForMode(mode, context, 'cached old');
+
+    expect(nonWatchItems).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-missing-video',
+        kind: 'status',
+        title: 'No active YouTube video',
+      }),
+    ]);
+    expect(nonWatchItems).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'search-result',
+          title: expect.stringContaining('Cached old transcript line'),
+        }),
+      ]),
+    );
+    expect(createBridgeClient).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders stale bridge responses as unavailable status rows instead of transcript line rows', async () => {
+    const dom = makeDom('stale-response-video-0012');
+    const requests = recordBridgeRequests(dom.window.document);
+
+    transcriptItems(dom);
+    expect(requests).toHaveLength(1);
+
+    dispatchTranscriptResponse(dom.window.document, requests[0], {
+      status: 'stale',
+      reason: 'stale-video-id',
+      requestedVideoId: 'stale-response-video-0012',
+      actualVideoId: 'current-response-video-0012',
+    });
+    await flushBridgeSettlement();
+
+    const items = transcriptItems(dom, 'stale');
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-unavailable-stale-response-video-0012',
+        kind: 'status',
+        title: 'Transcript unavailable',
+        subtitle: expect.stringContaining('Active video is current-response-video-0012'),
+      }),
+    ]);
+    expect(items).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'search-result',
+        }),
+      ]),
+    );
   });
 
   it('does not show stale loaded lines when the active video id changes before a pending request resolves', async () => {
