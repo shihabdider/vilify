@@ -1,3 +1,3 @@
-# TODOs - Google Site
+# TODOs - Active v1 Omnibar
 
-2. **Show page number** — Display the current Google search results page number in the status bar (e.g., "Page 2"). Google's URL contains `&start=10` for page 2, etc.
+No Google or full focus-mode work is active in v1. Future TODOs should stay within the YouTube watch-page omnibar scope unless a new PRD explicitly expands product scope.

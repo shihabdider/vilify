@@ -1,87 +1,84 @@
 # Vilify
 
-Bespoke vim-style command palettes for the web.
+Vilify is a small Chrome MV3 extension that adds a keyboard-driven omnibar to YouTube watch pages.
 
-Unlike generic browser extensions that try to handle all websites with one-size-fits-all solutions, Vilify provides **deep, site-specific integrations**. Each site gets a carefully crafted keyboard-driven experience with native theming.
+The active v1 product scope is intentionally narrow: open the omnibar with `:`, run YouTube watch-page commands, navigate to YouTube URLs, use native video-element actions, copy the current watch URL, and search the current video's transcript through structured YouTube data.
 
-## Supported Sites
+## Active v1 Scope
 
-| Site | Description |
-|------|-------------|
-| YouTube | Video controls, navigation, copy URLs |
+| Surface | Status |
+|---------|--------|
+| YouTube watch pages (`/watch?v=...`) | Supported |
+| YouTube non-watch pages | No Vilify UI or key interception |
+| Google pages | Out of active scope |
+| Full focus-mode/page replacement UI | Out of active scope |
 
-## Installation
+## Commands
 
-### From Source
+Open the omnibar on a YouTube watch page with `:`. When the omnibar is closed, Vilify intercepts only `:` and leaves native YouTube/browser shortcuts alone.
 
-1. Clone this repo
+The root mode includes:
+
+- YouTube URL navigation commands, such as Home, Subscriptions, Watch Later, History, and Library.
+- Native video actions through the page's `<video>` element: play/pause, seek, and playback speed.
+- Copy current watch URL and copy URL at current video time.
+- Search transcript, which opens a transcript-search mode for the current video.
+
+## Keybindings
+
+| Key | Closed omnibar | Open omnibar |
+|-----|----------------|--------------|
+| `:` | Open omnibar on supported watch pages | Type `:` in the input |
+| `↑` / `↓` | Native page behavior | Move selection |
+| `Enter` | Native page behavior | Execute selected item |
+| `Escape` | Native page behavior | Close omnibar or return to the previous mode |
+
+Editable targets (`input`, `textarea`, `select`, and `contenteditable`) keep their native behavior; typing `:` there does not open Vilify.
+
+## Out of Active v1 Scope
+
+The pre-reset implementation is preserved on the backup branch/tag. The current `main` branch does not actively support:
+
+- Google Search integration.
+- Full-site focus mode or layout replacement.
+- Listing renderers, drawers, comments UI, or persistent sidebars.
+- Watch Later, dismiss, subscribe, captions, theater, or fullscreen automation through visible YouTube controls/menus.
+- Ambient multi-key shortcuts such as `/` for page content or `g h` navigation.
+
+## Installation from Source
+
+1. Clone this repo.
 2. Install dependencies and build:
    ```bash
-   npm install
-   npm run build
+   bun install
+   bun run build
    ```
-3. Open Chrome and go to `chrome://extensions`
-4. Enable "Developer mode" (toggle in top right)
-5. Click "Load unpacked" and select the repo directory
-6. Navigate to YouTube
+3. Open Chrome and go to `chrome://extensions`.
+4. Enable **Developer mode**.
+5. Click **Load unpacked** and select the repo directory.
+6. Navigate directly to a YouTube watch page.
 
-### Development
+## Development
 
 ```bash
-npm run watch   # Rebuild on file changes
-npm run clean   # Remove build artifacts
+bun run build   # Build dist/content.js and dist/data-bridge.js
+bun run test    # Run Vitest suite
+bun run watch   # Rebuild on file changes
+bun run clean   # Remove build artifacts
 ```
-
-## Usage
-
-Press `/` to open the command palette with page content (videos, posts, etc.)
-
-Press `:` to open the command palette with commands
-
-### Common Keybindings
-
-| Key | Action |
-|-----|--------|
-| `/` | Open palette (content) |
-| `:` | Open palette (commands) |
-| `↑` `↓` | Navigate items |
-| `Enter` | Select item |
-| `Shift+Enter` | Open in new tab |
-| `Escape` | Close palette |
-| `g h` | Go home |
-
-Each site has additional keybindings. Open the palette and type to search commands.
-
-## Philosophy
-
-The bespokeness is the point. Generic solutions handle nothing well; focused solutions handle one thing excellently.
-
-Each Vilify implementation:
-- **Looks native** — themed to match the site's design
-- **Feels native** — commands that make sense for that site
-- **Works reliably** — selectors tuned to each site's DOM
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── core/          # Shared palette, keyboard, and filtering logic
-│   ├── sites/         # Site-specific implementations
-│   │   └── youtube/   # YouTube integration
-│   └── content.js     # Entry point
-├── dist/              # Built extension files
-├── manifest.json      # Chrome extension manifest
-└── build.js           # esbuild configuration
+│   ├── content.ts              # Content-script entry and page support detection
+│   ├── omnibar/                # Generic omnibar runtime, state, keyboard, and actions
+│   ├── plugins/                # Stateless plugin registry
+│   └── sites/youtube/          # YouTube watch-page plugin, bridge, and transcript provider
+├── dist/                       # Built extension files
+├── manifest.json               # Chrome extension manifest
+└── build.js                    # esbuild configuration
 ```
-
-## Contributing
-
-Want to add a new site? See [Contributing Guide](docs/contributing.md).
-
-1. Create a new directory in `src/sites/`
-2. Implement the site adapter following the YouTube example
-3. Add the site's URL pattern to `manifest.json`
-4. Submit a PR
 
 ## License
 

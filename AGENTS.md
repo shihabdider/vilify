@@ -11,21 +11,11 @@ bun run test     # vitest run (NOT `bun test` — that uses bun's native runner)
 
 ## Architecture Notes
 
-### Watch page DOM updates after state changes
+### Active v1 scope
 
-The watch page uses a **full re-render** pattern: `render()` → `renderWatchWithRetry` → `renderWatchPage` → `clear(container)` + rebuild everything from scratch (info box, comments, observers).
+Vilify's active runtime is a YouTube watch-page omnibar command layer. `src/content.ts` detects supported pages through the stateless plugin registry and installs the omnibar runtime only for YouTube `/watch` URLs with a video id.
 
-**Direct DOM updates must come AFTER `render()`, not before.** Since `render()` destroys and rebuilds the entire container, any DOM changes made before `render()` are lost. The working pattern (used by `updateSubscribeButton` and the watch later hint) is:
-
-```javascript
-state = onSomeStateChange(state, data);
-render();                                         // rebuilds DOM from state
-// Direct DOM update AFTER render — modifies the newly created element
-const el = document.getElementById('vilify-some-id');
-if (el) { /* update element */ }
-```
-
-This is needed because the render chain (`renderWatchWithRetry` → `renderWatchPage` → `renderVideoInfoBox`) may not always propagate state changes to the info box reliably — the direct DOM update is the primary mechanism for immediate visual feedback.
+Keep Google support, full focus-mode/page replacement, listing renderers, drawers, comments UI, Watch Later/dismiss/subscribe mutations, and visible-control choreography out of active `main` code unless a new PRD explicitly expands scope. Historical reset planning remains in `.htdp/prds`, `.htdp/issues`, and `.htdp/architecture`.
 
 htdp.mode: autonomous
 htdp.transparent: true

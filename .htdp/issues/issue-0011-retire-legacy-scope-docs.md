@@ -1,6 +1,6 @@
 ---
 id: issue-0011
-status: draft
+status: done
 type: chore
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -20,12 +20,12 @@ Legacy focus-mode/listing UI, Google support, drawers, comments UI, Watch Later/
 
 ## Acceptance examples
 
-- [ ] Given `manifest.json`, when matches, permissions, and content scripts are inspected, then Google support and legacy site-replacement surfaces are not active.
-- [ ] Given `src/content.ts` and bundled entry points, when imports are inspected, then the active content script does not import the old focus-mode app framework, Google modules, listing renderers, drawers, comments UI, or Watch Later/dismiss/subscribe automation.
-- [ ] Given the test suite, when `bun run test` runs, then tests target the omnibar runtime, plugin registry, YouTube default mode, bridge protocol, and transcript provider rather than legacy page replacement behavior.
-- [ ] Given README or extension docs, when a maintainer reads them, then they describe Vilify as a small omnibar command layer and list Google/full focus mode as out of active v1 scope.
-- [ ] Given a Google search page after installing the extension, when the user types normal keys, then Vilify does nothing.
-- [ ] Given a YouTube watch page with the omnibar closed, when normal YouTube/browser shortcuts are used, then Vilify intercepts only `:`.
+- [x] Given `manifest.json`, when matches, permissions, and content scripts are inspected, then Google support and legacy site-replacement surfaces are not active.
+- [x] Given `src/content.ts` and bundled entry points, when imports are inspected, then the active content script does not import the old focus-mode app framework, Google modules, listing renderers, drawers, comments UI, or Watch Later/dismiss/subscribe automation.
+- [x] Given the test suite, when `bun run test` runs, then tests target the omnibar runtime, plugin registry, YouTube default mode, bridge protocol, and transcript provider rather than legacy page replacement behavior.
+- [x] Given README or extension docs, when a maintainer reads them, then they describe Vilify as a small omnibar command layer and list Google/full focus mode as out of active v1 scope.
+- [x] Given a Google search page after installing the extension, when the user types normal keys, then Vilify does nothing.
+- [x] Given a YouTube watch page with the omnibar closed, when normal YouTube/browser shortcuts are used, then Vilify intercepts only `:`.
 
 ## Data definition impact
 
@@ -56,7 +56,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- Completed in omnibar reset iteration on 2026-04-28; version bumped to `0.6.59`.
 
 ## Out of scope
 

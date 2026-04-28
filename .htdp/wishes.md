@@ -10,7 +10,8 @@ This iteration implements the omnibar reset issues in dependency order. Function
 - `issue-0008` — add YouTube default mode navigation and native video actions.
 - `issue-0009` — add typed YouTube main-world bridge protocol.
 - `issue-0010` — transcript search mode/provider.
+- `issue-0011` — retire legacy scope from active manifest, code, tests, and docs.
 
 ## Pending
 
-- `issue-0011` — retire legacy scope from active manifest, code, tests, and docs.
+- None.

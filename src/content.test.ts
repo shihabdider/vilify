@@ -131,24 +131,29 @@ describe('initContentScript', () => {
     }
   });
 
-  it('leaves pages with no active plugin without a listener, opener interception, or omnibar UI', () => {
-    const dom = makeDom('https://www.youtube.com/results?search_query=vilify');
-    const beforeHtml = dom.window.document.documentElement.outerHTML;
-    const documentAddEventListener = vi.spyOn(dom.window.document, 'addEventListener');
-    const windowAddEventListener = vi.spyOn(dom.window, 'addEventListener');
+  it('leaves Google search and YouTube non-watch pages without a listener, opener interception, or omnibar UI', () => {
+    for (const pageUrl of [
+      'https://www.youtube.com/results?search_query=vilify',
+      'https://www.google.com/search?q=vilify',
+    ]) {
+      const dom = makeDom(pageUrl);
+      const beforeHtml = dom.window.document.documentElement.outerHTML;
+      const documentAddEventListener = vi.spyOn(dom.window.document, 'addEventListener');
+      const windowAddEventListener = vi.spyOn(dom.window, 'addEventListener');
 
-    const result = initContentScript({
-      location: dom.window.location,
-      document: dom.window.document,
-    });
+      const result = initContentScript({
+        location: dom.window.location,
+        document: dom.window.document,
+      });
 
-    expect(result).toEqual({ kind: 'unsupported', url: new URL('https://www.youtube.com/results?search_query=vilify') });
-    expect(documentAddEventListener).not.toHaveBeenCalled();
-    expect(windowAddEventListener).not.toHaveBeenCalled();
+      expect(result, pageUrl).toEqual({ kind: 'unsupported', url: new URL(pageUrl) });
+      expect(documentAddEventListener, pageUrl).not.toHaveBeenCalled();
+      expect(windowAddEventListener, pageUrl).not.toHaveBeenCalled();
 
-    const event = pressKey(dom.window, dom.window.document.body, ':');
-    expect(event.defaultPrevented).toBe(false);
-    expect(getOmnibarInput(dom.window.document)).toBeNull();
-    expect(dom.window.document.documentElement.outerHTML).toBe(beforeHtml);
+      const event = pressKey(dom.window, dom.window.document.body, ':');
+      expect(event.defaultPrevented, pageUrl).toBe(false);
+      expect(getOmnibarInput(dom.window.document), pageUrl).toBeNull();
+      expect(dom.window.document.documentElement.outerHTML, pageUrl).toBe(beforeHtml);
+    }
   });
 });
