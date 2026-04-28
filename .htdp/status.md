@@ -1,8 +1,8 @@
 # Status
 
 phase: 2
-layer: 4
-updated: 2026-04-28T17:59:57.241Z
+layer: 3
+updated: 2026-04-28T18:11:41.425Z
 
 ## Wishes
 
@@ -13,7 +13,7 @@ updated: 2026-04-28T17:59:57.241Z
 | createYouTubeBridgeClient | src/sites/youtube/bridge-client.ts | 4 | pass | 139.9s |
 | executeWithPlatform | src/omnibar/actions.ts | 4 | pass | 160.1s |
 | youtubePlugin.matches(url: URL): boolean | src/sites/youtube/plugin.ts | 3 | pending | - |
-| resolveActiveVideoId | src/sites/youtube/transcript-mode.ts | 3 | pending | - |
+| resolveActiveVideoId | src/sites/youtube/transcript-mode.ts | 3 | pass | 256.7s |
 | createOmnibarActionExecutor | src/omnibar/actions.ts | 3 | pending | - |
 | detectSupportedPage | src/content.ts | 2 | pending | - |
 | createBridgeClientForContext | src/sites/youtube/transcript-mode.ts | 2 | pending | - |
@@ -38,3 +38,6 @@ updated: 2026-04-28T17:59:57.241Z
 - 13:59:52 executeWithPlatform: pass (160.1s, $0.7872)
 - 13:59:55 implementer_post verification for executeWithPlatform: pass
 - 13:59:57 layer 4 verification: pass
+- 14:07:23 resolveActiveVideoId: running
+- 14:11:39 resolveActiveVideoId: pass (256.7s, $1.0155)
+- 14:11:41 implementer_post verification for resolveActiveVideoId: pass
