@@ -1,46 +1,76 @@
 ## Wish List
 
-### Layer 2 (implement first)
-- `getOpenOmnibarKeyIntent(event: KeyboardEvent): OpenOmnibarKeyIntent | null` in `src/omnibar/keyboard.ts`
-  Purpose: Classify open-state keydown events so ArrowUp/Ctrl+p return `move-up`, ArrowDown/Ctrl+n return `move-down`, Enter returns `execute`, Escape returns `escape`, and unrelated keys return `null`.
+### Layer 4 (implement first)
+- `isSupportedYouTubeUrl(url: URL): boolean` in `src/sites/youtube/url.ts`
+  Purpose: Return true for YouTube host-level pages on `youtube.com` and `*.youtube.com` for any path, including home, search, channel, playlist, Shorts, watch-with-id, and watch-without-id; return false for Google, `youtu.be`, and unrelated hosts.
   Depends on: none
-- `renderStyle(): HTMLStyleElement` in `src/omnibar/runtime.ts`
-  Purpose: Provide compact top-center terminal/TUI picker CSS: monospace-first typography, 72–88ch-style width, thin square border, no glassy/rounded modal treatment, dense one-line rows, muted metadata, and inverse-video selected row styling.
+- `getYouTubeVideoId(url: URL | undefined): string | null` in `src/sites/youtube/url.ts`
+  Purpose: Preserve watch-page capability detection by extracting only a non-empty `/watch?v=` video id from a YouTube URL and returning null for home/search/channel/playlist/Shorts/watch-without-id.
   Depends on: none
-- `renderItem(item: OmnibarItem, selected: boolean): HTMLDivElement` in `src/omnibar/runtime.ts`
-  Purpose: Render one `OmnibarItem` as a compact terminal row with cursor column (`>` only when selected), kind/label column, title text, optional muted subtitle metadata, status-kind inline terminal grammar, and selected-row inverse-video hooks.
+- `createYouTubeBridgeClient(env: YouTubeBridgeClientEnv = {}): YouTubeBridgeClient` in `src/sites/youtube/bridge-client.ts`
+  Purpose: Send structured bridge metadata/transcript requests using the current video id at request time and classify stale responses when SPA navigation changes the active video before a response returns.
   Depends on: none
+- `executeWithPlatform(action: OmnibarAction, context: OmnibarActionContext, platform: OmnibarActionPlatform): OmnibarActionExecution` in `src/omnibar/actions.ts`
+  Purpose: Execute navigation/copy/video actions against live platform adapters, returning status/noop outcomes when a native video element is unavailable and never clicking visible YouTube controls or scraping visible UI.
+  Depends on: none
+
+### Layer 3
+- `youtubePlugin.matches(url: URL): boolean` in `src/sites/youtube/plugin.ts`
+  Purpose: Wire the YouTube plugin to host-level activation via `isSupportedYouTubeUrl` while keeping `getYouTubeVideoId` and `isYouTubeWatchUrl` as capability checks rather than activation gates.
+  Depends on: isSupportedYouTubeUrl
+- `resolveActiveVideoId(context: ProviderContext): string | null` in `src/sites/youtube/transcript-mode.ts`
+  Purpose: Resolve the current watch video id at provider-render time from services and live `Location`/`Document.location` state after SPA navigation, returning null on YouTube non-watch pages and Shorts.
+  Depends on: getYouTubeVideoId
+- `createOmnibarActionExecutor(platformOverrides: Partial<OmnibarActionPlatform> = {}): OmnibarActionExecutor` in `src/omnibar/actions.ts`
+  Purpose: Provide a default action executor whose current-URL and native-video adapters read live document/location state at execution time, so commands use the post-SPA page state.
+  Depends on: executeWithPlatform
+
+### Layer 2
+- `detectSupportedPage(url: URL, plugins: readonly SitePlugin[] = sitePlugins): SupportedPage` in `src/content.ts`
+  Purpose: Classify all YouTube host-level URLs as `{ kind: 'active-plugin' }` and Google/unrelated URLs as `{ kind: 'unsupported' }` without changing the existing `SupportedPage` union shape.
+  Depends on: youtubePlugin.matches
+- `createBridgeClientForContext(context: ProviderContext): YouTubeBridgeClient` in `src/sites/youtube/transcript-mode.ts`
+  Purpose: Create or reuse the YouTube bridge client with a live `getCurrentVideoId` resolver so transcript requests after SPA navigation target the active watch page.
+  Depends on: resolveActiveVideoId, createYouTubeBridgeClient
+- `getTranscriptItems(state: TranscriptProviderState, createBridgeClient: (context: ProviderContext) => YouTubeBridgeClient, context: ProviderContext, query: string): readonly OmnibarItem[]` in `src/sites/youtube/transcript-mode.ts`
+  Purpose: Render transcript-mode items from the current video capability: show a missing-video status on non-watch pages, start structured bridge loading for the current watch id, and avoid showing stale transcript lines after navigation.
+  Depends on: resolveActiveVideoId, createBridgeClientForContext
 
 ### Layer 1
-- `renderResults(items: readonly OmnibarItem[]): HTMLDivElement` in `src/omnibar/runtime.ts`
-  Purpose: Render the item collection as a dense listbox of terminal rows, preserving item data attributes/selection roles and rendering empty collections as an inline `-- no matches --` terminal row rather than a card.
-  Depends on: renderItem
-- `renderOverlay(items: readonly OmnibarItem[]): HTMLDivElement` in `src/omnibar/runtime.ts`
-  Purpose: Assemble the top-center TUI picker panel with a one-line terminal prompt containing mode label and query input, the compact results list, and a footer/status line while preserving existing query update behavior.
-  Depends on: renderResults
-- `handleDocumentKeyDown(event: KeyboardEvent): void` in `src/omnibar/runtime.ts`
-  Purpose: Apply open-state key intents so Ctrl+n/Ctrl+p navigate with the same bounded behavior as ArrowDown/ArrowUp, while the closed state continues to intercept only `:` outside editable targets.
-  Depends on: getOpenOmnibarKeyIntent
+- `createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRuntime` in `src/omnibar/runtime.ts`
+  Purpose: Keep the compact TUI omnibar runtime attached to a YouTube document across SPA navigation, intercept only `:` while closed outside editable targets, use live provider context for renders/actions, and avoid duplicate roots/listeners if initialization is invoked more than once for the same document.
+  Depends on: createOmnibarActionExecutor, getTranscriptItems
 
 ### Layer 0 (implement last)
-- `createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRuntime` in `src/omnibar/runtime.ts`
-  Purpose: Integrate the redesigned TUI picker markup, CSS, input focus, row/status rendering, and keyboard handling into the existing omnibar runtime without changing provider/action semantics or broadening YouTube watch-page activation scope.
-  Depends on: renderStyle, renderOverlay, handleDocumentKeyDown
+- `initContentScript(env: ContentScriptEnv = {}): SupportedPage` in `src/content.ts`
+  Purpose: On direct load of any supported YouTube page, install or reuse the omnibar runtime exactly once with live `Document`/`Location` provider context; leave Google and unrelated sites inactive; preserve SPA navigation without hard refresh.
+  Depends on: detectSupportedPage, createOmnibarRuntime
 
 ## Data Definitions Created/Modified
-- None — reused existing `OmnibarState`, `OmnibarMode`, `OmnibarItem`, `OmnibarItemKind`, and existing `OpenOmnibarKeyIntent` variants; no new provider/product data model or key-intent variant was introduced.
+- None in this stub pass — existing `SupportedPage`, `SitePlugin`, `ProviderContext`, `OmnibarActionResult`, `TranscriptResult`, and bridge request/response definitions are sufficient; no new capability context was introduced.
+- Planned implementation/config changes captured by the wishes: add/use `isSupportedYouTubeUrl` in `src/sites/youtube/url.ts` and `src/sites/youtube/plugin.ts`; broaden `manifest.json` content-script matches to all YouTube paths; bump `package.json` and `manifest.json` from `0.6.66` to `0.6.67`.
 
 ## Assertion Changes Flagged
-- `src/manifest.test.ts:8`: `expect(packageJson.version).toBe('0.6.60')` — the explicit issue requirement to bump `package.json` to `0.6.61` will require this expected value to change during implementation.
-- `src/manifest.test.ts:9`: `expect(manifest.version).toBe('0.6.60')` — the explicit issue requirement to bump `manifest.json` to `0.6.61` will require this expected value to change during implementation.
+- `src/manifest.test.ts:8`: `expect(packageJson.version).toBe('0.6.66')` — must change to the required `0.6.67` version bump.
+- `src/manifest.test.ts:9`: `expect(manifest.version).toBe('0.6.66')` — must change to the required `0.6.67` version bump.
+- `src/manifest.test.ts:28-31`: expected content-script matches currently require `*://youtube.com/watch*` and `*://*.youtube.com/watch*`; acceptance requires all YouTube paths instead.
+- `src/manifest.test.ts:34`: `expect(matches.every((pattern: string) => pattern.endsWith('/watch*'))).toBe(true)` — must be replaced with an assertion that matches cover all YouTube paths while excluding Google.
+- `src/content.test.ts:25`: `expect(detectSupportedPage(url)).toEqual({ kind: 'unsupported', url })` for a YouTube watch URL without `v` — host-level activation means this should become an active YouTube plugin page with no current video id.
+- `src/content.test.ts:38`: `expect(detectSupportedPage(url)).toEqual({ kind: 'unsupported', url })` for YouTube home/search/channel/playlist/Shorts — these should become active YouTube plugin pages.
+- `src/content.test.ts:130-137`: expectations that YouTube search gets no listener, no `:` interception, and no omnibar UI — this case must split from Google and expect YouTube activation instead.
+- `src/plugins/registry.test.ts:44`: `expect(getActivePlugin(new URL(url), [youtubePlugin]), url).toBeNull()` currently covers YouTube non-watch/watch-without-id URLs; those YouTube cases should return `youtubePlugin`, while Google/unrelated cases remain null.
+- `src/scope-audit.test.ts:35-36`: README assertions currently require watch-page-only wording; docs should describe all-YouTube activation with watch/video commands gated by page capability.
 
 ## Assumptions / Interpretations
-- I interpreted “metadata/description when available” as rendering the existing optional `OmnibarItem.subtitle` as muted metadata, rather than adding a new metadata field to `OmnibarItem`.
-- I interpreted loading/unavailable/no-match terminal rows as presentation of existing `OmnibarItemKind: 'status'` items and empty result sets, rather than a new status-row data model.
-- I interpreted Ctrl+n/Ctrl+p as open-state-only aliases for existing `move-down`/`move-up` intents, with no new intent variants and no closed-state interception.
-- I treated the version bump as an implementation task rather than a stubber data-definition change because bumping it now would require changing hard-coded manifest test assertions.
+- I interpreted “all YouTube pages” as `youtube.com` and `*.youtube.com` paths matched by the current manifest style, not `youtu.be`; adding `youtu.be` would change both support predicate and manifest scope.
+- I interpreted `/watch` without a non-empty `v` parameter as activation-supported but video-id-unavailable, because the requested support predicate is host-level while `getYouTubeVideoId` remains the capability check.
+- I preserved the explicit Shorts decision: Shorts pages activate the omnibar, but `/shorts/:id` is not a watch/transcript video id for v1.
+- I interpreted “no duplicate roots/listeners” as at most one omnibar runtime per `Document`, including defensive behavior if `initContentScript` is called multiple times in tests or by future route hooks.
+- I interpreted capability-unavailable commands as allowed to remain visible in the compact YouTube root mode, with execution returning status/noop outcomes, rather than hiding video/transcript commands on non-watch pages.
+- I assumed the version bump is the next patch version, `0.6.67`, because the current version is `0.6.66` and no alternate version was specified.
 
 ## Notes
-- Brownfield search found the relevant processing points in `src/omnibar/keyboard.ts` and `src/omnibar/runtime.ts`; no YouTube provider or plugin-scope data definitions need changes for issue 0013.
-- `bun run build` and `bun run test` passed before writing this wish list; current tests still assert version `0.6.60` until the implementation phase performs the required bump.
-- No test files were edited by the stubber, so `diff-check` was not run.
+- Brownfield type search shows the existing `SupportedPage`, `SitePlugin`, `ProviderContext`, action-result, bridge, and transcript data shapes already model the needed branches; this issue is mainly a support predicate, manifest scope, live-context, and lifecycle/test update.
+- `bun run build` and `bun run test` passed before writing this wish list against the current watch-page-only implementation.
+- No test files were edited in this stub pass, so `diff-check` was not run.
+- The working tree already had active HtDP artifacts modified/deleted before this pass; this pass restored `.htdp/wishes.md` with the new wish list only.

@@ -1,7 +1,7 @@
 # Iteration
 
-anchor: 4e6715b6ec7a076b4ea1eb78fc1dd52c1848ef12
-started: 2026-04-28T00:00:00Z
+anchor: 13c8aece4a0eb5dd614a059dbafd798e281831e9
+started: 2026-04-28T17:37:28Z
 stubber-mode: data-definition-driven
 workflow-mode: autonomous
 language: TypeScript
@@ -10,63 +10,69 @@ transparent: true
 ## Source Artifacts
 
 - PRD: .htdp/prds/prd-0001-omnibar-reset.md
-- Issue: .htdp/issues/issue-0013-tui-omnibar-redesign.md
+- Issue: .htdp/issues/issue-0012-youtube-wide-omnibar-spa.md
 - Architecture review: <none>
 
 ## Problem
 
-Redesign the active omnibar UI as a compact Vim/TUI-style fzf/Telescope picker while preserving the current narrow product scope and adding only open-state Ctrl+n/Ctrl+p selection navigation.
+Broaden Vilify's omnibar activation from direct-loaded YouTube watch pages to all YouTube pages, and make runtime/provider reads robust across YouTube SPA navigation without reintroducing focus mode, page replacement, visible-control automation, or Google support.
 
 ## Data Definition Plan
 
-Reuse existing `OmnibarState`, `OmnibarMode`, `OmnibarItem`, and `OmnibarItemKind` definitions. Extend open-state key intent recognition so Ctrl+n maps to the existing move-down intent and Ctrl+p maps to the existing move-up intent. Update omnibar runtime rendering to expose a terminal prompt line, compact structured one-line rows, cursor/kind/label/metadata hooks, inverse-video selected row, status/footer line, and inline terminal empty/status rows. No provider/product data model change is expected.
+Change the YouTube support predicate from watch-with-video-id to YouTube-host-level support while preserving `getYouTubeVideoId`/watch helpers for capability checks. Reuse `SupportedPage`, `SitePlugin`, `ProviderContext`, and existing action/status result definitions unless implementation proves a small capability context is needed. Ensure provider/action code reads current URL/video id from live `Location`/`Document.location` at render/execution time rather than from the initial `activePlugin.url` snapshot. Broaden manifest content-script matches to all YouTube paths. Update docs/project notes that currently describe watch-page-only activation.
 
 ## Polya Ledger
 
 ### Knowns
 
-- Current active runtime creates an omnibar only on YouTube watch pages through `src/content.ts` and the stateless plugin registry.
-- Current runtime rendering lives in `src/omnibar/runtime.ts`; key intent mapping lives in `src/omnibar/keyboard.ts`.
-- Current rows are generic web command-palette rows with rounded blue selected styling.
-- Issue 0013 must be implemented before issue 0012.
-- Build/test commands are `bun run build` and `bun run test` via `htdp.json`.
+- Current `youtubePlugin.matches` uses `isYouTubeWatchUrl`, so YouTube home/search/channel/playlist/Shorts are unsupported.
+- Current manifest content scripts match only `*://youtube.com/watch*` and `*://*.youtube.com/watch*`.
+- Current `initContentScript` installs one omnibar runtime when the content script loads on a supported plugin page.
+- Current transcript provider already tries `context.location`, `context.document?.location`, `globalThis.location`, then initial `activePlugin.url` for video id resolution.
+- Current native video actions use the live document query for `video` and already return status results when no native video element exists.
+- Current version is `0.6.66` after issue 0013.
 
 ### Constraints
 
-- Do not broaden activation scope in this issue; issue 0012 owns YouTube-wide/SPA activation.
-- Do not reintroduce full focus mode, listing UI, drawers, comments UI, Google support, or visible-control automation.
-- Closed state must still intercept only `:` on supported pages and must ignore editable targets.
-- Keep readable monospace-first TUI styling without novelty/pixel effects.
-- Browser visual QA is manual in the user's Chrome extension session, not Playwright.
-- Bump both `package.json` and `manifest.json` for this implementation change, then commit and push.
+- Do not activate on Google or non-YouTube pages.
+- Do not reintroduce ambient multi-key shortcuts; closed state should still intercept only `:` outside editable targets.
+- Do not scrape visible YouTube UI or click visible controls to make commands work.
+- Do not duplicate omnibar roots/listeners across YouTube SPA navigations.
+- Keep transcript data flowing through the structured bridge protocol.
+- Shorts pages should be supported for omnibar activation, but not treated as watch/video-id transcript pages in v1.
+- Bump both `package.json` and `manifest.json` for implementation changes, then commit and push.
 
 ### Unknowns That Matter
 
-- [resolved by user go] Shorts semantics are irrelevant for issue 0013; issue 0012 may support omnibar activation on Shorts without treating Shorts path IDs as transcript/watch video IDs.
+- [resolved by user go] Shorts activation is in scope, but Shorts path IDs should not be added as transcript/watch video IDs because the user does not watch Shorts.
 
 ### Out of Scope
 
-- YouTube-wide activation and SPA navigation robustness.
-- Transcript-mode behavior changes beyond preserving terminal row grammar.
-- New Vim bindings besides Ctrl+n and Ctrl+p.
-- Bottom command-line mode, full-screen terminal overlay, or Playwright extension visual QA.
+- Google support.
+- Full focus-mode/page replacement.
+- YouTube listing renderers, drawers, comments UI, or persistent sidebars.
+- Watch Later/dismiss/subscribe mutations.
+- Captions/theater/fullscreen automation through visible YouTube controls.
+- New non-YouTube plugins.
 
 ### Assumptions
 
-- Existing omnibar data definitions are sufficient; this is primarily DOM/CSS/key-intent work.
-- Status-like `OmnibarItemKind` rows can be rendered inline by item kind without introducing a separate status data definition.
-- The version bump for issue 0013 should move from 0.6.60 to 0.6.61 unless the implementation discovers a newer version in files.
+- A host-level predicate plus live URL reads is enough; no route observer is needed because the content script remains installed across YouTube SPA navigation once injected on any YouTube page.
+- It is acceptable for transcript mode on non-watch pages and Shorts to show the existing no-active-video status item.
+- Video actions on non-watch pages should rely on the existing live native-video lookup and return existing missing-video status if no `<video>` exists.
+- Manifest matches should cover `*://youtube.com/*` and `*://*.youtube.com/*` without adding host permissions.
 
 ### Alternatives Considered
 
-- Add a new `OmnibarRowViewModel` data definition — rejected unless the stubber finds it necessary; current `OmnibarItem` carries enough row data.
-- Add distinct Ctrl+n/Ctrl+p intent variants — rejected because they should share existing move-up/move-down behavior and bounds.
-- Chosen: reuse core omnibar state/types, extend key mapping, and redesign runtime DOM/CSS hooks.
+- Add a new `YouTubePageContext` struct carrying URL/video/native-video capabilities — deferred unless stubber/implementer finds stale reads or duplicated capability logic; current live `Location`/`Document` context appears sufficient.
+- Add URL parsing for Shorts path IDs — rejected for v1 by user preference; Shorts activation is enough.
+- Add a YouTube SPA route listener/re-installer — rejected unless tests show duplication/installation gaps; manifest-wide injection plus one runtime should survive client-side navigation.
+- Chosen: broaden plugin/manifest support to all YouTube paths, keep watch/video helpers as capability gates, and make tests prove live URL reads after SPA-like URL changes.
 
 ### Decision Log
 
-- 2026-04-28T00:00:00Z — User confirmed the ordered plan and clarified they never watch Shorts, so issue 0012 should not add Shorts transcript/video-id semantics.
-- 2026-04-28T00:00:00Z — User accepted stubber-flagged version assertion updates for the required 0.6.61 bump in issue 0013.
+- 2026-04-28T17:37:28Z — Started issue 0012 after issue 0013 passed final human verification and was marked done.
+- 2026-04-28T17:37:28Z — Reused prior user confirmation that Shorts do not need transcript/watch video-id semantics.
 
 ### Look Back
 

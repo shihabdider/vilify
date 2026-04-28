@@ -70,3 +70,4 @@
 {"ts":"2026-04-28T17:05:15.237Z","agent":"implementer","wish":"handleDocumentKeyDown","layer":1,"status":"pass","turns":24,"input":64898,"output":3793,"cacheRead":490496,"cost":0.6835,"duration":102.8}
 {"ts":"2026-04-28T17:07:03.990Z","agent":"implementer","wish":"createOmnibarRuntime","layer":0,"status":"pass","turns":19,"input":64406,"output":2356,"cacheRead":314368,"cost":0.5499,"duration":89}
 {"ts":"2026-04-28T17:14:42.783Z","agent":"abstractor","wish":null,"layer":null,"status":"pass","turns":54,"input":164214,"output":19864,"cacheRead":2688512,"cost":2.7612,"duration":433.7}
+{"ts":"2026-04-28T17:43:48.724Z","agent":"stubber","wish":null,"layer":null,"status":"pass","turns":32,"input":95922,"output":19381,"cacheRead":1416192,"cost":1.7691,"duration":349.4}
