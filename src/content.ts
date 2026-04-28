@@ -28,7 +28,12 @@ export function detectSupportedPage(
 }
 
 function readRuntimeUrl(env: ContentScriptEnv): URL {
-  const href = env.location?.href ?? globalThis.location?.href ?? 'about:blank';
+  const href =
+    env.location?.href ??
+    env.document?.location?.href ??
+    globalThis.location?.href ??
+    globalThis.document?.location?.href ??
+    'about:blank';
 
   try {
     return new URL(href);

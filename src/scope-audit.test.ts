@@ -30,6 +30,7 @@ describe('active v1 scope audit', () => {
 
   it('documents the current product as a YouTube-wide omnibar rather than legacy multi-site focus mode', () => {
     const readme = readRepoFile('README.md');
+    const agents = readRepoFile('AGENTS.md');
     const todos = readRepoFile('TODOS.md');
 
     expect(readme).toContain('YouTube pages');
@@ -37,6 +38,9 @@ describe('active v1 scope audit', () => {
     expect(readme).toContain('| Google pages | Out of active scope |');
     expect(readme).toContain('Full focus-mode/page replacement UI | Out of active scope');
     expect(readme).not.toMatch(/Supported Sites|Press `\/` to open|Want to add a new site|deep, site-specific/i);
+    expect(agents).toContain('YouTube-wide omnibar command layer');
+    expect(agents).toContain('all supported YouTube pages');
+    expect(agents).not.toMatch(/watch-page omnibar command layer|only for YouTube `\/watch` URLs with a video id/i);
     expect(todos).toContain('No Google or full focus-mode work is active in v1');
     expect(todos).toContain('YouTube-wide omnibar scope');
   });
