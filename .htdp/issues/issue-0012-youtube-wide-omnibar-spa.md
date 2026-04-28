@@ -1,6 +1,6 @@
 ---
 id: issue-0012
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -20,13 +20,13 @@ The extension should still remain inactive on Google and non-YouTube pages. Comm
 
 ## Acceptance examples
 
-- [ ] Given a direct load of YouTube home, search results, a channel page, a playlist page, Shorts, or a watch page, when focus is not inside an editable target and the user presses `:`, then the Vilify omnibar opens.
-- [ ] Given a YouTube page that was loaded on home/search/channel and then navigated by YouTube's client-side router to a watch page, when the user presses `:` without hard-refreshing, then the omnibar opens and watch/video commands use the current page state.
-- [ ] Given a YouTube watch page that was reached through client-side navigation from another YouTube page, when transcript search is selected, then transcript mode uses the current video id and structured bridge data for the active watch page.
-- [ ] Given a YouTube non-watch page with no native video element or current video id, when a video-only or transcript-only action is invoked, then Vilify shows a status/noop outcome instead of throwing, clicking YouTube controls, or scraping visible UI.
-- [ ] Given a Google page or unrelated site, when the user presses `:`, then Vilify renders no UI and does not intercept the key.
-- [ ] Given any supported YouTube page with the omnibar closed, when normal YouTube/browser shortcuts other than `:` are used, then Vilify leaves them alone.
-- [ ] Given focus is in an `input`, `textarea`, `select`, or `contenteditable` element on any YouTube page, when the user types `:`, then Vilify leaves the event alone.
+- [x] Given a direct load of YouTube home, search results, a channel page, a playlist page, Shorts, or a watch page, when focus is not inside an editable target and the user presses `:`, then the Vilify omnibar opens.
+- [x] Given a YouTube page that was loaded on home/search/channel and then navigated by YouTube's client-side router to a watch page, when the user presses `:` without hard-refreshing, then the omnibar opens and watch/video commands use the current page state.
+- [x] Given a YouTube watch page that was reached through client-side navigation from another YouTube page, when transcript search is selected, then transcript mode uses the current video id and structured bridge data for the active watch page.
+- [x] Given a YouTube non-watch page with no native video element or current video id, when a video-only or transcript-only action is invoked, then Vilify shows a status/noop outcome instead of throwing, clicking YouTube controls, or scraping visible UI.
+- [x] Given a Google page or unrelated site, when the user presses `:`, then Vilify renders no UI and does not intercept the key.
+- [x] Given any supported YouTube page with the omnibar closed, when normal YouTube/browser shortcuts other than `:` are used, then Vilify leaves them alone.
+- [x] Given focus is in an `input`, `textarea`, `select`, or `contenteditable` element on any YouTube page, when the user types `:`, then Vilify leaves the event alone.
 
 ## Data definition impact
 
@@ -65,7 +65,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- Completed in YouTube-wide omnibar / SPA iteration on 2026-04-28; version bumped through `0.6.78`; final preverify passed (`bun run build`, `bun run test`), and human verification items passed.
 
 ## Out of scope
 
