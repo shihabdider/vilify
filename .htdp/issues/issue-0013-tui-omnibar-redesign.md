@@ -1,6 +1,6 @@
 ---
 id: issue-0013
-status: draft
+status: done
 type: feature
 mode: HITL
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -20,15 +20,15 @@ This issue should be implemented before the YouTube-wide/SP​​A activation fo
 
 ## Acceptance examples
 
-- [ ] Given the omnibar opens on a YouTube watch page in default command mode with an empty query, when it renders, then it appears as a top-center fzf/Telescope-style TUI picker rather than a large glassy modal.
-- [ ] Given the picker is open, when results render, then rows are compact one-line structured rows with a cursor column, item kind/label, and muted metadata/description when available.
-- [ ] Given a result is selected, when rows render, then the selected row uses a classic inverse-video treatment and a `>` cursor, with no rounded blue pill highlight.
-- [ ] Given the picker is open, when the user looks at the prompt, then mode label and prompt are on one compact terminal-like line, e.g. `youtube ❯ : <query>` or equivalent.
-- [ ] Given empty/loading/status states occur, when they render, then they appear as inline terminal rows such as `-- no matches --`, `loading transcript…`, or `! transcript unavailable: timeout` rather than cards/toasts.
-- [ ] Given the picker is open, when the user presses `Ctrl+n`, then selection moves down using the same bounds behavior as ArrowDown.
-- [ ] Given the picker is open, when the user presses `Ctrl+p`, then selection moves up using the same bounds behavior as ArrowUp.
-- [ ] Given the omnibar is closed, when the user presses `Ctrl+n` or `Ctrl+p`, then Vilify does not intercept the key; closed state still intercepts only `:` on supported pages.
-- [ ] Given focus is inside an editable target while the omnibar is closed, when the user types `:`, then Vilify leaves the event alone as before.
+- [x] Given the omnibar opens on a YouTube watch page in default command mode with an empty query, when it renders, then it appears as a top-center fzf/Telescope-style TUI picker rather than a large glassy modal.
+- [x] Given the picker is open, when results render, then rows are compact one-line structured rows with a cursor column, item kind/label, and muted metadata/description when available.
+- [x] Given a result is selected, when rows render, then the selected row uses a classic inverse-video treatment and a `>` cursor, with no rounded blue pill highlight.
+- [x] Given the picker is open, when the user looks at the prompt, then mode label and prompt are on one compact terminal-like line, e.g. `youtube ❯ : <query>` or equivalent.
+- [x] Given empty/loading/status states occur, when they render, then they appear as inline terminal rows such as `-- no matches --`, `loading transcript…`, or `! transcript unavailable: timeout` rather than cards/toasts.
+- [x] Given the picker is open, when the user presses `Ctrl+n`, then selection moves down using the same bounds behavior as ArrowDown.
+- [x] Given the picker is open, when the user presses `Ctrl+p`, then selection moves up using the same bounds behavior as ArrowUp.
+- [x] Given the omnibar is closed, when the user presses `Ctrl+n` or `Ctrl+p`, then Vilify does not intercept the key; closed state still intercepts only `:` on supported pages.
+- [x] Given focus is inside an editable target while the omnibar is closed, when the user types `:`, then Vilify leaves the event alone as before.
 
 ## Data definition impact
 
@@ -65,7 +65,7 @@ Constraints:
 
 ## HtDP iterations
 
-- None yet.
+- Completed in TUI omnibar redesign iteration on 2026-04-28; version bumped through `0.6.66`; final preverify passed (`bun run build`, `bun run test`), and human verification items passed.
 
 ## Out of scope
 
