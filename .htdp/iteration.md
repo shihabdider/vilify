@@ -87,3 +87,4 @@ Greenfield/data-definition-driven reset. Define the new runtime around:
 ### Look Back
 
 - 2026-04-28T11:09:50-04:00 — User accepted current watch-page/direct-load behavior as the v1 reset baseline and requested a follow-up for YouTube-wide omnibar activation plus SPA navigation robustness. Captured as `.htdp/issues/issue-0012-youtube-wide-omnibar-spa.md`.
+- 2026-04-28T11:20:00-04:00 — User aligned on a Vim/TUI fzf/Telescope-style omnibar redesign, to be implemented before YouTube-wide activation. Captured as `.htdp/issues/issue-0013-tui-omnibar-redesign.md`.
