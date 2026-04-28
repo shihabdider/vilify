@@ -77,4 +77,6 @@ Change the YouTube support predicate from watch-with-video-id to YouTube-host-le
 
 ### Look Back
 
-- Leave empty for now.
+- 2026-04-28T18:50:53Z — Implementation kept Shorts activation-only: `isSupportedYouTubeUrl` matches Shorts, but `getYouTubeVideoId` remains watch-only.
+- 2026-04-28T18:50:53Z — `createOmnibarRuntime` now enforces one runtime per `Document` via `WeakMap`; this supports defensive re-init without duplicate roots/listeners.
+- 2026-04-28T18:50:53Z — Transcript/action live-context behavior is covered through jsdom SPA-style `history.pushState` tests; browser SPA smoke remains manual.

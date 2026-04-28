@@ -12,7 +12,7 @@ updated: 2026-04-28T18:50:53.084Z
 | getYouTubeVideoId | src/sites/youtube/url.ts | 4 | pass | 118.7s |
 | createYouTubeBridgeClient | src/sites/youtube/bridge-client.ts | 4 | pass | 139.9s |
 | executeWithPlatform | src/omnibar/actions.ts | 4 | pass | 160.1s |
-| youtubePlugin.matches(url: URL): boolean | src/sites/youtube/plugin.ts | 3 | pending | - |
+| youtubePlugin.matches(url: URL): boolean | src/sites/youtube/plugin.ts | 3 | pass | verified/no-change |
 | resolveActiveVideoId | src/sites/youtube/transcript-mode.ts | 3 | pass | 256.7s |
 | createOmnibarActionExecutor | src/omnibar/actions.ts | 3 | pass | 189.6s |
 | detectSupportedPage | src/content.ts | 2 | pass | 78.6s |
@@ -44,6 +44,8 @@ updated: 2026-04-28T18:50:53.084Z
 - 14:11:48 createOmnibarActionExecutor: running
 - 14:14:58 createOmnibarActionExecutor: pass (189.6s, $0.6794)
 - 14:15:00 implementer_post verification for createOmnibarActionExecutor: pass
+- 14:16:43 youtubePlugin.matches(url: URL): boolean: pass (verified/no-change; implemented by host-level activation commit)
+- 14:16:43 layer 3 verification: pass
 - 14:17:25 detectSupportedPage: running
 - 14:18:44 detectSupportedPage: pass (78.6s, $0.2502)
 - 14:18:46 implementer_post verification for detectSupportedPage: pass
