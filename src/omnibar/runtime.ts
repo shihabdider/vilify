@@ -111,70 +111,149 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     style.textContent = `
       #vilify-omnibar-root {
         all: initial;
+        --vilify-omnibar-bg: #050505;
+        --vilify-omnibar-fg: #e7e7e7;
+        --vilify-omnibar-muted: #8a8a8a;
+        --vilify-omnibar-border: #777777;
         position: fixed;
         inset: 0;
         z-index: 2147483647;
         pointer-events: none;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--vilify-omnibar-fg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 13px;
+        line-height: 1.35;
       }
       #vilify-omnibar-root[hidden] { display: none !important; }
       #vilify-omnibar-root * { box-sizing: border-box; }
       #vilify-omnibar-root .vilify-omnibar-panel {
         pointer-events: auto;
-        width: min(720px, calc(100vw - 32px));
-        margin: 12vh auto 0;
-        color: #f8fafc;
-        background: rgba(15, 23, 42, 0.96);
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        border-radius: 14px;
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+        width: min(88ch, calc(100vw - 24px));
+        margin: 8vh auto 0;
+        color: var(--vilify-omnibar-fg);
+        background: var(--vilify-omnibar-bg);
+        border: 1px solid var(--vilify-omnibar-border);
+        border-radius:0;
+        box-shadow: none;
         overflow: hidden;
       }
-      #vilify-omnibar-root .vilify-omnibar-header {
-        padding: 10px 12px 8px;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+      #vilify-omnibar-root .vilify-omnibar-header,
+      #vilify-omnibar-root .vilify-omnibar-prompt {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        align-items: center;
+        gap: 1ch;
+        min-height: 2rem;
+        padding: 0.35rem 1ch;
+        border-bottom: 1px solid var(--vilify-omnibar-border);
       }
-      #vilify-omnibar-root .vilify-omnibar-title {
-        margin: 0 0 8px;
-        color: #cbd5e1;
-        font: 600 12px/1.3 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+      #vilify-omnibar-root .vilify-omnibar-title,
+      #vilify-omnibar-root .vilify-omnibar-mode {
+        margin: 0;
+        color: var(--vilify-omnibar-muted);
+        font: inherit;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        white-space: nowrap;
+      }
+      #vilify-omnibar-root .vilify-omnibar-title::after,
+      #vilify-omnibar-root .vilify-omnibar-prompt-mark {
+        content: " ❯";
+        color: var(--vilify-omnibar-fg);
+        font-weight: 400;
       }
       #vilify-omnibar-root input {
         all: unset;
         display: block;
+        min-width: 0;
         width: 100%;
-        color: #f8fafc;
-        font: 18px/1.4 ui-sans-serif, system-ui, sans-serif;
+        color: var(--vilify-omnibar-fg);
+        caret-color: var(--vilify-omnibar-fg);
+        font: inherit;
+        line-height: 1.35;
       }
-      #vilify-omnibar-root input::placeholder { color: #64748b; }
+      #vilify-omnibar-root input::placeholder { color: var(--vilify-omnibar-muted); }
       #vilify-omnibar-root .vilify-omnibar-results {
-        max-height: min(420px, 52vh);
+        max-height: min(22rem, 52vh);
         overflow: auto;
-        padding: 6px;
+        padding: 0.25rem 0;
       }
       #vilify-omnibar-root .vilify-omnibar-row {
-        display: block;
+        display: flex;
+        align-items: baseline;
+        gap: 2ch;
         width: 100%;
-        padding: 10px 12px;
-        border-radius: 10px;
-        color: #e2e8f0;
+        min-height: 1.45rem;
+        padding: 0 1ch;
+        border-radius:0;
+        color: var(--vilify-omnibar-fg);
+        white-space: nowrap;
+        overflow: hidden;
       }
       #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] {
-        background: rgba(59, 130, 246, 0.26);
-        color: #ffffff;
+        background: var(--vilify-omnibar-fg);
+        color: var(--vilify-omnibar-bg);
+        border-radius:0;
+      }
+      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-cursor,
+      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-kind,
+      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-title,
+      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-subtitle,
+      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status {
+        color: var(--vilify-omnibar-bg);
+      }
+      #vilify-omnibar-root .vilify-omnibar-cursor {
+        flex: 0 0 1ch;
+        color: var(--vilify-omnibar-muted);
+      }
+      #vilify-omnibar-root .vilify-omnibar-kind {
+        flex: 0 0 auto;
+        color: var(--vilify-omnibar-muted);
+        text-transform: lowercase;
       }
       #vilify-omnibar-root .vilify-omnibar-item-title {
-        font: 600 14px/1.35 ui-sans-serif, system-ui, sans-serif;
+        flex: 0 1 auto;
+        min-width: 0;
+        color: inherit;
+        font: inherit;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      #vilify-omnibar-root .vilify-omnibar-item-subtitle,
+      #vilify-omnibar-root .vilify-omnibar-item-subtitle {
+        flex: 1 1 auto;
+        min-width: 8ch;
+        color: var(--vilify-omnibar-muted);
+        font: inherit;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #vilify-omnibar-root .vilify-omnibar-footer,
+      #vilify-omnibar-root .vilify-omnibar-status-row {
+        padding: 0.25rem 1ch;
+        border-top: 1px solid var(--vilify-omnibar-border);
+        color: var(--vilify-omnibar-muted);
+        white-space: nowrap;
+      }
       #vilify-omnibar-root .vilify-omnibar-empty {
-        color: #94a3b8;
-        font: 12px/1.35 ui-sans-serif, system-ui, sans-serif;
-        margin-top: 2px;
+        padding: 0.25rem 1ch;
+        color: var(--vilify-omnibar-muted);
+        font: inherit;
+        white-space: nowrap;
       }
-      #vilify-omnibar-root .vilify-omnibar-empty { padding: 12px; }
+      #vilify-omnibar-root .vilify-omnibar-status {
+        color: var(--vilify-omnibar-muted);
+        font: inherit;
+        white-space: nowrap;
+      }
+      #vilify-omnibar-root .vilify-omnibar-status[data-tone="error"],
+      #vilify-omnibar-root .vilify-omnibar-status-row[data-tone="error"] {
+        color: var(--vilify-omnibar-fg);
+      }
     `;
     return style;
   }

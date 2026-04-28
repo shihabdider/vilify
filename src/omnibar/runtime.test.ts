@@ -56,7 +56,98 @@ function modeTitle(document: Document): string | null {
   return document.querySelector('.vilify-omnibar-title')?.textContent ?? null;
 }
 
+function omnibarStyleText(document: Document): string {
+  const element = document.querySelector<HTMLStyleElement>('#vilify-omnibar-root style');
+  expect(element).not.toBeNull();
+  return element?.textContent ?? '';
+}
+
+function cssRule(styleText: string, selector: string): string {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = styleText.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`));
+  expect(match).not.toBeNull();
+  return match?.[1] ?? '';
+}
+
 describe('createOmnibarRuntime', () => {
+  it('injects compact monospace TUI panel CSS instead of a glassy rounded modal', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([{ id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } }]),
+    });
+
+    runtime.open();
+    const styles = omnibarStyleText(dom.window.document);
+    const rootRule = cssRule(styles, '#vilify-omnibar-root');
+    const panelRule = cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-panel');
+
+    expect(rootRule).toMatch(/font-family:\s*ui-monospace,[^;]*monospace/);
+    expect(panelRule).toMatch(/width:\s*min\((?:7[2-9]|8[0-8])ch,/);
+    expect(panelRule).toMatch(/border:\s*1px\s+solid/);
+    expect(panelRule).toMatch(/border-radius:\s*0\b/);
+    expect(panelRule).toMatch(/box-shadow:\s*none/);
+    expect(panelRule).not.toMatch(/backdrop-filter|blur\(|border-radius:\s*(?!0\b)[^;]+/i);
+  });
+
+  it('styles selected rows as square inverse video instead of a rounded blue pill', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([
+        { id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } },
+        { id: 'beta', kind: 'command', title: 'Beta command', action: { kind: 'noop' } },
+      ]),
+    });
+
+    runtime.open();
+    const styles = omnibarStyleText(dom.window.document);
+    const rowRule = cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-row');
+    const selectedRule = cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"]');
+
+    expect(selectedItemId(dom.window.document)).toBe('alpha');
+    expect(rowRule).toMatch(/white-space:\s*nowrap/);
+    expect(rowRule).toMatch(/border-radius:\s*0\b/);
+    expect(selectedRule).toMatch(/background:\s*var\(--vilify-omnibar-fg\)/);
+    expect(selectedRule).toMatch(/color:\s*var\(--vilify-omnibar-bg\)/);
+    expect(selectedRule).toMatch(/border-radius:\s*0\b/);
+    expect(selectedRule).not.toMatch(/59,\s*130,\s*246|blue|border-radius:\s*(?!0\b)[^;]+/i);
+  });
+
+  it('exposes CSS anchors for prompt, metadata, footer, empty, and status rows', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([]),
+    });
+
+    runtime.open();
+    const styles = omnibarStyleText(dom.window.document);
+
+    for (const hook of [
+      '.vilify-omnibar-prompt',
+      '.vilify-omnibar-mode',
+      '.vilify-omnibar-prompt-mark',
+      '.vilify-omnibar-cursor',
+      '.vilify-omnibar-kind',
+      '.vilify-omnibar-item-title',
+      '.vilify-omnibar-item-subtitle',
+      '.vilify-omnibar-footer',
+      '.vilify-omnibar-empty',
+      '.vilify-omnibar-status',
+      '.vilify-omnibar-status-row',
+    ]) {
+      expect(styles).toContain(hook);
+    }
+
+    expect(cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-kind')).toMatch(
+      /color:\s*var\(--vilify-omnibar-muted\)/,
+    );
+    expect(cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-empty')).toMatch(
+      /color:\s*var\(--vilify-omnibar-muted\)/,
+    );
+  });
+
   it('updates the query from the focused input and re-renders filtered results', () => {
     const dom = makeDom();
     const runtime = createOmnibarRuntime({
