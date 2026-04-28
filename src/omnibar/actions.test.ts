@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { makeOmnibarTestDom } from '../test-helpers/omnibar';
 import { createOmnibarActionExecutor } from './actions';
 import { createInitialOmnibarState, createStaticOmnibarMode } from './state';
 import type {
@@ -163,6 +164,54 @@ describe('createOmnibarActionExecutor', () => {
     expect(getCurrentUrl).toHaveBeenCalledTimes(1);
     expect(getCurrentUrl).toHaveBeenCalledWith(context);
     expect(writeClipboardText).toHaveBeenCalledWith('https://www.youtube.com/watch?v=abc123&list=PL123', context);
+  });
+
+  it('default current URL adapter reads provider location after SPA history changes', async () => {
+    const dom = makeOmnibarTestDom('https://www.youtube.com/watch?v=old');
+    const writeClipboardText = vi.fn();
+    const context: OmnibarActionContext = {
+      ...makeContext(),
+      providerContext: {
+        document: dom.window.document,
+        location: dom.window.location,
+      },
+    };
+    const execute = createOmnibarActionExecutor({ writeClipboardText });
+
+    dom.window.history.pushState({}, '', '/watch?v=new-video&list=PL123');
+
+    await expect(
+      resolveActionResult(execute({ kind: 'copy', source: { kind: 'current-url' } }, context)),
+    ).resolves.toEqual({ kind: 'close' });
+    expect(writeClipboardText).toHaveBeenCalledWith(
+      'https://www.youtube.com/watch?v=new-video&list=PL123',
+      context,
+    );
+  });
+
+  it('default native video adapter queries the provider document at execution time', () => {
+    const dom = makeOmnibarTestDom('https://www.youtube.com/watch?v=abc123', '<main id="page"></main>');
+    const context: OmnibarActionContext = {
+      ...makeContext(),
+      providerContext: {
+        document: dom.window.document,
+        location: dom.window.location,
+      },
+    };
+    const execute = createOmnibarActionExecutor();
+    const seekAction: OmnibarAction = { kind: 'seek', seconds: 12, seekMode: 'absolute' };
+
+    expect(execute(seekAction, context)).toEqual(missingNativeVideoStatus);
+
+    const video = dom.window.document.createElement('video');
+    dom.window.document.body.appendChild(video);
+
+    expect(execute(seekAction, context)).toEqual({ kind: 'close' });
+    expect(video.currentTime).toBe(12);
+
+    video.remove();
+
+    expect(execute(seekAction, context)).toEqual(missingNativeVideoStatus);
   });
 
   it('copies the current URL at the native video currentTime through the clipboard adapter', async () => {
