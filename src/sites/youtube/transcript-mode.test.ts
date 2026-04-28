@@ -74,12 +74,12 @@ async function flushBridgeSettlement(): Promise<void> {
 }
 
 describe('youtubeTranscriptMode provider', () => {
-  it('uses the live watch video id after starting on a non-watch page and navigating by SPA', () => {
+  it('uses the live watch video id after starting on a non-watch page and navigating by SPA history', () => {
     const dom = makeOmnibarTestDom('https://www.youtube.com/results?search_query=vilify');
     const context = providerContext(dom);
     const requests = recordBridgeRequests(dom.window.document);
 
-    dom.reconfigure({ url: 'https://www.youtube.com/watch?v=spa-new-video-0012' });
+    dom.window.history.pushState({}, '', '/watch?v=spa-new-video-0012');
 
     expect(transcriptItemsForContext(context)).toEqual([
       expect.objectContaining({
@@ -90,6 +90,44 @@ describe('youtubeTranscriptMode provider', () => {
     ]);
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({ kind: 'get-transcript', videoId: 'spa-new-video-0012' });
+  });
+
+  it('passes a live current-video resolver to created bridge clients after history.pushState', async () => {
+    const dom = makeDom('resolver-old-video-0012');
+    const context = providerContext(dom);
+    const requests = recordBridgeRequests(dom.window.document);
+
+    expect(transcriptItemsForContext(context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-resolver-old-video-0012',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ kind: 'get-transcript', videoId: 'resolver-old-video-0012' });
+
+    dom.window.history.pushState({}, '', '/watch?v=resolver-new-video-0012');
+    dispatchTranscriptResponse(dom.window.document, requests[0], {
+      status: 'loaded',
+      videoId: 'resolver-old-video-0012',
+      language: 'en',
+      source: 'caption-json3',
+      lines: [{ time: 7, timeText: '0:07', duration: 2, text: 'stale resolver line' }],
+    });
+    await flushBridgeSettlement();
+
+    dom.window.history.pushState({}, '', '/watch?v=resolver-old-video-0012');
+
+    expect(transcriptItemsForContext(context, 'stale resolver line')).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-unavailable-resolver-old-video-0012',
+        kind: 'status',
+        title: 'Transcript unavailable',
+        subtitle: expect.stringContaining('Active video is resolver-new-video-0012'),
+      }),
+    ]);
+    expect(requests).toHaveLength(1);
   });
 
   it('shows missing-video status on non-watch YouTube pages instead of requesting a stale activePlugin id', () => {
@@ -173,6 +211,33 @@ describe('youtubeTranscriptMode provider', () => {
     ]);
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({ kind: 'get-transcript', videoId: 'service-video-0012' });
+  });
+
+  it('reuses a provided service bridge client instead of creating a DOM bridge request', () => {
+    const dom = makeDom('service-bridge-video-0012');
+    const requests = recordBridgeRequests(dom.window.document);
+    const getTranscript = vi.fn(() => new Promise<TranscriptResult>(() => {}));
+    const bridgeClient = {
+      getTranscript,
+      getVideoMetadata: vi.fn(),
+    };
+    const context: ProviderContext = {
+      ...providerContext(dom),
+      services: {
+        youtube: { bridgeClient },
+      },
+    };
+
+    expect(transcriptItemsForContext(context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-service-bridge-video-0012',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(getTranscript).toHaveBeenCalledTimes(1);
+    expect(getTranscript).toHaveBeenCalledWith('service-bridge-video-0012');
+    expect(requests).toHaveLength(0);
   });
 
   it('starts one bridge transcript request for a video and shares pending load state across calls', () => {

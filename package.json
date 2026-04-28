@@ -1,6 +1,6 @@
 {
   "name": "vilify",
-  "version": "0.6.73",
+  "version": "0.6.74",
   "description": "YouTube omnibar command layer",
   "scripts": {
     "build": "node build.js",
