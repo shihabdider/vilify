@@ -1,7 +1,7 @@
 # Iteration
 
-anchor: 6f6952a1151950fc877e2c9beb5fde7f58d992f7
-started: 2026-04-27T16:30:00-04:00
+anchor: 4e6715b6ec7a076b4ea1eb78fc1dd52c1848ef12
+started: 2026-04-28T00:00:00Z
 stubber-mode: data-definition-driven
 workflow-mode: autonomous
 language: TypeScript
@@ -10,81 +10,63 @@ transparent: true
 ## Source Artifacts
 
 - PRD: .htdp/prds/prd-0001-omnibar-reset.md
-- Issues:
-  - .htdp/issues/issue-0005-backup-reset-scaffold.md
-  - .htdp/issues/issue-0006-omnibar-opener-primitive.md
-  - .htdp/issues/issue-0007-plugin-registry-youtube-shell.md
-  - .htdp/issues/issue-0008-youtube-default-mode-actions.md
-  - .htdp/issues/issue-0009-youtube-bridge-protocol.md
-  - .htdp/issues/issue-0010-transcript-mode-provider.md
-  - .htdp/issues/issue-0011-retire-legacy-scope-docs.md
-- Architecture review: .htdp/architecture/review-0001-render-site-boundaries.md (historical/superseded)
+- Issue: .htdp/issues/issue-0013-tui-omnibar-redesign.md
+- Architecture review: <none>
 
 ## Problem
 
-Implement the omnibar reset PRD by replacing the active broad site-replacement extension with a focused MV3 TypeScript extension. The final active scope is a single custom UI primitive (omnibar) on YouTube watch pages, URL navigation, native video actions, and transcript search through structured YouTube protocols/data. Google support, focus-mode layout replacement, listing UI, drawers, comments, Watch Later/dismiss/subscribe menu flows, and ambient multi-key bindings are retired from active scope.
+Redesign the active omnibar UI as a compact Vim/TUI-style fzf/Telescope picker while preserving the current narrow product scope and adding only open-state Ctrl+n/Ctrl+p selection navigation.
 
 ## Data Definition Plan
 
-Greenfield/data-definition-driven reset. Define the new runtime around:
-
-- `OmnibarState`: open/query/selected index/mode stack.
-- `SitePlugin`, `OmnibarMode`, `OmnibarProvider`, and `ProviderContext`: stateless plugin declarations and provider-owned data.
-- `OmnibarItem`, `OmnibarItemKind`, `OmnibarAction`, and action execution adapters: typed command execution with platform APIs.
-- `YouTubeBridgeRequest` / `YouTubeBridgeResponse`, `VideoMetadata`, `TranscriptLine`, `TranscriptResult`, `CaptionTrack`: YouTube-specific structured bridge protocol.
-- `TranscriptProviderState` / `TranscriptLoadState`: provider-owned per-video cache.
+Reuse existing `OmnibarState`, `OmnibarMode`, `OmnibarItem`, and `OmnibarItemKind` definitions. Extend open-state key intent recognition so Ctrl+n maps to the existing move-down intent and Ctrl+p maps to the existing move-up intent. Update omnibar runtime rendering to expose a terminal prompt line, compact structured one-line rows, cursor/kind/label/metadata hooks, inverse-video selected row, status/footer line, and inline terminal empty/status rows. No provider/product data model change is expected.
 
 ## Polya Ledger
 
 ### Knowns
 
-- Backup branch `backup/pre-omnibar-reset` and tag `pre-omnibar-reset-2026-04-27` already exist locally and on `origin`, dereferencing to commit `41d48410083f9fb4a1a676136ce4d3b168a5bf57`.
-- Current branch is `main`; current head at iteration start is `6f6952a1151950fc877e2c9beb5fde7f58d992f7`.
-- Build/test commands are `bun run build` and `bun run test`.
-- `htdp.mode` is configured as `autonomous`; `htdp.transparent` is true.
+- Current active runtime creates an omnibar only on YouTube watch pages through `src/content.ts` and the stateless plugin registry.
+- Current runtime rendering lives in `src/omnibar/runtime.ts`; key intent mapping lives in `src/omnibar/keyboard.ts`.
+- Current rows are generic web command-palette rows with rounded blue selected styling.
+- Issue 0013 must be implemented before issue 0012.
+- Build/test commands are `bun run build` and `bun run test` via `htdp.json`.
 
 ### Constraints
 
-- Closed state intercepts only `:` on supported pages and ignores editable targets.
-- Supported page scope is YouTube watch pages only for v1.
-- Use web-platform APIs and structured YouTube protocol/data only.
-- Do not click visible target-site controls, drive hidden menus, scrape visible UI text/layout, or replace target-site layout.
-- Follow repo policy: bump `package.json` and `manifest.json` for implementation changes; commit and push after each issue/change.
+- Do not broaden activation scope in this issue; issue 0012 owns YouTube-wide/SPA activation.
+- Do not reintroduce full focus mode, listing UI, drawers, comments UI, Google support, or visible-control automation.
+- Closed state must still intercept only `:` on supported pages and must ignore editable targets.
+- Keep readable monospace-first TUI styling without novelty/pixel effects.
+- Browser visual QA is manual in the user's Chrome extension session, not Playwright.
+- Bump both `package.json` and `manifest.json` for this implementation change, then commit and push.
 
 ### Unknowns That Matter
 
-- [resolved by PRD/issues as v1 default] Escape in nested modes pops to the previous mode; Escape at root closes the omnibar.
-- [resolved by PRD/issues as v1 default] Transcript mode entry is via a selectable default-mode item.
-- [resolved by PRD/issues as v1 default] Copy title is omitted unless structured metadata is available.
-- [resolved by PRD/issues as v1 default] Omnibar visual styling is minimal and unobtrusive.
+- [resolved by user go] Shorts semantics are irrelevant for issue 0013; issue 0012 may support omnibar activation on Shorts without treating Shorts path IDs as transcript/watch video IDs.
 
 ### Out of Scope
 
-- Google support.
-- Full-site focus mode and page/listing replacement.
-- YouTube comments UI, drawers, persistent transcript sidebar.
-- Watch Later/dismiss/subscribe mutations.
-- Captions/theater/fullscreen commands through visible-control clicking.
-- External transcript backend service.
+- YouTube-wide activation and SPA navigation robustness.
+- Transcript-mode behavior changes beyond preserving terminal row grammar.
+- New Vim bindings besides Ctrl+n and Ctrl+p.
+- Bottom command-line mode, full-screen terminal overlay, or Playwright extension visual QA.
 
 ### Assumptions
 
-- Existing backup branch/tag are sufficient preservation points because they contain the pre-reset implementation; no force-updating remote tag is needed.
-- The reset can replace old tests with new scope tests rather than preserving legacy behavioral tests.
-- Issue 0008 and issue 0009 may be worked in parallel after the plugin shell if their files remain disjoint except for stable shared types.
+- Existing omnibar data definitions are sufficient; this is primarily DOM/CSS/key-intent work.
+- Status-like `OmnibarItemKind` rows can be rendered inline by item kind without introducing a separate status data definition.
+- The version bump for issue 0013 should move from 0.6.60 to 0.6.61 unless the implementation discovers a newer version in files.
 
 ### Alternatives Considered
 
-- Keep old architecture and progressively disable features — rejected because it preserves brittle seams and contradicts greenfield reset direction.
-- Force-update backup tag to current head — rejected to avoid rewriting an existing remote tag; code preservation requirement is already met.
-- Add a broad `SiteRuntime` — rejected for v1; provider-owned state is sufficient until shared mutable resources are proven.
-- Chosen: greenfield reset with small generic omnibar runtime, stateless plugins, typed platform actions, YouTube-specific bridge, and provider-owned transcript cache.
+- Add a new `OmnibarRowViewModel` data definition — rejected unless the stubber finds it necessary; current `OmnibarItem` carries enough row data.
+- Add distinct Ctrl+n/Ctrl+p intent variants — rejected because they should share existing move-up/move-down behavior and bounds.
+- Chosen: reuse core omnibar state/types, extend key mapping, and redesign runtime DOM/CSS hooks.
 
 ### Decision Log
 
-- 2026-04-27T16:30:00-04:00 — User requested implementation of all local issues in dependency order with HtDP parallelization where reasonable; treat as confirmation to proceed with the destructive reset after verifying backup branch/tag exists.
+- 2026-04-28T00:00:00Z — User confirmed the ordered plan and clarified they never watch Shorts, so issue 0012 should not add Shorts transcript/video-id semantics.
 
 ### Look Back
 
-- 2026-04-28T11:09:50-04:00 — User accepted current watch-page/direct-load behavior as the v1 reset baseline and requested a follow-up for YouTube-wide omnibar activation plus SPA navigation robustness. Captured as `.htdp/issues/issue-0012-youtube-wide-omnibar-spa.md`.
-- 2026-04-28T11:20:00-04:00 — User aligned on a Vim/TUI fzf/Telescope-style omnibar redesign, to be implemented before YouTube-wide activation. Captured as `.htdp/issues/issue-0013-tui-omnibar-redesign.md`.
+- Leave empty for now.

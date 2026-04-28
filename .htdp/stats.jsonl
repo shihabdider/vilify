@@ -61,3 +61,4 @@
 {"ts":"2026-04-28T14:36:55.540Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":77,"input":230883,"output":30313,"cacheRead":5658624,"cost":4.8931,"duration":708.4}
 {"ts":"2026-04-28T14:43:11.978Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":47,"input":91554,"output":14524,"cacheRead":2704896,"cost":2.2459,"duration":338.4}
 {"ts":"2026-04-28T14:50:33.296Z","agent":"abstractor","wish":null,"layer":null,"status":"pass","turns":65,"input":106146,"output":16476,"cacheRead":3657216,"cost":2.8536,"duration":399.6}
+{"ts":"2026-04-28T16:19:26.896Z","agent":"stubber","wish":null,"layer":null,"status":"pass","turns":39,"input":68956,"output":15190,"cacheRead":1268224,"cost":1.4346,"duration":320.8}
