@@ -55,6 +55,118 @@ function cssRule(styleText: string, selector: string): string {
 }
 
 describe('createOmnibarRuntime', () => {
+  it('does not duplicate roots or keydown handling when initialized more than once for one document', () => {
+    const dom = makeDom();
+    const execute = vi.fn(() => ({ kind: 'close' as const }));
+    const rootMode = makeMode([
+      {
+        id: 'run-once',
+        kind: 'command',
+        title: 'Run once',
+        action: { kind: 'custom', execute },
+      },
+    ]);
+
+    const runtime = createOmnibarRuntime({ document: dom.window.document, rootMode });
+    createOmnibarRuntime({ document: dom.window.document, rootMode });
+
+    const open = pressKey(dom.window, dom.window.document.body, ':');
+    expect(open.defaultPrevented).toBe(true);
+    expect(runtime.getState().open).toBe(true);
+    expect(dom.window.document.querySelectorAll('#vilify-omnibar-root')).toHaveLength(1);
+
+    const enter = pressKey(dom.window, input(dom.window.document), 'Enter');
+    expect(enter.defaultPrevented).toBe(true);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(dom.window.document.querySelectorAll('#vilify-omnibar-root')).toHaveLength(1);
+  });
+
+  it('uses current document location for provider renders and actions after SPA navigation', () => {
+    const dom = makeDom('https://www.youtube.com/');
+    const providerHrefs: string[] = [];
+    let actionHref: string | undefined;
+    const execute = vi.fn((context) => {
+      actionHref = context.providerContext.location?.href;
+      return { kind: 'close' as const };
+    });
+    const rootMode: OmnibarMode = {
+      id: 'url-aware-root',
+      title: 'URL Aware',
+      providers: [
+        {
+          id: 'url-aware-provider',
+          getItems: (context) => {
+            const href = context.location?.href ?? 'about:blank';
+            const videoId = new URL(href).searchParams.get('v') ?? 'none';
+            providerHrefs.push(href);
+            return [
+              {
+                id: `video-${videoId}`,
+                kind: 'command' as const,
+                title: `Video ${videoId}`,
+                action: { kind: 'custom' as const, execute },
+              },
+            ];
+          },
+        },
+      ],
+    };
+    const runtime = createOmnibarRuntime({ document: dom.window.document, rootMode });
+
+    dom.window.history.pushState({}, '', '/watch?v=live-video');
+
+    const open = pressKey(dom.window, dom.window.document.body, ':');
+    expect(open.defaultPrevented).toBe(true);
+    expect(runtime.getState().open).toBe(true);
+    expect(providerHrefs.at(-1)).toBe('https://www.youtube.com/watch?v=live-video');
+    expect(itemIds(dom.window.document)).toEqual(['video-live-video']);
+
+    pressKey(dom.window, input(dom.window.document), 'Enter');
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(actionHref).toBe('https://www.youtube.com/watch?v=live-video');
+  });
+
+  it('keeps closed-state interception limited to unmodified : outside editable targets', () => {
+    const dom = makeDom(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      '<main id="page">' +
+        '<button id="button">Native page control</button>' +
+        '<input id="input" />' +
+        '<textarea id="textarea"></textarea>' +
+        '<div id="editable" contenteditable="true"><span id="editable-child"></span></div>' +
+      '</main>',
+    );
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([{ id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } }]),
+    });
+    const button = dom.window.document.getElementById('button');
+    const editableTargets = ['input', 'textarea', 'editable-child'].map((id) => dom.window.document.getElementById(id));
+    expect(button).not.toBeNull();
+    expect(editableTargets.every(Boolean)).toBe(true);
+
+    for (const [key, target, init] of [
+      ['a', button, {}],
+      ['Enter', button, {}],
+      ['ArrowDown', button, {}],
+      [':', button, { ctrlKey: true }],
+      ['n', button, { ctrlKey: true }],
+      ...editableTargets.map((target) => [':', target, {}] as const),
+    ] as const) {
+      const event = pressKey(dom.window, target!, key, init);
+      expect(event.defaultPrevented, key).toBe(false);
+      expect(runtime.getState().open, key).toBe(false);
+      expect(dom.window.document.querySelector('[data-vilify-omnibar-input="true"]'), key).toBeNull();
+    }
+
+    const opener = pressKey(dom.window, button!, ':');
+
+    expect(opener.defaultPrevented).toBe(true);
+    expect(runtime.getState().open).toBe(true);
+    expect(input(dom.window.document)).not.toBeNull();
+  });
+
   it('injects compact monospace TUI panel CSS instead of a glassy rounded modal', () => {
     const dom = makeDom();
     const runtime = createOmnibarRuntime({

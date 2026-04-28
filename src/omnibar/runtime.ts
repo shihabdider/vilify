@@ -39,14 +39,27 @@ export interface OmnibarRuntime {
   destroy(): void;
 }
 
+const omnibarRuntimeByDocument = new WeakMap<Document, OmnibarRuntime>();
+
 export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRuntime {
   const document = options.document;
+  const existingRuntime = omnibarRuntimeByDocument.get(document);
+  if (existingRuntime) {
+    return existingRuntime;
+  }
+
   const rootMode = options.rootMode ?? createDefaultOmnibarMode();
+  const suppliedProviderContext = options.providerContext;
+  const requestRender = () => render();
   const providerContext: ProviderContext = {
-    document,
-    location: document.location ?? undefined,
-    ...(options.providerContext ?? {}),
-    requestRender: () => render(),
+    ...(suppliedProviderContext ?? {}),
+    get document() {
+      return document;
+    },
+    get location() {
+      return suppliedProviderContext?.location ?? document.location ?? undefined;
+    },
+    requestRender,
   };
   const actionExecutor = options.actionExecutor ?? executeOmnibarAction;
   const root = document.createElement('div');
@@ -471,7 +484,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
 
   document.addEventListener('keydown', handleDocumentKeyDown, true);
 
-  return {
+  const runtime: OmnibarRuntime = {
     root,
     getState: () => state,
     open: () => {
@@ -483,10 +496,18 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
       render();
     },
     destroy: () => {
+      if (destroyed) {
+        return;
+      }
+
       destroyed = true;
       document.removeEventListener('keydown', handleDocumentKeyDown, true);
       root.replaceChildren();
       root.remove();
+      omnibarRuntimeByDocument.delete(document);
     },
   };
+
+  omnibarRuntimeByDocument.set(document, runtime);
+  return runtime;
 }
