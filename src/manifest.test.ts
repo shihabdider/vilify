@@ -5,8 +5,8 @@ import packageJson from '../package.json';
 describe('manifest scaffold', () => {
   it('activates only the isolated content script and main-world YouTube bridge', () => {
     expect(manifest.version).toBe(packageJson.version);
-    expect(packageJson.version).toBe('0.6.59');
-    expect(manifest.version).toBe('0.6.59');
+    expect(packageJson.version).toBe('0.6.60');
+    expect(manifest.version).toBe('0.6.60');
     expect(manifest.permissions ?? []).toEqual(['clipboardWrite']);
     expect(manifest.host_permissions ?? []).toEqual([]);
     expect(manifest.background).toBeUndefined();

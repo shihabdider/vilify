@@ -2,6 +2,7 @@ import {
   YOUTUBE_BRIDGE_PROTOCOL,
   YOUTUBE_BRIDGE_REQUEST_EVENT,
   YOUTUBE_BRIDGE_RESPONSE_EVENT,
+  createStaleVideoResult,
   isYouTubeBridgeRequest,
   type TranscriptResult,
   type YouTubeBridgeRequest,
@@ -18,6 +19,7 @@ import {
   parseInnerTubeTranscript,
   selectCaptionTrack,
 } from './transcript-parser';
+import { getYouTubeVideoId } from './url';
 
 export const MAIN_WORLD_BRIDGE_MARKER = 'vilify-youtube-main-world-bridge' as const;
 
@@ -77,20 +79,10 @@ function readCurrentVideoId(window: Window | undefined, playerResponse: unknown 
   }
 
   try {
-    const videoId = new URL(href).searchParams.get('v')?.trim();
-    return videoId ? videoId : null;
+    return getYouTubeVideoId(new URL(href));
   } catch {
     return null;
   }
-}
-
-function staleVideoResult(requestedVideoId: string | undefined, actualVideoId: string | undefined) {
-  return {
-    status: 'stale' as const,
-    reason: 'stale-video-id' as const,
-    ...(requestedVideoId ? { requestedVideoId } : {}),
-    ...(actualVideoId ? { actualVideoId } : {}),
-  };
 }
 
 function dispatchBridgeResponse(document: Document, response: YouTubeBridgeResponse): void {
@@ -165,7 +157,7 @@ function makeMetadataResponse(request: YouTubeBridgeRequest, runtime: BridgeRunt
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'video-metadata-response',
       requestId: request.requestId,
-      result: staleVideoResult(request.expectedVideoId, actualVideoId),
+      result: createStaleVideoResult(request.expectedVideoId, actualVideoId),
     };
   }
 
@@ -323,7 +315,7 @@ async function makeTranscriptResponse(request: YouTubeBridgeRequest, runtime: Br
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
       kind: 'transcript-response',
       requestId: request.requestId,
-      result: staleVideoResult(request.videoId, actualVideoId),
+      result: createStaleVideoResult(request.videoId, actualVideoId),
     };
   }
 

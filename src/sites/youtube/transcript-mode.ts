@@ -2,6 +2,7 @@ import type { OmnibarItem, OmnibarMode, OmnibarProvider, ProviderContext } from 
 import { createYouTubeBridgeClient, type YouTubeBridgeClient } from './bridge-client';
 import type { TranscriptLine, TranscriptResult } from './bridge-types';
 import { formatTranscriptTimestamp } from './transcript-parser';
+import { getYouTubeVideoId } from './url';
 
 const MAX_TRANSCRIPT_RESULTS = 50;
 
@@ -322,7 +323,7 @@ function resolveActiveVideoId(context: ProviderContext): string | null {
     videoIdFromLocation(context.location) ??
     videoIdFromLocation(context.document?.location) ??
     videoIdFromLocation(globalThis.location) ??
-    videoIdFromUrl(context.activePlugin?.url) ??
+    getYouTubeVideoId(context.activePlugin?.url) ??
     null
   );
 }
@@ -367,19 +368,10 @@ function videoIdFromLocation(location: Location | undefined): string | null {
   }
 
   try {
-    return videoIdFromUrl(new URL(location.href));
+    return getYouTubeVideoId(new URL(location.href));
   } catch {
     return null;
   }
-}
-
-function videoIdFromUrl(url: URL | undefined): string | null {
-  if (!url || url.pathname !== '/watch') {
-    return null;
-  }
-
-  const videoId = url.searchParams.get('v')?.trim() ?? '';
-  return videoId.length > 0 ? videoId : null;
 }
 
 function displayTime(line: TranscriptLine): string {

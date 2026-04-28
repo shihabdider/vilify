@@ -2,6 +2,7 @@ import {
   YOUTUBE_BRIDGE_PROTOCOL,
   YOUTUBE_BRIDGE_REQUEST_EVENT,
   YOUTUBE_BRIDGE_RESPONSE_EVENT,
+  createStaleVideoResult,
   isYouTubeBridgeResponse,
   type TranscriptResult,
   type VideoMetadataResult,
@@ -47,15 +48,6 @@ function dispatchBridgeRequest(document: Document, request: YouTubeBridgeRequest
   document.dispatchEvent(new CustomEventCtor(YOUTUBE_BRIDGE_REQUEST_EVENT, { detail: request }));
 }
 
-function staleResult(requestedVideoId: string | undefined, actualVideoId: string | undefined) {
-  return {
-    status: 'stale' as const,
-    reason: 'stale-video-id' as const,
-    ...(requestedVideoId ? { requestedVideoId } : {}),
-    ...(actualVideoId ? { actualVideoId } : {}),
-  };
-}
-
 function applyTranscriptStaleCheck(
   result: TranscriptResult,
   requestedVideoId: string | undefined,
@@ -66,15 +58,7 @@ function applyTranscriptStaleCheck(
   }
 
   const resultVideoId = result.status === 'loaded' || result.status === 'unavailable' ? result.videoId : undefined;
-  if (activeVideoId && resultVideoId && resultVideoId !== activeVideoId) {
-    return staleResult(resultVideoId, activeVideoId);
-  }
-
-  if (requestedVideoId && resultVideoId && resultVideoId !== requestedVideoId) {
-    return staleResult(requestedVideoId, resultVideoId);
-  }
-
-  return result;
+  return staleResultForVideoMismatch(resultVideoId, requestedVideoId, activeVideoId) ?? result;
 }
 
 function applyMetadataStaleCheck(
@@ -87,15 +71,40 @@ function applyMetadataStaleCheck(
   }
 
   const resultVideoId = result.status === 'ok' ? result.metadata.videoId : result.videoId;
+  return staleResultForVideoMismatch(resultVideoId, requestedVideoId, activeVideoId) ?? result;
+}
+
+function staleResultForVideoMismatch(
+  resultVideoId: string | undefined,
+  requestedVideoId: string | undefined,
+  activeVideoId: string | null,
+): ReturnType<typeof createStaleVideoResult> | null {
   if (activeVideoId && resultVideoId && resultVideoId !== activeVideoId) {
-    return staleResult(resultVideoId, activeVideoId);
+    return createStaleVideoResult(resultVideoId, activeVideoId);
   }
 
   if (requestedVideoId && resultVideoId && resultVideoId !== requestedVideoId) {
-    return staleResult(requestedVideoId, resultVideoId);
+    return createStaleVideoResult(requestedVideoId, resultVideoId);
   }
 
-  return result;
+  return null;
+}
+
+type BridgeUnavailableResult = {
+  readonly status: 'unavailable';
+  readonly reason: 'timeout' | 'bridge-unavailable';
+  readonly videoId?: string;
+};
+
+function unavailableBridgeResult(
+  env: YouTubeBridgeClientEnv,
+  videoId: string | undefined,
+): BridgeUnavailableResult {
+  return {
+    status: 'unavailable',
+    reason: env.document || globalThis.document ? 'timeout' : 'bridge-unavailable',
+    ...(videoId ? { videoId } : {}),
+  };
 }
 
 function sendBridgeRequest<Result>(
@@ -172,11 +181,7 @@ export function createYouTubeBridgeClient(env: YouTubeBridgeClientEnv = {}): You
             kind: 'get-video-metadata',
             requestId,
           };
-      const timeoutResult: VideoMetadataResult = {
-        status: 'unavailable',
-        reason: env.document || globalThis.document ? 'timeout' : 'bridge-unavailable',
-        ...(requestedVideoId ? { videoId: requestedVideoId } : {}),
-      };
+      const timeoutResult: VideoMetadataResult = unavailableBridgeResult(env, requestedVideoId);
 
       return sendBridgeRequest(env, request, 'video-metadata-response', timeoutResult, (response) => {
         if (response.kind !== 'video-metadata-response') {
@@ -202,11 +207,7 @@ export function createYouTubeBridgeClient(env: YouTubeBridgeClientEnv = {}): You
             kind: 'get-transcript',
             requestId,
           };
-      const timeoutResult: TranscriptResult = {
-        status: 'unavailable',
-        reason: env.document || globalThis.document ? 'timeout' : 'bridge-unavailable',
-        ...(requestedVideoId ? { videoId: requestedVideoId } : {}),
-      };
+      const timeoutResult: TranscriptResult = unavailableBridgeResult(env, requestedVideoId);
 
       return sendBridgeRequest(env, request, 'transcript-response', timeoutResult, (response) => {
         if (response.kind !== 'transcript-response') {

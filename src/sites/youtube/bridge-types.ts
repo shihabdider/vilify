@@ -28,6 +28,18 @@ export type StaleVideoResult = {
   readonly actualVideoId?: string;
 };
 
+export function createStaleVideoResult(
+  requestedVideoId: string | undefined,
+  actualVideoId: string | undefined,
+): StaleVideoResult {
+  return {
+    status: 'stale',
+    reason: 'stale-video-id',
+    ...(requestedVideoId ? { requestedVideoId } : {}),
+    ...(actualVideoId ? { actualVideoId } : {}),
+  };
+}
+
 export type VideoMetadataResult =
   | { readonly status: 'ok'; readonly metadata: VideoMetadata }
   | {
@@ -114,30 +126,33 @@ export type YouTubeBridgeResponse =
       readonly result: TranscriptResult;
     };
 
+const youtubeBridgeRequestKinds = ['get-video-metadata', 'get-transcript'] as const;
+const youtubeBridgeResponseKinds = ['video-metadata-response', 'transcript-response'] as const;
+
+type YouTubeBridgeEnvelope = {
+  readonly protocol: typeof YOUTUBE_BRIDGE_PROTOCOL;
+  readonly requestId: string;
+  readonly kind: string;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-export function isYouTubeBridgeRequest(value: unknown): value is YouTubeBridgeRequest {
-  if (!isRecord(value)) {
-    return false;
-  }
-
+function isYouTubeBridgeEnvelope(value: unknown, kinds: readonly string[]): value is YouTubeBridgeEnvelope {
   return (
+    isRecord(value) &&
     value.protocol === YOUTUBE_BRIDGE_PROTOCOL &&
     typeof value.requestId === 'string' &&
-    (value.kind === 'get-video-metadata' || value.kind === 'get-transcript')
+    typeof value.kind === 'string' &&
+    kinds.includes(value.kind)
   );
 }
 
-export function isYouTubeBridgeResponse(value: unknown): value is YouTubeBridgeResponse {
-  if (!isRecord(value)) {
-    return false;
-  }
+export function isYouTubeBridgeRequest(value: unknown): value is YouTubeBridgeRequest {
+  return isYouTubeBridgeEnvelope(value, youtubeBridgeRequestKinds);
+}
 
-  return (
-    value.protocol === YOUTUBE_BRIDGE_PROTOCOL &&
-    typeof value.requestId === 'string' &&
-    (value.kind === 'video-metadata-response' || value.kind === 'transcript-response')
-  );
+export function isYouTubeBridgeResponse(value: unknown): value is YouTubeBridgeResponse {
+  return isYouTubeBridgeEnvelope(value, youtubeBridgeResponseKinds);
 }
