@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createOmnibarActionExecutor } from './actions';
 import { createInitialOmnibarState, createStaticOmnibarMode } from './state';
 import type {
+  OmnibarAction,
   OmnibarActionContext,
   OmnibarActionExecution,
   OmnibarActionResult,
@@ -16,6 +17,12 @@ interface VideoStub {
   play: ReturnType<typeof vi.fn>;
   pause: ReturnType<typeof vi.fn>;
 }
+
+const missingNativeVideoStatus = {
+  kind: 'status',
+  tone: 'warning',
+  message: 'No native video element is available for this action.',
+} as const;
 
 function makeVideo(overrides: Partial<VideoStub> = {}): VideoStub {
   return {
@@ -84,16 +91,29 @@ describe('createOmnibarActionExecutor', () => {
     expect(video.pause).toHaveBeenCalledTimes(1);
   });
 
-  it('returns a status result instead of throwing when a video action has no native video element', async () => {
+  it('returns the missing-video status when video-only actions have no native video element', async () => {
     const context = makeContext();
-    const execute = createOmnibarActionExecutor({ getVideoElement: () => null });
+    const getVideoElement = vi.fn(() => null);
+    const getCurrentUrl = vi.fn(() => 'https://www.youtube.com/watch?v=abc123');
+    const writeClipboardText = vi.fn();
+    const execute = createOmnibarActionExecutor({
+      getVideoElement,
+      getCurrentUrl,
+      writeClipboardText,
+    });
+    const videoOnlyActions: OmnibarAction[] = [
+      { kind: 'playPause' },
+      { kind: 'seek', seconds: 10 },
+      { kind: 'setPlaybackRate', rate: 1.25 },
+      { kind: 'copy', source: { kind: 'current-url-at-video-time' } },
+    ];
 
-    await expect(resolveActionResult(execute({ kind: 'playPause' }, context))).resolves.toEqual(
-      expect.objectContaining({
-        kind: 'status',
-        message: expect.stringContaining('video'),
-      }),
-    );
+    for (const action of videoOnlyActions) {
+      await expect(resolveActionResult(execute(action, context))).resolves.toEqual(missingNativeVideoStatus);
+    }
+    expect(getVideoElement).toHaveBeenCalledTimes(videoOnlyActions.length);
+    expect(getCurrentUrl).not.toHaveBeenCalled();
+    expect(writeClipboardText).not.toHaveBeenCalled();
   });
 
   it('seeks relatively and clamps currentTime to the finite video duration', () => {
@@ -126,17 +146,22 @@ describe('createOmnibarActionExecutor', () => {
     expect(video.playbackRate).toBe(1.5);
   });
 
-  it('copies the current URL through the clipboard adapter', async () => {
+  it('copies the current URL by reading the live URL adapter at execution time', async () => {
+    let currentUrl = 'https://www.youtube.com/watch?v=old';
+    const getCurrentUrl = vi.fn(() => currentUrl);
     const writeClipboardText = vi.fn();
     const context = makeContext();
     const execute = createOmnibarActionExecutor({
-      getCurrentUrl: () => 'https://www.youtube.com/watch?v=abc123&list=PL123',
+      getCurrentUrl,
       writeClipboardText,
     });
+    currentUrl = 'https://www.youtube.com/watch?v=abc123&list=PL123';
 
     await expect(
       resolveActionResult(execute({ kind: 'copy', source: { kind: 'current-url' } }, context)),
     ).resolves.toEqual({ kind: 'close' });
+    expect(getCurrentUrl).toHaveBeenCalledTimes(1);
+    expect(getCurrentUrl).toHaveBeenCalledWith(context);
     expect(writeClipboardText).toHaveBeenCalledWith('https://www.youtube.com/watch?v=abc123&list=PL123', context);
   });
 
