@@ -133,17 +133,139 @@ describe('createYouTubeBridgeClient', () => {
     expect(removeEventListener).toHaveBeenCalledTimes(2);
   });
 
+  it('uses the current video id at getTranscript call time when no explicit id is provided', async () => {
+    vi.useFakeTimers();
+    const dom = makeDom();
+    const requests: YouTubeBridgeRequest[] = [];
+    dom.window.document.addEventListener(YOUTUBE_BRIDGE_REQUEST_EVENT, (event) => {
+      requests.push((event as CustomEvent<YouTubeBridgeRequest>).detail);
+    });
+    let currentVideoId = 'first-video';
+    const requestIds = ['req-first-transcript', 'req-second-transcript'];
+    const client = createYouTubeBridgeClient({
+      document: dom.window.document,
+      timeoutMs: 1000,
+      createRequestId: () => requestIds.shift() ?? 'extra',
+      getCurrentVideoId: () => currentVideoId,
+    });
+
+    const firstResult = client.getTranscript();
+
+    expect(requests[0]).toEqual({
+      protocol: YOUTUBE_BRIDGE_PROTOCOL,
+      kind: 'get-transcript',
+      requestId: 'req-first-transcript',
+      videoId: 'first-video',
+    });
+    dispatchResponse(dom.window.document, {
+      protocol: YOUTUBE_BRIDGE_PROTOCOL,
+      kind: 'transcript-response',
+      requestId: 'req-first-transcript',
+      result: {
+        status: 'loaded',
+        videoId: 'first-video',
+        source: 'caption-json3',
+        language: null,
+        lines: [],
+      },
+    });
+    await expect(firstResult).resolves.toEqual({
+      status: 'loaded',
+      videoId: 'first-video',
+      source: 'caption-json3',
+      language: null,
+      lines: [],
+    });
+
+    currentVideoId = 'second-video';
+    const secondResult = client.getTranscript();
+
+    expect(requests[1]).toEqual({
+      protocol: YOUTUBE_BRIDGE_PROTOCOL,
+      kind: 'get-transcript',
+      requestId: 'req-second-transcript',
+      videoId: 'second-video',
+    });
+    dispatchResponse(dom.window.document, {
+      protocol: YOUTUBE_BRIDGE_PROTOCOL,
+      kind: 'transcript-response',
+      requestId: 'req-second-transcript',
+      result: {
+        status: 'loaded',
+        videoId: 'second-video',
+        source: 'caption-json3',
+        language: null,
+        lines: [],
+      },
+    });
+    await expect(secondResult).resolves.toEqual({
+      status: 'loaded',
+      videoId: 'second-video',
+      source: 'caption-json3',
+      language: null,
+      lines: [],
+    });
+  });
+
+  it('uses the current video id at getVideoMetadata call time when no explicit expected id is provided', async () => {
+    vi.useFakeTimers();
+    const dom = makeDom();
+    const requests: YouTubeBridgeRequest[] = [];
+    dom.window.document.addEventListener(YOUTUBE_BRIDGE_REQUEST_EVENT, (event) => {
+      requests.push((event as CustomEvent<YouTubeBridgeRequest>).detail);
+    });
+    let currentVideoId = 'initial-video';
+    const client = createYouTubeBridgeClient({
+      document: dom.window.document,
+      timeoutMs: 1000,
+      createRequestId: () => 'req-current-metadata',
+      getCurrentVideoId: () => currentVideoId,
+    });
+
+    currentVideoId = 'metadata-video';
+    const result = client.getVideoMetadata();
+
+    expect(requests[0]).toEqual({
+      protocol: YOUTUBE_BRIDGE_PROTOCOL,
+      kind: 'get-video-metadata',
+      requestId: 'req-current-metadata',
+      expectedVideoId: 'metadata-video',
+    });
+    dispatchResponse(dom.window.document, {
+      protocol: YOUTUBE_BRIDGE_PROTOCOL,
+      kind: 'video-metadata-response',
+      requestId: 'req-current-metadata',
+      result: {
+        status: 'ok',
+        metadata: {
+          videoId: 'metadata-video',
+          title: 'Metadata Video',
+        },
+      },
+    });
+
+    await expect(result).resolves.toEqual({
+      status: 'ok',
+      metadata: {
+        videoId: 'metadata-video',
+        title: 'Metadata Video',
+      },
+    });
+  });
+
   it('reports stale transcript responses when the active video id changed before the response arrived', async () => {
     vi.useFakeTimers();
     const dom = makeDom();
+    let currentVideoId = 'old-video';
     const client = createYouTubeBridgeClient({
       document: dom.window.document,
       timeoutMs: 1000,
       createRequestId: () => 'req-stale',
-      getCurrentVideoId: () => 'new-video',
+      getCurrentVideoId: () => currentVideoId,
     });
 
-    const result = client.getTranscript('old-video');
+    const result = client.getTranscript();
+    currentVideoId = 'new-video';
 
     dispatchResponse(dom.window.document, {
       protocol: YOUTUBE_BRIDGE_PROTOCOL,
@@ -155,6 +277,41 @@ describe('createYouTubeBridgeClient', () => {
         source: 'innertube',
         language: null,
         lines: [{ time: 0, timeText: '0:00', duration: 1, text: 'Old line' }],
+      },
+    });
+
+    await expect(result).resolves.toEqual({
+      status: 'stale',
+      reason: 'stale-video-id',
+      requestedVideoId: 'old-video',
+      actualVideoId: 'new-video',
+    });
+  });
+
+  it('reports stale metadata responses when the active video id changed before the response arrived', async () => {
+    vi.useFakeTimers();
+    const dom = makeDom();
+    let currentVideoId = 'old-video';
+    const client = createYouTubeBridgeClient({
+      document: dom.window.document,
+      timeoutMs: 1000,
+      createRequestId: () => 'req-stale-metadata',
+      getCurrentVideoId: () => currentVideoId,
+    });
+
+    const result = client.getVideoMetadata();
+    currentVideoId = 'new-video';
+
+    dispatchResponse(dom.window.document, {
+      protocol: YOUTUBE_BRIDGE_PROTOCOL,
+      kind: 'video-metadata-response',
+      requestId: 'req-stale-metadata',
+      result: {
+        status: 'ok',
+        metadata: {
+          videoId: 'old-video',
+          title: 'Old Video',
+        },
       },
     });
 
