@@ -72,7 +72,7 @@ describe('YouTube URL helpers', () => {
     }
   });
 
-  it('matches only YouTube watch pages with a video id', () => {
+  it('matches only YouTube watch pages with a non-empty video id', () => {
     expect(isYouTubeWatchUrl(new URL('https://www.youtube.com/watch?v=abc123'))).toBe(true);
 
     for (const url of [
@@ -82,7 +82,11 @@ describe('YouTube URL helpers', () => {
       'https://www.youtube.com/channel/UC123',
       'https://www.youtube.com/playlist?list=PL123',
       'https://www.youtube.com/shorts/abc123',
+      'https://www.youtube.com/watch?t=42s',
+      'https://www.youtube.com/watch?v=',
+      'https://www.youtube.com/watch?v=%20%20',
       'https://www.google.com/search?q=vilify',
+      'https://youtu.be/abc123',
       'https://example.com/watch?v=abc123',
     ]) {
       expect(isYouTubeWatchUrl(new URL(url)), url).toBe(false);
@@ -91,6 +95,30 @@ describe('YouTube URL helpers', () => {
 });
 
 describe('youtubePlugin', () => {
+  it('matches YouTube host-level pages for plugin activation', () => {
+    for (const url of [
+      'https://www.youtube.com/',
+      'https://www.youtube.com/results?search_query=vilify',
+      'https://www.youtube.com/@channel',
+      'https://www.youtube.com/channel/UC123',
+      'https://www.youtube.com/playlist?list=PL123',
+      'https://www.youtube.com/shorts/abc123',
+      'https://www.youtube.com/watch?t=42s',
+      'https://www.youtube.com/watch?v=abc123',
+    ]) {
+      expect(youtubePlugin.matches(new URL(url)), url).toBe(true);
+    }
+
+    for (const url of [
+      'https://www.google.com/search?q=vilify',
+      'https://google.com/search?q=vilify',
+      'https://youtu.be/abc123',
+      'https://example.com/watch?v=abc123',
+    ]) {
+      expect(youtubePlugin.matches(new URL(url)), url).toBe(false);
+    }
+  });
+
   it('declares stateless plugin configuration without page hooks or ambient keybindings', () => {
     expect(youtubePlugin.id).toBe('youtube');
     expect(youtubePlugin.defaultModeId).toBe(youtubeDefaultMode.id);

@@ -20,13 +20,7 @@ function makePlugin(id: string, matches: (url: URL) => boolean): SitePlugin {
 }
 
 describe('getActivePlugin', () => {
-  it('returns the YouTube plugin for YouTube watch URLs with a video id', () => {
-    const plugin = getActivePlugin(new URL('https://www.youtube.com/watch?v=abc123'), [youtubePlugin]);
-
-    expect(plugin).toBe(youtubePlugin);
-  });
-
-  it('returns null for YouTube non-watch pages, Google, and unrelated URLs', () => {
+  it('returns the YouTube plugin for YouTube host-level URLs', () => {
     const urls = [
       'https://www.youtube.com/',
       'https://www.youtube.com/results?search_query=vilify',
@@ -35,8 +29,19 @@ describe('getActivePlugin', () => {
       'https://www.youtube.com/playlist?list=PL123',
       'https://www.youtube.com/shorts/abc123',
       'https://www.youtube.com/watch?t=42s',
+      'https://www.youtube.com/watch?v=abc123',
+    ];
+
+    for (const url of urls) {
+      expect(getActivePlugin(new URL(url), [youtubePlugin]), url).toBe(youtubePlugin);
+    }
+  });
+
+  it('returns null for Google, youtu.be, and unrelated URLs', () => {
+    const urls = [
       'https://www.google.com/search?q=vilify',
       'https://google.com/search?q=vilify',
+      'https://youtu.be/abc123',
       'https://example.com/watch?v=abc123',
     ];
 

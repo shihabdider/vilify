@@ -28,15 +28,16 @@ describe('active v1 scope audit', () => {
     expect(joinedImports).not.toMatch(/google|focus|listing|drawer|comments?|watch.?later|dismiss|subscribe|renderWatch|visible.?control/i);
   });
 
-  it('documents the current product as a YouTube watch-page omnibar rather than legacy multi-site focus mode', () => {
+  it('documents the current product as a YouTube-wide omnibar rather than legacy multi-site focus mode', () => {
     const readme = readRepoFile('README.md');
     const todos = readRepoFile('TODOS.md');
 
-    expect(readme).toContain('YouTube watch pages');
-    expect(readme).toContain('Open the omnibar on a YouTube watch page with `:`');
+    expect(readme).toContain('YouTube pages');
+    expect(readme).toContain('Open the omnibar on supported YouTube pages with `:`');
     expect(readme).toContain('| Google pages | Out of active scope |');
     expect(readme).toContain('Full focus-mode/page replacement UI | Out of active scope');
     expect(readme).not.toMatch(/Supported Sites|Press `\/` to open|Want to add a new site|deep, site-specific/i);
     expect(todos).toContain('No Google or full focus-mode work is active in v1');
+    expect(todos).toContain('YouTube-wide omnibar scope');
   });
 });

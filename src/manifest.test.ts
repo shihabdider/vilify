@@ -5,8 +5,8 @@ import packageJson from '../package.json';
 describe('manifest scaffold', () => {
   it('activates only the isolated content script and main-world YouTube bridge', () => {
     expect(manifest.version).toBe(packageJson.version);
-    expect(packageJson.version).toBe('0.6.70');
-    expect(manifest.version).toBe('0.6.70');
+    expect(packageJson.version).toBe('0.6.71');
+    expect(manifest.version).toBe('0.6.71');
     expect(manifest.permissions ?? []).toEqual(['clipboardWrite']);
     expect(manifest.host_permissions ?? []).toEqual([]);
     expect(manifest.background).toBeUndefined();
@@ -21,16 +21,17 @@ describe('manifest scaffold', () => {
     expect(manifest.content_scripts[1].world).toBeUndefined();
   });
 
-  it('scopes both runtime surfaces to YouTube watch pages only', () => {
+  it('scopes both runtime surfaces to all YouTube host-level pages only', () => {
     const matchesByScript = manifest.content_scripts.map((script: any) => script.matches);
     const matches = matchesByScript.flat();
 
     expect(matchesByScript).toEqual([
-      ['*://youtube.com/watch*', '*://*.youtube.com/watch*'],
-      ['*://youtube.com/watch*', '*://*.youtube.com/watch*'],
+      ['*://youtube.com/*', '*://*.youtube.com/*'],
+      ['*://youtube.com/*', '*://*.youtube.com/*'],
     ]);
     expect(matches).not.toContainEqual(expect.stringContaining('google'));
+    expect(matches).not.toContainEqual(expect.stringContaining('youtu.be'));
     expect(matches.every((pattern: string) => pattern.includes('youtube.com'))).toBe(true);
-    expect(matches.every((pattern: string) => pattern.endsWith('/watch*'))).toBe(true);
+    expect(matches.every((pattern: string) => pattern.endsWith('/*'))).toBe(true);
   });
 });

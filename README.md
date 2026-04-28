@@ -1,21 +1,21 @@
 # Vilify
 
-Vilify is a small Chrome MV3 extension that adds a keyboard-driven omnibar to YouTube watch pages.
+Vilify is a small Chrome MV3 extension that adds a keyboard-driven omnibar to YouTube pages.
 
-The active v1 product scope is intentionally narrow: open the omnibar with `:`, run YouTube watch-page commands, navigate to YouTube URLs, use native video-element actions, copy the current watch URL, and search the current video's transcript through structured YouTube data.
+The active v1 product scope is intentionally narrow: open the omnibar with `:` across YouTube, run YouTube navigation commands, use native video-element actions when available, copy the current watch URL on watch pages, and search the current video's transcript through structured YouTube data.
 
 ## Active v1 Scope
 
 | Surface | Status |
 |---------|--------|
-| YouTube watch pages (`/watch?v=...`) | Supported |
-| YouTube non-watch pages | No Vilify UI or key interception |
+| YouTube pages (`youtube.com` and subdomains) | Supported |
+| Watch video/transcript capabilities | Available on `/watch?v=...` pages |
 | Google pages | Out of active scope |
 | Full focus-mode/page replacement UI | Out of active scope |
 
 ## Commands
 
-Open the omnibar on a YouTube watch page with `:`. When the omnibar is closed, Vilify intercepts only `:` and leaves native YouTube/browser shortcuts alone.
+Open the omnibar on supported YouTube pages with `:`. When the omnibar is closed, Vilify intercepts only `:` and leaves native YouTube/browser shortcuts alone.
 
 The root mode includes:
 
@@ -28,7 +28,7 @@ The root mode includes:
 
 | Key | Closed omnibar | Open omnibar |
 |-----|----------------|--------------|
-| `:` | Open omnibar on supported watch pages | Type `:` in the input |
+| `:` | Open omnibar on supported YouTube pages | Type `:` in the input |
 | `↑` / `↓` | Native page behavior | Move selection |
 | `Enter` | Native page behavior | Execute selected item |
 | `Escape` | Native page behavior | Close omnibar or return to the previous mode |
@@ -56,7 +56,7 @@ The pre-reset implementation is preserved on the backup branch/tag. The current 
 3. Open Chrome and go to `chrome://extensions`.
 4. Enable **Developer mode**.
 5. Click **Load unpacked** and select the repo directory.
-6. Navigate directly to a YouTube watch page.
+6. Navigate directly to a YouTube page.
 
 ## Development
 
@@ -74,7 +74,7 @@ bun run clean   # Remove build artifacts
 │   ├── content.ts              # Content-script entry and page support detection
 │   ├── omnibar/                # Generic omnibar runtime, state, keyboard, and actions
 │   ├── plugins/                # Stateless plugin registry
-│   └── sites/youtube/          # YouTube watch-page plugin, bridge, and transcript provider
+│   └── sites/youtube/          # YouTube plugin, bridge, and transcript provider
 ├── dist/                       # Built extension files
 ├── manifest.json               # Chrome extension manifest
 └── build.js                    # esbuild configuration
