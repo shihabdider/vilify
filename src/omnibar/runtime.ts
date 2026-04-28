@@ -330,13 +330,24 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     row.setAttribute('role', 'option');
     row.setAttribute('aria-selected', selected ? 'true' : 'false');
 
-    const title = document.createElement('div');
-    title.className = 'vilify-omnibar-item-title';
+    const cursor = document.createElement('span');
+    cursor.className = 'vilify-omnibar-cursor';
+    cursor.textContent = selected ? '>' : '';
+
+    const kind = document.createElement('span');
+    kind.className = 'vilify-omnibar-kind';
+    kind.textContent = item.kind === 'status' ? '!' : item.kind;
+
+    const title = document.createElement('span');
+    title.className = item.kind === 'status'
+      ? 'vilify-omnibar-item-title vilify-omnibar-status'
+      : 'vilify-omnibar-item-title';
     title.textContent = item.title;
-    row.append(title);
+
+    row.append(cursor, kind, title);
 
     if (item.subtitle) {
-      const subtitle = document.createElement('div');
+      const subtitle = document.createElement('span');
       subtitle.className = 'vilify-omnibar-item-subtitle';
       subtitle.textContent = item.subtitle;
       row.append(subtitle);

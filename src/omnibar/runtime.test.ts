@@ -52,6 +52,12 @@ function selectedItemId(document: Document): string | undefined {
   return document.querySelector<HTMLElement>('[data-vilify-omnibar-item][data-selected="true"]')?.dataset.itemId;
 }
 
+function itemRow(document: Document, id: string): HTMLElement {
+  const element = document.querySelector<HTMLElement>(`[data-vilify-omnibar-item][data-item-id="${id}"]`);
+  expect(element).not.toBeNull();
+  return element!;
+}
+
 function modeTitle(document: Document): string | null {
   return document.querySelector('.vilify-omnibar-title')?.textContent ?? null;
 }
@@ -145,6 +151,88 @@ describe('createOmnibarRuntime', () => {
     );
     expect(cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-empty')).toMatch(
       /color:\s*var\(--vilify-omnibar-muted\)/,
+    );
+  });
+
+  it('renders each item as a one-line terminal row with cursor, kind, title, and subtitle hooks', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([
+        {
+          id: 'copy-url',
+          kind: 'command',
+          title: 'Copy URL',
+          subtitle: 'Writes the current watch URL to the clipboard',
+          action: { kind: 'noop' },
+        },
+        { id: 'go-home', kind: 'navigation', title: 'Open Home', action: { kind: 'noop' } },
+      ]),
+    });
+
+    runtime.open();
+    const selectedRow = itemRow(dom.window.document, 'copy-url');
+    const unselectedRow = itemRow(dom.window.document, 'go-home');
+
+    expect(selectedRow.dataset.itemKind).toBe('command');
+    expect(selectedRow.dataset.selected).toBe('true');
+    expect(selectedRow.getAttribute('role')).toBe('option');
+    expect(selectedRow.getAttribute('aria-selected')).toBe('true');
+    expect(Array.from(selectedRow.children).map((child) => child.className)).toEqual([
+      'vilify-omnibar-cursor',
+      'vilify-omnibar-kind',
+      'vilify-omnibar-item-title',
+      'vilify-omnibar-item-subtitle',
+    ]);
+    expect(selectedRow.querySelector('.vilify-omnibar-cursor')?.textContent).toBe('>');
+    expect(selectedRow.querySelector('.vilify-omnibar-kind')?.textContent).toBe('command');
+    expect(selectedRow.querySelector('.vilify-omnibar-item-title')?.textContent).toBe('Copy URL');
+    expect(selectedRow.querySelector('.vilify-omnibar-item-subtitle')?.textContent).toBe(
+      'Writes the current watch URL to the clipboard',
+    );
+
+    expect(unselectedRow.dataset.itemKind).toBe('navigation');
+    expect(unselectedRow.dataset.selected).toBe('false');
+    expect(unselectedRow.getAttribute('aria-selected')).toBe('false');
+    expect(Array.from(unselectedRow.children).map((child) => child.className)).toEqual([
+      'vilify-omnibar-cursor',
+      'vilify-omnibar-kind',
+      'vilify-omnibar-item-title',
+    ]);
+    expect(unselectedRow.querySelector('.vilify-omnibar-cursor')?.textContent).not.toContain('>');
+    expect(unselectedRow.querySelector('.vilify-omnibar-kind')?.textContent).toBe('navigation');
+    expect(unselectedRow.querySelector('.vilify-omnibar-item-title')?.textContent).toBe('Open Home');
+    expect(unselectedRow.querySelector('.vilify-omnibar-item-subtitle')).toBeNull();
+  });
+
+  it('renders status-kind items with inline terminal status grammar while preserving item hooks', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([
+        {
+          id: 'transcript-unavailable',
+          kind: 'status',
+          title: 'Transcript unavailable',
+          subtitle: 'Timed out while loading transcript data',
+          action: { kind: 'noop' },
+        },
+      ]),
+    });
+
+    runtime.open();
+    const row = itemRow(dom.window.document, 'transcript-unavailable');
+
+    expect(row.dataset.itemKind).toBe('status');
+    expect(row.dataset.selected).toBe('true');
+    expect(row.getAttribute('role')).toBe('option');
+    expect(row.getAttribute('aria-selected')).toBe('true');
+    expect(row.querySelector('.vilify-omnibar-cursor')?.textContent).toBe('>');
+    expect(row.querySelector('.vilify-omnibar-kind')?.textContent).toBe('!');
+    expect(row.querySelector('.vilify-omnibar-status')?.textContent).toBe('Transcript unavailable');
+    expect(row.querySelector('.vilify-omnibar-item-title')?.textContent).toBe('Transcript unavailable');
+    expect(row.querySelector('.vilify-omnibar-item-subtitle')?.textContent).toBe(
+      'Timed out while loading transcript data',
     );
   });
 
