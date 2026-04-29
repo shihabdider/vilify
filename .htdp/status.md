@@ -2,7 +2,7 @@
 
 phase: 2
 layer: 0
-updated: 2026-04-29T21:27:19.000Z
+updated: 2026-04-29T21:28:53.425Z
 
 ## Wishes
 
@@ -21,7 +21,7 @@ updated: 2026-04-29T21:27:19.000Z
 | getOmnibarViewDefinition | src/omnibar/view.ts | 1 | pass | 167.0s |
 | renderItem | src/omnibar/runtime.ts | 1 | pass | 261.2s |
 | itemsForYouTubeRootIntent | src/sites/youtube/default-mode.ts | 1 | pass | 188.1s |
-| startTranscriptLoad | src/sites/youtube/transcript-mode.ts | 0 | pass | 238.0s |
+| startTranscriptLoad | src/sites/youtube/transcript-mode.ts | 0 | pass | 326.1s |
 
 ## Log
 
@@ -68,5 +68,6 @@ updated: 2026-04-29T21:27:19.000Z
 - 17:23:02 implementer_post verification for itemsForYouTubeRootIntent: pass
 - 17:23:04 layer 1 verification: pass
 - 17:23:21 startTranscriptLoad: running
-- 17:27:19 startTranscriptLoad: pass (238.0s, $0.0000)
-- 17:27:19 implementer_post verification for startTranscriptLoad: pass
+- 17:28:47 startTranscriptLoad: pass (326.1s, $1.4802)
+- 17:28:50 implementer_post verification for startTranscriptLoad: pass
+- 17:28:53 layer 0 verification: pass
