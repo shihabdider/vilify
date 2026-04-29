@@ -1,3 +1,4 @@
+import { createStatusOmnibarItem } from '../../omnibar/items';
 import { filterOmnibarItems } from '../../omnibar/state';
 import type { OmnibarItem, OmnibarMode, ProviderContext } from '../../omnibar/types';
 import { youtubeTranscriptMode } from './transcript-mode';
@@ -162,7 +163,7 @@ export function itemsForYouTubeRootIntent(
     case 'youtube-search':
       return [createYouTubeSearchIntentItem(intent.query)];
     case 'transcript-search':
-      return getTranscriptSearchIntentItems(context, intent.query);
+      return getTranscriptSearchIntentItems(context, intent.query, capability);
   }
 }
 
@@ -194,15 +195,13 @@ export function filterYouTubeRootCommandsByIntent(
 export function createYouTubeSearchIntentItem(query: string): OmnibarItem {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) {
-    return {
+    return createStatusOmnibarItem({
       id: 'youtube-search-empty-query',
-      kind: 'status',
       tone: 'warning',
       title: 'Type a YouTube search query',
       subtitle: 'Use s/{query} to open YouTube search results.',
       keywords: ['youtube', 'search', 'empty query'],
-      action: { kind: 'noop' },
-    };
+    });
   }
 
   return {
@@ -218,8 +217,8 @@ export function createYouTubeSearchIntentItem(query: string): OmnibarItem {
 export function getTranscriptSearchIntentItems(
   context: ProviderContext,
   query: string,
+  capability: YouTubePageCapability = deriveYouTubePageCapability(context),
 ): readonly OmnibarItem[] {
-  const capability = deriveYouTubePageCapability(context);
   if (!capability.canUseVideoScopedCommands) {
     return [transcriptSearchUnavailableItem()];
   }
@@ -236,15 +235,13 @@ function filterCommandsByQuery(
 }
 
 function transcriptSearchUnavailableItem(): OmnibarItem {
-  return {
+  return createStatusOmnibarItem({
     id: 'youtube-transcript-search-unavailable',
-    kind: 'status',
     tone: 'warning',
     title: 'Transcript search unavailable',
     subtitle: 'Open a YouTube watch page with a playable video to use t/{query}.',
     keywords: ['transcript', 'unavailable', 'missing video', 'youtube'],
-    action: { kind: 'noop' },
-  };
+  });
 }
 
 function idPart(value: string): string {

@@ -1,3 +1,4 @@
+import { createStatusOmnibarItem } from '../../omnibar/items';
 import type { OmnibarItem, OmnibarMode, OmnibarProvider, ProviderContext } from '../../omnibar/types';
 import { createYouTubeBridgeClient, type YouTubeBridgeClient } from './bridge-client';
 import type { TranscriptLine, TranscriptResult } from './bridge-types';
@@ -253,51 +254,43 @@ function transcriptLineItem(videoId: string, line: TranscriptLine, index: number
 }
 
 function missingVideoItem(): OmnibarItem {
-  return {
+  return createStatusOmnibarItem({
     id: 'youtube-transcript-missing-video',
-    kind: 'status',
     title: 'No active YouTube video',
     subtitle: 'Open a YouTube watch page with a video id to search its transcript.',
     keywords: ['transcript', 'missing video', 'youtube'],
-    action: { kind: 'noop' },
-  };
+  });
 }
 
 function loadingItem(videoId: string): OmnibarItem {
-  return {
+  return createStatusOmnibarItem({
     id: `youtube-transcript-loading-${idPart(videoId)}`,
-    kind: 'status',
     title: 'Loading transcript…',
     subtitle: 'Loading structured transcript data from YouTube.',
     keywords: ['transcript', 'loading', videoId],
-    action: { kind: 'noop' },
-  };
+  });
 }
 
 function unavailableItem(
   videoId: string,
   loadState: Extract<TranscriptLoadState, { status: 'unavailable' }>,
 ): OmnibarItem {
-  return {
+  return createStatusOmnibarItem({
     id: `youtube-transcript-unavailable-${idPart(videoId)}`,
-    kind: 'status',
     title: 'Transcript unavailable',
     subtitle: loadState.message ?? `Could not load this transcript (${loadState.reason}).`,
     keywords: ['transcript', 'unavailable', loadState.reason, videoId],
-    action: { kind: 'noop' },
-  };
+  });
 }
 
 function noMatchesItem(videoId: string, query: string): OmnibarItem {
   const normalizedQuery = query.trim();
-  return {
+  return createStatusOmnibarItem({
     id: `youtube-transcript-no-matches-${idPart(videoId)}`,
-    kind: 'status',
     title: 'No transcript matches',
     subtitle: normalizedQuery ? `No transcript lines match “${normalizedQuery}”.` : 'No transcript lines are available.',
     keywords: ['transcript', 'no matches', videoId],
-    action: { kind: 'noop' },
-  };
+  });
 }
 
 function createBridgeClientForContext(context: ProviderContext): YouTubeBridgeClient {
