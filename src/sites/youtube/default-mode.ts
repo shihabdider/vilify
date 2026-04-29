@@ -218,9 +218,13 @@ export function applyYouTubePrefixDisplayMetadata(
   items: readonly OmnibarItem[],
   intent: YouTubeRootPrefixIntent,
 ): readonly OmnibarItem[] {
-  void items;
-  void intent;
-  throw new Error('not implemented: applyYouTubePrefixDisplayMetadata');
+  return items.map((item) => ({
+    ...item,
+    display: {
+      ...(item.display ?? {}),
+      marker: { kind: 'prefix' as const, prefix: intent.prefix },
+    },
+  }));
 }
 
 export function availableYouTubeRootCommands(

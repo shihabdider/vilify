@@ -5,6 +5,7 @@ import { domDocumentLocation, makeOmnibarTestDom, pushDomHistory } from '../../t
 import { youtubePlugin } from './plugin';
 import { deriveYouTubePageCapability } from './capability';
 import {
+  applyYouTubePrefixDisplayMetadata,
   availableYouTubeRootCommands,
   createYouTubeSearchIntentItem,
   filterYouTubeRootCommandsByIntent,
@@ -192,6 +193,58 @@ describe('youtubeDefaultMode root commands', () => {
 });
 
 describe('YouTube root intent helpers', () => {
+  it.each([
+    { kind: 'youtube-search', query: 'lofi', prefix: 's/' },
+    { kind: 'transcript-search', query: 'needle', prefix: 't/' },
+    { kind: 'navigation-filter', query: 'history', prefix: 'n/' },
+  ] as const)('attaches display-only $prefix markers without changing item actions or mutating inputs', (intent) => {
+    const navigateAction = { kind: 'navigate' as const, url: 'https://www.youtube.com/' };
+    const noopAction = { kind: 'noop' as const };
+    const titleParts = [{ kind: 'title' as const, text: 'Existing title metadata' }];
+    const subtitleParts = [{ kind: 'description' as const, text: 'Existing subtitle metadata' }];
+    const items: readonly OmnibarItem[] = [
+      {
+        id: 'prefixed-navigation-row',
+        kind: 'navigation',
+        title: 'Prefixed navigation row',
+        display: { titleParts },
+        action: navigateAction,
+      },
+      {
+        id: 'prefixed-status-row',
+        kind: 'status',
+        title: 'Prefixed status row',
+        display: { marker: { kind: 'empty' }, subtitleParts },
+        action: noopAction,
+      },
+    ];
+
+    const result = applyYouTubePrefixDisplayMetadata(items, intent);
+
+    expect(result).toHaveLength(2);
+    expect(result).not.toBe(items);
+    expect(result[0]).not.toBe(items[0]);
+    expect(result[1]).not.toBe(items[1]);
+    expect(result[0].action).toBe(navigateAction);
+    expect(result[1].action).toBe(noopAction);
+    expect(result[0].display).toEqual({
+      marker: { kind: 'prefix', prefix: intent.prefix },
+      titleParts,
+    });
+    expect(result[1].display).toEqual({
+      marker: { kind: 'prefix', prefix: intent.prefix },
+      subtitleParts,
+    });
+    expect(items[0].display).toEqual({ titleParts });
+    expect(items[1].display).toEqual({ marker: { kind: 'empty' }, subtitleParts });
+  });
+
+  it('returns no prefixed display rows for empty item lists', () => {
+    expect(
+      applyYouTubePrefixDisplayMetadata([], { kind: 'navigation-filter', query: '', prefix: 'n/' }),
+    ).toEqual([]);
+  });
+
   it('filters available commands by capability before applying command intent filtering', () => {
     const homeCapability = deriveYouTubePageCapability(makeContext('https://www.youtube.com/').context);
     const watchCapability = deriveYouTubePageCapability(makeWatchContext('capability-filter-video').context);
