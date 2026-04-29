@@ -85,3 +85,4 @@
 {"ts":"2026-04-28T18:34:27.012Z","agent":"implementer","wish":"createOmnibarRuntime","layer":1,"status":"pass","turns":36,"input":66730,"output":15314,"cacheRead":1588224,"cost":1.5872,"duration":328.1}
 {"ts":"2026-04-28T18:40:34.685Z","agent":"implementer","wish":"initContentScript","layer":0,"status":"pass","turns":42,"input":78819,"output":15357,"cacheRead":1901568,"cost":1.8056,"duration":345.5}
 {"ts":"2026-04-28T18:50:53.084Z","agent":"abstractor","wish":null,"layer":null,"status":"pass","turns":89,"input":143526,"output":29916,"cacheRead":5925376,"cost":4.5778,"duration":593.8}
+{"ts":"2026-04-29T17:36:17.602Z","agent":"stubber","wish":null,"layer":null,"status":"pass","turns":57,"input":108444,"output":28119,"cacheRead":3379200,"cost":3.0754,"duration":528.4}

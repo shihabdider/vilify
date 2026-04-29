@@ -115,10 +115,6 @@ function executeWithPlatform(
         return executeCopyAction(action.source, context, platform);
       case 'seek':
         return executeSeekAction(action.seconds, action.seekMode ?? 'relative', context, platform);
-      case 'playPause':
-        return executePlayPauseAction(context, platform);
-      case 'setPlaybackRate':
-        return executeSetPlaybackRateAction(action.rate, context, platform);
       case 'custom':
         return action.execute(context) ?? noneResult;
     }
@@ -175,39 +171,6 @@ function executeSeekAction(
     const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
     const targetTime = seekMode === 'absolute' ? seconds : currentTime + seconds;
     video.currentTime = clampVideoTime(targetTime, video.duration);
-    return closeResult;
-  });
-}
-
-function executePlayPauseAction(
-  context: OmnibarActionContext,
-  platform: OmnibarActionPlatform,
-): OmnibarActionExecution {
-  return withNativeVideoElement(context, platform, (video) => {
-    if (video.paused) {
-      return closeAfter(video.play(), 'Could not play the native video element');
-    }
-
-    video.pause();
-    return closeResult;
-  });
-}
-
-function executeSetPlaybackRateAction(
-  rate: number,
-  context: OmnibarActionContext,
-  platform: OmnibarActionPlatform,
-): OmnibarActionResult {
-  return withNativeVideoElement(context, platform, (video) => {
-    if (!Number.isFinite(rate) || rate <= 0) {
-      return {
-        kind: 'status',
-        tone: 'warning',
-        message: 'Cannot set a non-positive or non-finite playback rate.',
-      };
-    }
-
-    video.playbackRate = rate;
     return closeResult;
   });
 }

@@ -14,6 +14,14 @@ import {
   setOmnibarQuery,
 } from './state';
 import { getOpenOmnibarKeyIntent, isEditableTarget, isOmnibarOpenerKey } from './keyboard';
+import {
+  buildOmnibarStyleSheet,
+  classForOmnibarItemKind,
+  classForOmnibarStatusTone,
+  ensureSelectedOmnibarRowVisible,
+  getOmnibarViewDefinition,
+  type OmnibarSelectionVisibilityAdapter,
+} from './view';
 import type {
   OmnibarActionExecution,
   OmnibarActionExecutor,
@@ -29,6 +37,7 @@ export interface OmnibarRuntimeOptions {
   readonly rootMode?: OmnibarMode;
   readonly providerContext?: ProviderContext;
   readonly actionExecutor?: OmnibarActionExecutor;
+  readonly selectionVisibilityAdapter?: OmnibarSelectionVisibilityAdapter;
 }
 
 export interface OmnibarRuntime {
@@ -62,6 +71,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     requestRender,
   };
   const actionExecutor = options.actionExecutor ?? executeOmnibarAction;
+  const selectionVisibilityAdapter = options.selectionVisibilityAdapter;
   const root = document.createElement('div');
   let state = createInitialOmnibarState(rootMode);
   let destroyed = false;
@@ -118,157 +128,13 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     if (input) {
       focusInput(input);
     }
+
+    ensureSelectedOmnibarRowVisible(root, selectionVisibilityAdapter);
   }
 
   function renderStyle(): HTMLStyleElement {
     const style = document.createElement('style');
-    style.textContent = `
-      #vilify-omnibar-root {
-        all: initial;
-        --vilify-omnibar-bg: #050505;
-        --vilify-omnibar-fg: #e7e7e7;
-        --vilify-omnibar-muted: #8a8a8a;
-        --vilify-omnibar-border: #777777;
-        position: fixed;
-        inset: 0;
-        z-index: 2147483647;
-        pointer-events: none;
-        color: var(--vilify-omnibar-fg);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 13px;
-        line-height: 1.35;
-      }
-      #vilify-omnibar-root[hidden] { display: none !important; }
-      #vilify-omnibar-root * { box-sizing: border-box; }
-      #vilify-omnibar-root .vilify-omnibar-panel {
-        pointer-events: auto;
-        width: min(88ch, calc(100vw - 24px));
-        margin: 8vh auto 0;
-        color: var(--vilify-omnibar-fg);
-        background: var(--vilify-omnibar-bg);
-        border: 1px solid var(--vilify-omnibar-border);
-        border-radius:0;
-        box-shadow: none;
-        overflow: hidden;
-      }
-      #vilify-omnibar-root .vilify-omnibar-header,
-      #vilify-omnibar-root .vilify-omnibar-prompt {
-        display: grid;
-        grid-template-columns: max-content minmax(0, 1fr);
-        align-items: center;
-        gap: 1ch;
-        min-height: 2rem;
-        padding: 0.35rem 1ch;
-        border-bottom: 1px solid var(--vilify-omnibar-border);
-      }
-      #vilify-omnibar-root .vilify-omnibar-title,
-      #vilify-omnibar-root .vilify-omnibar-mode {
-        margin: 0;
-        color: var(--vilify-omnibar-muted);
-        font: inherit;
-        font-weight: 600;
-        letter-spacing: 0;
-        text-transform: none;
-        white-space: nowrap;
-      }
-      #vilify-omnibar-root .vilify-omnibar-title::after,
-      #vilify-omnibar-root .vilify-omnibar-prompt-mark {
-        content: " ❯";
-        color: var(--vilify-omnibar-fg);
-        font-weight: 400;
-      }
-      #vilify-omnibar-root input {
-        all: unset;
-        display: block;
-        min-width: 0;
-        width: 100%;
-        color: var(--vilify-omnibar-fg);
-        caret-color: var(--vilify-omnibar-fg);
-        font: inherit;
-        line-height: 1.35;
-      }
-      #vilify-omnibar-root input::placeholder { color: var(--vilify-omnibar-muted); }
-      #vilify-omnibar-root .vilify-omnibar-results {
-        max-height: min(22rem, 52vh);
-        overflow: auto;
-        padding: 0.25rem 0;
-      }
-      #vilify-omnibar-root .vilify-omnibar-row {
-        display: flex;
-        align-items: baseline;
-        gap: 2ch;
-        width: 100%;
-        min-height: 1.45rem;
-        padding: 0 1ch;
-        border-radius:0;
-        color: var(--vilify-omnibar-fg);
-        white-space: nowrap;
-        overflow: hidden;
-      }
-      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] {
-        background: var(--vilify-omnibar-fg);
-        color: var(--vilify-omnibar-bg);
-        border-radius:0;
-      }
-      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-cursor,
-      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-kind,
-      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-title,
-      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-subtitle,
-      #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status {
-        color: var(--vilify-omnibar-bg);
-      }
-      #vilify-omnibar-root .vilify-omnibar-cursor {
-        flex: 0 0 1ch;
-        color: var(--vilify-omnibar-muted);
-      }
-      #vilify-omnibar-root .vilify-omnibar-kind {
-        flex: 0 0 auto;
-        color: var(--vilify-omnibar-muted);
-        text-transform: lowercase;
-      }
-      #vilify-omnibar-root .vilify-omnibar-item-title {
-        flex: 0 1 auto;
-        min-width: 0;
-        color: inherit;
-        font: inherit;
-        font-weight: 600;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      #vilify-omnibar-root .vilify-omnibar-item-subtitle {
-        flex: 1 1 auto;
-        min-width: 8ch;
-        color: var(--vilify-omnibar-muted);
-        font: inherit;
-        margin: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      #vilify-omnibar-root .vilify-omnibar-footer,
-      #vilify-omnibar-root .vilify-omnibar-status-row {
-        padding: 0.25rem 1ch;
-        border-top: 1px solid var(--vilify-omnibar-border);
-        color: var(--vilify-omnibar-muted);
-        white-space: nowrap;
-      }
-      #vilify-omnibar-root .vilify-omnibar-empty {
-        padding: 0.25rem 1ch;
-        color: var(--vilify-omnibar-muted);
-        font: inherit;
-        white-space: nowrap;
-      }
-      #vilify-omnibar-root .vilify-omnibar-status {
-        color: var(--vilify-omnibar-muted);
-        font: inherit;
-        white-space: nowrap;
-      }
-      #vilify-omnibar-root .vilify-omnibar-status[data-tone="error"],
-      #vilify-omnibar-root .vilify-omnibar-status-row[data-tone="error"] {
-        color: var(--vilify-omnibar-fg);
-      }
-    `;
+    style.textContent = buildOmnibarStyleSheet(getOmnibarViewDefinition());
     return style;
   }
 
@@ -348,10 +214,11 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
 
   function renderItem(item: OmnibarItem, selected: boolean): HTMLDivElement {
     const row = document.createElement('div');
-    row.className = 'vilify-omnibar-row';
+    row.className = `vilify-omnibar-row ${classForOmnibarItemKind(item.kind)}`;
     row.dataset.vilifyOmnibarItem = 'true';
     row.dataset.itemId = item.id;
     row.dataset.itemKind = item.kind;
+    row.dataset.statusTone = item.tone ?? '';
     row.dataset.selected = selected ? 'true' : 'false';
     row.setAttribute('role', 'option');
     row.setAttribute('aria-selected', selected ? 'true' : 'false');
@@ -366,7 +233,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
 
     const title = document.createElement('span');
     title.className = item.kind === 'status'
-      ? 'vilify-omnibar-item-title vilify-omnibar-status'
+      ? `vilify-omnibar-item-title vilify-omnibar-status ${classForOmnibarStatusTone(item.tone)}`
       : 'vilify-omnibar-item-title';
     title.textContent = item.title;
 
@@ -374,7 +241,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
 
     if (item.subtitle) {
       const subtitle = document.createElement('span');
-      subtitle.className = 'vilify-omnibar-item-subtitle';
+      subtitle.className = `vilify-omnibar-item-subtitle ${classForOmnibarStatusTone(item.tone)}`;
       subtitle.textContent = item.subtitle;
       row.append(subtitle);
     }

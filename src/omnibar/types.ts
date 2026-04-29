@@ -18,12 +18,13 @@ export interface OmnibarActionContext {
 }
 
 export type OmnibarItemKind = 'navigation' | 'video-action' | 'command' | 'search-result' | 'status';
+export type OmnibarStatusTone = 'info' | 'warning' | 'error';
 
 export type OmnibarActionResult =
   | { kind: 'none' }
   | { kind: 'close' }
   | { kind: 'push-mode'; mode: OmnibarMode }
-  | { kind: 'status'; message: string; tone?: 'info' | 'warning' | 'error' };
+  | { kind: 'status'; message: string; tone?: OmnibarStatusTone };
 
 export type OmnibarCopySource =
   | { kind: 'current-url' }
@@ -37,8 +38,6 @@ export type OmnibarAction =
   | { kind: 'navigate'; url: string }
   | { kind: 'copy'; source: OmnibarCopySource }
   | { kind: 'seek'; seconds: number; seekMode?: 'relative' | 'absolute' }
-  | { kind: 'playPause' }
-  | { kind: 'setPlaybackRate'; rate: number }
   | { kind: 'custom'; execute: (context: OmnibarActionContext) => OmnibarActionExecution };
 
 export interface OmnibarItem {
@@ -47,6 +46,7 @@ export interface OmnibarItem {
   readonly title: string;
   readonly subtitle?: string;
   readonly keywords?: readonly string[];
+  readonly tone?: OmnibarStatusTone;
   readonly action: OmnibarAction;
 }
 

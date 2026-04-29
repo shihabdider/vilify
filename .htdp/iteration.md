@@ -1,8 +1,8 @@
 # Iteration
 
-anchor: 13c8aece4a0eb5dd614a059dbafd798e281831e9
-started: 2026-04-28T17:37:28Z
-stubber-mode: data-definition-driven
+anchor: 69e88c181bf8471667ae7ddb379d02a3eb1beb05
+started: 2026-04-29T17:26:53Z
+stubber-mode: compiler-driven
 workflow-mode: autonomous
 language: TypeScript
 transparent: true
@@ -10,73 +10,85 @@ transparent: true
 ## Source Artifacts
 
 - PRD: .htdp/prds/prd-0001-omnibar-reset.md
-- Issue: .htdp/issues/issue-0012-youtube-wide-omnibar-spa.md
+- Issue: .htdp/issues/issue-0014-scrollable-omnibar-results.md
+- Issue: .htdp/issues/issue-0015-wrap-omnibar-row-text.md
+- Issue: .htdp/issues/issue-0016-gate-video-scoped-commands.md
+- Issue: .htdp/issues/issue-0017-vim-prefix-command-modes.md
+- Issue: .htdp/issues/issue-0018-vim-inspired-color-palette.md
+- Issue: .htdp/issues/issue-0019-prune-redundant-video-shortcut-actions.md
 - Architecture review: <none>
 
 ## Problem
 
-Broaden Vilify's omnibar activation from direct-loaded YouTube watch pages to all YouTube pages, and make runtime/provider reads robust across YouTube SPA navigation without reintroducing focus mode, page replacement, visible-control automation, or Google support.
+Implement the new omnibar polish and scope tickets as one vertical batch: make overflowing results scroll within the picker, wrap long result text, hide video-scoped YouTube commands unless the current page has an actionable watch video/native video, add Vim-style query prefixes (`s/`, `t/`, `n/`), apply a restrained Vim-inspired color palette, and remove playback controls that duplicate default YouTube shortcuts.
 
 ## Data Definition Plan
 
-Change the YouTube support predicate from watch-with-video-id to YouTube-host-level support while preserving `getYouTubeVideoId`/watch helpers for capability checks. Reuse `SupportedPage`, `SitePlugin`, `ProviderContext`, and existing action/status result definitions unless implementation proves a small capability context is needed. Ensure provider/action code reads current URL/video id from live `Location`/`Document.location` at render/execution time rather than from the initial `activePlugin.url` snapshot. Broaden manifest content-script matches to all YouTube paths. Update docs/project notes that currently describe watch-page-only activation.
+Use a compiler-driven pass because this iteration changes TypeScript data definitions and may remove `OmnibarAction` variants. Add an internal YouTube capability definition derived from `ProviderContext` (current URL, watch video id, native video availability) to gate provider output. Add a query-intent discriminated union for YouTube root-mode parsing: default command filtering, YouTube search (`s/{query}`), transcript search (`t/{query}`), and navigation filtering (`n/{query}`). Restructure YouTube root command data so command scope/category/capability is explicit and provider output is derived from data rather than ad hoc arrays. Remove redundant playback action variants/items where no longer used (`playPause`, `setPlaybackRate`; keep `seek` for transcript absolute seeks and any native-video copy-time behavior that remains). Update runtime view/style definitions and tests for a distinct scrollable results viewport, selection visibility, wrapped row text, and Vim-like theme tokens/kind/status colors. Bump package and manifest version to `0.6.80`.
 
 ## Polya Ledger
 
 ### Knowns
 
-- Current `youtubePlugin.matches` uses `isYouTubeWatchUrl`, so YouTube home/search/channel/playlist/Shorts are unsupported.
-- Current manifest content scripts match only `*://youtube.com/watch*` and `*://*.youtube.com/watch*`.
-- Current `initContentScript` installs one omnibar runtime when the content script loads on a supported plugin page.
-- Current transcript provider already tries `context.location`, `context.document?.location`, `globalThis.location`, then initial `activePlugin.url` for video id resolution.
-- Current native video actions use the live document query for `video` and already return status results when no native video element exists.
-- Current version is `0.6.66` after issue 0013.
+- Current YouTube root mode includes navigation, playback video actions, copy actions, and transcript mode entry.
+- Current transcript mode already accepts a query and returns timestamped search-result items that seek through the native video element.
+- Current `ProviderContext` carries live `document` and `location`, and previous issue 0012 made SPA-style live reads important.
+- Current runtime CSS uses `white-space: nowrap` and `text-overflow: ellipsis`, which matches the row truncation failure.
+- Current results container has `overflow: auto`, but selected-row movement does not explicitly keep the selected row visible.
+- Issue 0018 is HITL because final palette acceptance depends on visual judgment.
+- Repo convention requires version bumps in package and manifest for changes, then commit and push.
 
 ### Constraints
 
-- Do not activate on Google or non-YouTube pages.
-- Do not reintroduce ambient multi-key shortcuts; closed state should still intercept only `:` outside editable targets.
-- Do not scrape visible YouTube UI or click visible controls to make commands work.
-- Do not duplicate omnibar roots/listeners across YouTube SPA navigations.
-- Keep transcript data flowing through the structured bridge protocol.
-- Shorts pages should be supported for omnibar activation, but not treated as watch/video-id transcript pages in v1.
-- Bump both `package.json` and `manifest.json` for implementation changes, then commit and push.
+- Closed omnibar state still intercepts only `:` outside editable targets.
+- Prefixes are query syntax inside the open omnibar, not ambient multi-key bindings.
+- Do not scrape visible YouTube UI, click visible controls, drive menus, or reintroduce drawers/sidebars/page replacement.
+- Keep YouTube-wide activation; command availability is provider-level capability gating.
+- Keep Google and non-YouTube support out of active v1 scope.
+- Build and test hooks are `bun run build` and `bun run test` from `htdp.json`.
+- Final human verification should include manual visual review for the Vim-inspired palette and likely browser smoke checks for scroll/wrap/prefix behavior.
 
 ### Unknowns That Matter
 
-- [resolved by user go] Shorts activation is in scope, but Shorts path IDs should not be added as transcript/watch video IDs because the user does not watch Shorts.
+- [resolved by user go] On non-watch/no-video pages, default command list hides video-scoped transcript/current-time commands; explicit `t/...` may show one concise unavailable status because the user intentionally requested transcript search.
+- [resolved by user go] Use a conservative built-in Vim-like palette rather than a named theme clone.
 
 ### Out of Scope
 
 - Google support.
-- Full focus-mode/page replacement.
-- YouTube listing renderers, drawers, comments UI, or persistent sidebars.
-- Watch Later/dismiss/subscribe mutations.
-- Captions/theater/fullscreen automation through visible YouTube controls.
-- New non-YouTube plugins.
+- Non-YouTube plugins.
+- Shorts transcript/video-id semantics.
+- Full Vim command language, mappings, registers, macros, configurable keymaps, or ambient normal-mode bindings while closed.
+- Configurable themes.
+- Replacing YouTube native keyboard shortcuts or adding legacy playback-control scope.
+- Legacy drawers, listing renderers, comments UI, persistent transcript sidebar, or page replacement.
 
 ### Assumptions
 
-- A host-level predicate plus live URL reads is enough; no route observer is needed because the content script remains installed across YouTube SPA navigation once injected on any YouTube page.
-- It is acceptable for transcript mode on non-watch pages and Shorts to show the existing no-active-video status item.
-- Video actions on non-watch pages should rely on the existing live native-video lookup and return existing missing-video status if no `<video>` exists.
-- Manifest matches should cover `*://youtube.com/*` and `*://*.youtube.com/*` without adding host permissions.
+- Implement all six new issues in one HtDP iteration and one final commit/push.
+- Default non-prefix filtering remains the existing command fuzzy filtering.
+- `s/{query}` produces a YouTube search navigation item; empty `s/` should not navigate to an empty search and should instead return a concise status/no-result item.
+- `n/{query}` filters only navigation actions.
+- `t/{query}` searches transcript lines directly on actionable watch pages without first pushing transcript mode.
+- Default results should hide transcript and current-time commands on non-watch/no-video pages; explicit `t/` can expose a missing-video status.
+- Copy-current-URL remains available because it is not a YouTube playback shortcut.
+- Copy-URL-at-current-time remains video-scoped unless implementation evidence shows it should be deferred/removed with playback actions.
+- Conservative palette means dark charcoal background, muted foreground, green/cyan/yellow accents, and restrained warning/error colors with high contrast.
 
 ### Alternatives Considered
 
-- Add a new `YouTubePageContext` struct carrying URL/video/native-video capabilities — deferred unless stubber/implementer finds stale reads or duplicated capability logic; current live `Location`/`Document` context appears sufficient.
-- Add URL parsing for Shorts path IDs — rejected for v1 by user preference; Shorts activation is enough.
-- Add a YouTube SPA route listener/re-installer — rejected unless tests show duplication/installation gaps; manifest-wide injection plus one runtime should survive client-side navigation.
-- Chosen: broaden plugin/manifest support to all YouTube paths, keep watch/video helpers as capability gates, and make tests prove live URL reads after SPA-like URL changes.
+- Gate video-scoped commands by trying execution and returning status/noop — rejected by issue 0016; default behavior should hide commands that cannot apply.
+- Hide explicit `t/` on non-watch pages completely — rejected by user confirmation in favor of one concise unavailable status for explicit transcript intent.
+- Named theme clone such as gruvbox/solarized — deferred; user accepted a conservative Vim-like palette.
+- Add a broad generic provider-intent API to all modes — only introduce if the stubber finds it necessary; expected scope is YouTube root-mode parsing.
+- Keep `playPause`/`setPlaybackRate` action variants for possible future use — remove if compiler proves they are dead after pruning; future issues can re-add typed variants if needed.
+- Chosen: capability-aware YouTube root provider + parsed query intent + pruned playback commands + runtime layout/theme fixes.
 
 ### Decision Log
 
-- 2026-04-28T17:37:28Z — Started issue 0012 after issue 0013 passed final human verification and was marked done.
-- 2026-04-28T17:37:28Z — Reused prior user confirmation that Shorts do not need transcript/watch video-id semantics.
-- 2026-04-28T17:37:28Z — User accepted stubber-flagged assertion updates for all-YouTube activation, manifest broadening, and required version bump.
+- 2026-04-29T17:26:53Z — Started fresh iteration for issues 0014-0019 after user chose not to resume old issue 0012 iteration.
+- 2026-04-29T17:26:53Z — User confirmed Phase 0 understanding with `go`, including explicit `t/` missing-video status and conservative Vim-like palette assumptions.
 
 ### Look Back
 
-- 2026-04-28T18:50:53Z — Implementation kept Shorts activation-only: `isSupportedYouTubeUrl` matches Shorts, but `getYouTubeVideoId` remains watch-only.
-- 2026-04-28T18:50:53Z — `createOmnibarRuntime` now enforces one runtime per `Document` via `WeakMap`; this supports defensive re-init without duplicate roots/listeners.
-- 2026-04-28T18:50:53Z — Transcript/action live-context behavior is covered through jsdom SPA-style `history.pushState` tests; browser SPA smoke remains manual.
+- Leave empty for now.
