@@ -34,6 +34,7 @@ import {
   createYouTubeTranscriptMode,
   settleTranscriptLoadResult,
   shouldDiscardStaleTranscriptResult,
+  type TranscriptRequestIdentity,
 } from './transcript-mode';
 
 function providerContext(dom: JSDOM): ProviderContext {
@@ -97,6 +98,55 @@ async function flushBridgeSettlement(): Promise<void> {
 }
 
 describe('transcript stale-response settlement', () => {
+  it('keeps fresh loaded and unavailable results for the request cache video', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'fresh-video-0020',
+      requestedVideoId: 'fresh-video-0020',
+      cacheVideoId: 'fresh-video-0020',
+    };
+
+    expect(shouldDiscardStaleTranscriptResult(request, {
+      status: 'loaded',
+      videoId: 'fresh-video-0020',
+      language: 'en',
+      source: 'caption-json3',
+      lines: [{ time: 0, timeText: '0:00', duration: 2, text: 'Fresh transcript line' }],
+    })).toBe(false);
+    expect(shouldDiscardStaleTranscriptResult(request, {
+      status: 'unavailable',
+      videoId: 'fresh-video-0020',
+      reason: 'empty-transcript',
+      message: 'This video has no transcript.',
+    })).toBe(false);
+    expect(shouldDiscardStaleTranscriptResult(request, {
+      status: 'unavailable',
+      reason: 'timeout',
+      message: 'The transcript bridge timed out before a video id was returned.',
+    })).toBe(false);
+  });
+
+  it('discards settled results whose video id does not match the request cache identity', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'cache-video-0020',
+      requestedVideoId: 'cache-video-0020',
+      cacheVideoId: 'cache-video-0020',
+    };
+
+    expect(shouldDiscardStaleTranscriptResult(request, {
+      status: 'loaded',
+      videoId: 'other-video-0020',
+      language: 'en',
+      source: 'caption-json3',
+      lines: [{ time: 0, timeText: '0:00', duration: 2, text: 'Wrong transcript line' }],
+    })).toBe(true);
+    expect(shouldDiscardStaleTranscriptResult(request, {
+      status: 'unavailable',
+      videoId: 'other-video-0020',
+      reason: 'empty-transcript',
+      message: 'Wrong video has no transcript.',
+    })).toBe(true);
+  });
+
   it('classifies stale bridge results as discard-and-retry settlements for the request cache video', () => {
     const request = {
       activeVideoIdAtRequest: 'old-video-0020',

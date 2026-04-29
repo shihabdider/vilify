@@ -327,9 +327,20 @@ export function shouldDiscardStaleTranscriptResult(
   request: TranscriptRequestIdentity,
   result: TranscriptResult,
 ): boolean {
-  void request;
-  void result;
-  throw new Error('not implemented: shouldDiscardStaleTranscriptResult');
+  if (result.status === 'stale') {
+    return true;
+  }
+
+  const resultVideoId = result.videoId;
+  if (!resultVideoId) {
+    return false;
+  }
+
+  return (
+    resultVideoId !== request.activeVideoIdAtRequest ||
+    resultVideoId !== request.requestedVideoId ||
+    resultVideoId !== request.cacheVideoId
+  );
 }
 
 export function applyTranscriptLoadSettlement(

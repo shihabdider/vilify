@@ -87,6 +87,7 @@ Use a compiler-driven TypeScript pass because the transcript fix should be model
 
 - 2026-04-29T20:04:39Z — User chose to start fresh instead of resuming completed issues 0014-0019 iteration.
 - 2026-04-29T20:04:39Z — User confirmed Phase 0 understanding with `go` for implementing issues 0020-0023 together.
+- 2026-04-29T20:29:00Z — User approved Phase 1 assertion changes and chose to proceed with Phase 2 implementation.
 
 ### Look Back
 
