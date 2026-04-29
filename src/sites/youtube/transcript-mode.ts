@@ -21,7 +21,11 @@ type UnavailableTranscriptLoadState = {
 };
 
 export interface TranscriptRequestIdentity {
+  /** Video id the provider considered active when this request began. */
+  readonly activeVideoIdAtRequest: string;
+  /** Video id sent across the bridge request boundary. */
   readonly requestedVideoId: string;
+  /** Cache slot this response is allowed to settle into if it is fresh. */
   readonly cacheVideoId: string;
 }
 
@@ -29,17 +33,18 @@ export type TranscriptLoadState =
   | { readonly status: 'idle' }
   | { readonly status: 'loading'; readonly request: TranscriptRequestIdentity; readonly promise: Promise<TranscriptResult> }
   | { readonly status: 'loaded'; readonly request: TranscriptRequestIdentity; readonly result: LoadedTranscriptResult }
-  | UnavailableTranscriptLoadState
-  | {
-      readonly status: 'stale';
-      readonly request: TranscriptRequestIdentity;
-      readonly result: StaleVideoResult;
-      readonly message?: string;
-    };
+  | UnavailableTranscriptLoadState;
+
+export type TranscriptSettledLoadState = Extract<TranscriptLoadState, { readonly status: 'loaded' | 'unavailable' }>;
 
 export type TranscriptLoadSettlement =
-  | { readonly kind: 'store'; readonly videoId: string; readonly state: Exclude<TranscriptLoadState, { readonly status: 'idle' | 'loading' | 'stale' }> }
-  | { readonly kind: 'discard-stale'; readonly request: TranscriptRequestIdentity; readonly result: StaleVideoResult };
+  | { readonly kind: 'store'; readonly videoId: string; readonly state: TranscriptSettledLoadState }
+  | {
+      readonly kind: 'discard-stale';
+      readonly request: TranscriptRequestIdentity;
+      readonly result: StaleVideoResult;
+      readonly retryVideoId: string;
+    };
 
 export interface YouTubeTranscriptModeOptions {
   readonly state?: TranscriptProviderState;
@@ -101,8 +106,6 @@ function getTranscriptItems(
       return [loadingItem(videoId)];
     case 'unavailable':
       return [unavailableItem(videoId, loadState)];
-    case 'stale':
-      return staleTranscriptItems(videoId, loadState);
     case 'loaded':
       return transcriptResultItems(videoId, loadState.result.lines, query);
   }
@@ -127,7 +130,7 @@ function startTranscriptLoad(
           return;
         }
 
-        state.cacheByVideoId.set(videoId, loadStateFromResult(request, result));
+        applyTranscriptLoadSettlement(state, settleTranscriptLoadResult(request, result));
         context.requestRender?.();
       })
       .catch((error) => {
@@ -158,53 +161,20 @@ function startTranscriptLoad(
   return [loadingItem(videoId)];
 }
 
-function loadStateFromResult(request: TranscriptRequestIdentity, result: TranscriptResult): TranscriptLoadState {
-  switch (result.status) {
-    case 'loaded':
-      if (result.videoId !== request.cacheVideoId) {
-        return staleTranscriptLoadState(request, result.videoId, request.cacheVideoId);
-      }
-
-      return { status: 'loaded', request, result };
-    case 'unavailable':
-      return {
-        status: 'unavailable',
-        request,
-        reason: result.reason,
-        message: result.message,
-      };
-    case 'stale':
-      return {
-        status: 'stale',
-        request,
-        result,
-        message: staleTranscriptMessage(result.requestedVideoId, result.actualVideoId),
-      };
-  }
+function loadStateFromResult(
+  request: TranscriptRequestIdentity,
+  result: Exclude<TranscriptResult, { readonly status: 'stale' }>,
+): TranscriptSettledLoadState {
+  void request;
+  void result;
+  throw new Error('not implemented: loadStateFromResult');
 }
 
 function createTranscriptRequestIdentity(videoId: string): TranscriptRequestIdentity {
   return {
+    activeVideoIdAtRequest: videoId,
     requestedVideoId: videoId,
     cacheVideoId: videoId,
-  };
-}
-
-function staleTranscriptLoadState(
-  request: TranscriptRequestIdentity,
-  requestedVideoId: string | undefined,
-  actualVideoId: string | undefined,
-): TranscriptLoadState {
-  return {
-    status: 'stale',
-    request,
-    result: {
-      status: 'stale',
-      reason: 'stale-video-id',
-      ...(requestedVideoId ? { requestedVideoId } : {}),
-      ...(actualVideoId ? { actualVideoId } : {}),
-    },
-    message: staleTranscriptMessage(requestedVideoId, actualVideoId),
   };
 }
 
@@ -342,15 +312,6 @@ function noMatchesItem(videoId: string, query: string): OmnibarItem {
     subtitle: normalizedQuery ? `No transcript lines match “${normalizedQuery}”.` : 'No transcript lines are available.',
     keywords: ['transcript', 'no matches', videoId],
   });
-}
-
-function staleTranscriptItems(
-  videoId: string,
-  loadState: Extract<TranscriptLoadState, { status: 'stale' }>,
-): readonly OmnibarItem[] {
-  void videoId;
-  void loadState;
-  throw new Error('not implemented: staleTranscriptItems');
 }
 
 export function settleTranscriptLoadResult(

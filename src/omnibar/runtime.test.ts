@@ -180,7 +180,9 @@ describe('createOmnibarRuntime', () => {
     const panelRule = cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-panel');
 
     expect(rootRule).toMatch(/font-family:\s*ui-monospace,[^;]*monospace/);
-    expect(panelRule).toMatch(/width:\s*min\((?:7[2-9]|8[0-8])ch,/);
+    expect(rootRule).toMatch(/--vilify-omnibar-font-size:\s*(?:1[6-9]px|clamp\()/);
+    expect(rootRule).toMatch(/--vilify-omnibar-panel-width:\s*min\((?:8[8-9]|9[0-6])ch,\s*calc\(100vw - 2rem\)\)/);
+    expect(panelRule).toMatch(/width:\s*var\(--vilify-omnibar-panel-width\)/);
     expect(panelRule).toMatch(/border:\s*1px\s+solid/);
     expect(panelRule).toMatch(/border-radius:\s*0\b/);
     expect(panelRule).toMatch(/box-shadow:\s*none/);
@@ -417,12 +419,42 @@ describe('createOmnibarRuntime', () => {
     expect(row.getAttribute('role')).toBe('option');
     expect(row.getAttribute('aria-selected')).toBe('true');
     expect(row.querySelector('.vilify-omnibar-cursor')?.textContent).toBe('>');
-    expect(row.querySelector('.vilify-omnibar-kind')?.textContent).toBe('!');
+    expect(row.querySelector('.vilify-omnibar-kind')?.textContent).toBe('');
+    expect(row.querySelector('.vilify-omnibar-kind')?.textContent).not.toBe('!');
     expect(row.querySelector('.vilify-omnibar-status')?.textContent).toBe('Transcript unavailable');
     expect(row.querySelector('.vilify-omnibar-item-title')?.textContent).toBe('Transcript unavailable');
     expect(row.querySelector('.vilify-omnibar-item-subtitle')?.textContent).toBe(
       'Timed out while loading transcript data',
     );
+  });
+
+  it('renders active prefix display markers instead of bare status markers', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([
+        {
+          id: 'transcript-loading',
+          kind: 'status',
+          title: 'Loading transcript…',
+          display: { marker: { kind: 'prefix', prefix: 't/' } },
+          action: { kind: 'noop' },
+        },
+        {
+          id: 'youtube-search',
+          kind: 'navigation',
+          title: 'Search YouTube for “lofi”',
+          display: { marker: { kind: 'prefix', prefix: 's/' } },
+          action: { kind: 'navigate', url: 'https://www.youtube.com/results?search_query=lofi' },
+        },
+      ]),
+    });
+
+    runtime.open();
+
+    expect(itemRow(dom.window.document, 'transcript-loading').querySelector('.vilify-omnibar-kind')?.textContent).toBe('t/');
+    expect(itemRow(dom.window.document, 'youtube-search').querySelector('.vilify-omnibar-kind')?.textContent).toBe('s/');
+    expect(resultsList(dom.window.document).textContent).not.toContain('!');
   });
 
   it('updates the query from the focused input and re-renders filtered results', () => {

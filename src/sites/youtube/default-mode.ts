@@ -200,14 +200,17 @@ export function itemsForYouTubeRootIntent(
         intent,
       ).map((command) => command.item);
     case 'navigation-filter':
-      return filterYouTubeRootCommandsByIntent(
-        availableYouTubeRootCommands(commands, capability),
+      return applyYouTubePrefixDisplayMetadata(
+        filterYouTubeRootCommandsByIntent(
+          availableYouTubeRootCommands(commands, capability),
+          intent,
+        ).map((command) => command.item),
         intent,
-      ).map((command) => command.item);
+      );
     case 'youtube-search':
-      return [createYouTubeSearchIntentItem(intent.query)];
+      return applyYouTubePrefixDisplayMetadata([createYouTubeSearchIntentItem(intent.query)], intent);
     case 'transcript-search':
-      return getTranscriptSearchIntentItems(context, intent.query, capability);
+      return applyYouTubePrefixDisplayMetadata(getTranscriptSearchIntentItems(context, intent.query, capability), intent);
   }
 }
 

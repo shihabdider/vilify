@@ -4,8 +4,13 @@ import {
   buildOmnibarStyleSheet,
   classForOmnibarItemKind,
   classForOmnibarStatusTone,
+  createReadableOmnibarLayoutDefinition,
+  createSyntaxLikeOmnibarThemeTokens,
+  deriveOmnibarRowMarker,
+  deriveOmnibarSyntaxParts,
   ensureSelectedOmnibarRowVisible,
   getOmnibarViewDefinition,
+  renderOmnibarSyntaxText,
 } from './view';
 
 function contrastRatio(foreground: string, background: string): number {
@@ -55,35 +60,122 @@ describe('omnibar view definition', () => {
       warning: 'vilify-omnibar-status-warning',
       error: 'vilify-omnibar-status-error',
     });
+    expect(definition.theme.syntaxPartClasses).toEqual({
+      prefix: 'vilify-omnibar-syntax-prefix',
+      keyword: 'vilify-omnibar-syntax-keyword',
+      placeholder: 'vilify-omnibar-syntax-placeholder',
+      example: 'vilify-omnibar-syntax-example',
+      description: 'vilify-omnibar-syntax-description',
+      kind: 'vilify-omnibar-syntax-kind',
+      status: 'vilify-omnibar-syntax-status',
+      title: 'vilify-omnibar-syntax-title',
+    });
     expect(definition.theme.tokens).toEqual({
       background: '#000000',
-      foreground: '#e0e0e0',
-      muted: '#808080',
-      border: '#444444',
-      prompt: '#00ff00',
-      selectionBackground: '#ffff00',
+      foreground: '#e8e8d3',
+      muted: '#8a8a8a',
+      border: '#5f5f5f',
+      prompt: '#87ff5f',
+      selectionBackground: '#ffd75f',
       selectionForeground: '#000000',
-      navigation: '#00ffff',
-      command: '#ffff00',
-      videoScoped: '#ff00ff',
-      searchResult: '#00ff00',
-      statusInfo: '#00ffff',
-      statusWarning: '#ffd75f',
+      navigation: '#87d7ff',
+      command: '#ffd75f',
+      videoScoped: '#ff87d7',
+      searchResult: '#87ffaf',
+      statusInfo: '#87d7ff',
+      statusWarning: '#ffaf00',
       statusError: '#ff5f5f',
+      syntaxPrefix: '#87ff5f',
+      syntaxKeyword: '#ffd75f',
+      syntaxPlaceholder: '#af87ff',
+      syntaxExample: '#87d7ff',
+      syntaxDescription: '#d7d7af',
+      syntaxKind: '#ff87d7',
+      syntaxStatus: '#ffaf00',
     });
     for (const muddyToken of ['#1c1f1a', '#d7d7c7', '#8f9a88', '#b8bb26']) {
       expect(Object.values(definition.theme.tokens)).not.toContain(muddyToken);
     }
     expect(contrastRatio(definition.theme.tokens.foreground, definition.theme.tokens.background)).toBeGreaterThan(10);
-    expect(contrastRatio(definition.theme.tokens.selectionForeground, definition.theme.tokens.selectionBackground)).toBeGreaterThan(15);
+    expect(contrastRatio(definition.theme.tokens.selectionForeground, definition.theme.tokens.selectionBackground)).toBeGreaterThan(10);
+  });
+
+  it('derives syntax-like theme tokens with differentiated prefix, keyword, example, description, kind, status, and selection colors', () => {
+    const tokens = createSyntaxLikeOmnibarThemeTokens();
+
+    expect(tokens.syntaxPrefix).toBe('#87ff5f');
+    expect(tokens.syntaxKeyword).toBe('#ffd75f');
+    expect(tokens.syntaxExample).toBe('#87d7ff');
+    expect(tokens.syntaxDescription).toBe('#d7d7af');
+    expect(tokens.syntaxKind).toBe('#ff87d7');
+    expect(tokens.syntaxStatus).toBe('#ffaf00');
+    expect(tokens.selectionBackground).toBe('#ffd75f');
+    expect(new Set([
+      tokens.syntaxPrefix,
+      tokens.syntaxKeyword,
+      tokens.syntaxExample,
+      tokens.syntaxDescription,
+      tokens.syntaxKind,
+      tokens.syntaxStatus,
+    ]).size).toBeGreaterThanOrEqual(5);
+  });
+
+  it('derives readable type-scale layout tokens bounded to the viewport', () => {
+    const layout = createReadableOmnibarLayoutDefinition();
+
+    expect(layout.baseFontSize).toMatch(/^(?:1[6-9]px|clamp\()/);
+    expect(layout.lineHeight).toMatch(/^(?:1\.[4-9]|clamp\()/);
+    expect(layout.panelWidth).toMatch(/^min\((?:8[8-9]|9[0-6])ch,\s*calc\(100vw - 2rem\)\)$/);
+    expect(layout.panelMaxHeight).toMatch(/^min\((?:7[4-9]|8[0-5])vh,/);
+    expect(layout.resultsMaxHeight).toMatch(/^min\((?:5[8-9]|6[0-8])vh,/);
+    expect(layout.rowPadding).not.toBe('0.45rem 0.75rem');
+  });
+
+  it('derives display-only row marker and syntax parts without changing item actions', () => {
+    const action = { kind: 'noop' as const };
+    const item = {
+      id: 'youtube-root-hint-transcript',
+      kind: 'status' as const,
+      title: 't/{query} — search transcript',
+      subtitle: 'Example: t/needle searches the current video transcript.',
+      display: { marker: { kind: 'prefix' as const, prefix: 't/' as const } },
+      action,
+    };
+
+    expect(deriveOmnibarRowMarker(item, 't/needle')).toEqual({ kind: 'prefix', prefix: 't/' });
+    expect(deriveOmnibarSyntaxParts(item)).toEqual([
+      { kind: 'prefix', text: 't/' },
+      { kind: 'placeholder', text: '{query}' },
+      { kind: 'description', text: ' — search transcript' },
+    ]);
+    expect(item.action).toBe(action);
+  });
+
+  it('renders syntax text as semantic spans while preserving fallback text for accessibility', () => {
+    const dom = makeOmnibarTestDom();
+    const element = renderOmnibarSyntaxText(dom.window.document, 'vilify-omnibar-item-title', 't/{query} — search transcript', [
+      { kind: 'prefix', text: 't/' },
+      { kind: 'placeholder', text: '{query}' },
+      { kind: 'description', text: ' — search transcript' },
+    ]);
+
+    expect(element.className).toBe('vilify-omnibar-item-title');
+    expect(element.textContent).toBe('t/{query} — search transcript');
+    expect(Array.from(element.children).map((child) => child.className)).toEqual([
+      'vilify-omnibar-syntax-prefix',
+      'vilify-omnibar-syntax-placeholder',
+      'vilify-omnibar-syntax-description',
+    ]);
   });
 
   it('builds CSS with fixed prompt/footer, a scrollable result viewport, wrapped rows, and no glass effects', () => {
     const css = buildOmnibarStyleSheet(getOmnibarViewDefinition());
 
     expect(css).toContain('--vilify-omnibar-background: #000000;');
-    expect(css).toContain('--vilify-omnibar-selection-bg: #ffff00;');
+    expect(css).toContain('--vilify-omnibar-selection-bg: #ffd75f;');
     expect(css).toContain('--vilify-omnibar-selection-fg: #000000;');
+    expect(css).toContain('--vilify-omnibar-syntax-prefix: #87ff5f;');
+    expect(css).toContain('--vilify-omnibar-syntax-keyword: #ffd75f;');
     expect(css).toContain('.vilify-omnibar-prompt');
     expect(css).toContain('flex: 0 0 auto;');
     expect(css).toContain('.vilify-omnibar-footer');
@@ -103,9 +195,9 @@ describe('omnibar view definition', () => {
     const definition = getOmnibarViewDefinition();
     const css = buildOmnibarStyleSheet(definition);
 
-    expect(relativeLuminance(definition.theme.tokens.selectionBackground)).toBeGreaterThan(0.9);
+    expect(relativeLuminance(definition.theme.tokens.selectionBackground)).toBeGreaterThan(0.55);
     expect(relativeLuminance(definition.theme.tokens.selectionForeground)).toBe(0);
-    expect(contrastRatio(definition.theme.tokens.selectionForeground, definition.theme.tokens.selectionBackground)).toBeGreaterThan(15);
+    expect(contrastRatio(definition.theme.tokens.selectionForeground, definition.theme.tokens.selectionBackground)).toBeGreaterThan(10);
 
     const lastKindColorIndex = Math.max(
       css.lastIndexOf('.vilify-omnibar-kind-navigation'),

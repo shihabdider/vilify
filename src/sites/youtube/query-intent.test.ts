@@ -9,16 +9,16 @@ describe('parseYouTubeRootQueryIntent', () => {
   });
 
   it('parses recognized Vim-style prefixes and preserves the query after the first slash', () => {
-    expect(parseYouTubeRootQueryIntent('s/lofi beats')).toEqual({ kind: 'youtube-search', query: 'lofi beats' });
-    expect(parseYouTubeRootQueryIntent('t/needle phrase')).toEqual({ kind: 'transcript-search', query: 'needle phrase' });
-    expect(parseYouTubeRootQueryIntent('n/home')).toEqual({ kind: 'navigation-filter', query: 'home' });
-    expect(parseYouTubeRootQueryIntent('s/a/b/c')).toEqual({ kind: 'youtube-search', query: 'a/b/c' });
+    expect(parseYouTubeRootQueryIntent('s/lofi beats')).toEqual({ kind: 'youtube-search', query: 'lofi beats', prefix: 's/' });
+    expect(parseYouTubeRootQueryIntent('t/needle phrase')).toEqual({ kind: 'transcript-search', query: 'needle phrase', prefix: 't/' });
+    expect(parseYouTubeRootQueryIntent('n/home')).toEqual({ kind: 'navigation-filter', query: 'home', prefix: 'n/' });
+    expect(parseYouTubeRootQueryIntent('s/a/b/c')).toEqual({ kind: 'youtube-search', query: 'a/b/c', prefix: 's/' });
   });
 
   it('keeps empty prefixed queries as explicit intents for provider policy handling', () => {
-    expect(parseYouTubeRootQueryIntent('s/')).toEqual({ kind: 'youtube-search', query: '' });
-    expect(parseYouTubeRootQueryIntent('t/   ')).toEqual({ kind: 'transcript-search', query: '   ' });
-    expect(parseYouTubeRootQueryIntent('n/')).toEqual({ kind: 'navigation-filter', query: '' });
+    expect(parseYouTubeRootQueryIntent('s/')).toEqual({ kind: 'youtube-search', query: '', prefix: 's/' });
+    expect(parseYouTubeRootQueryIntent('t/   ')).toEqual({ kind: 'transcript-search', query: '   ', prefix: 't/' });
+    expect(parseYouTubeRootQueryIntent('n/')).toEqual({ kind: 'navigation-filter', query: '', prefix: 'n/' });
   });
 });
 

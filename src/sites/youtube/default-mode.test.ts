@@ -232,7 +232,12 @@ describe('YouTube root intent helpers', () => {
       'youtube-nav-history',
       'youtube-nav-library',
     ]);
-    expect(ids(getYouTubeRootItems(context, 'n/home'))).toEqual(['youtube-nav-home']);
+    expect(getYouTubeRootItems(context, 'n/home')).toEqual([
+      expect.objectContaining({
+        id: 'youtube-nav-home',
+        display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 'n/' } }),
+      }),
+    ]);
     expect(ids(getYouTubeRootItems(context, 'n/copy'))).toEqual([]);
   });
 
@@ -261,6 +266,7 @@ describe('YouTube root intent helpers', () => {
     expect(getYouTubeRootItems(context, 's/lofi beats')).toEqual([
       expect.objectContaining({
         id: 'youtube-search-lofi-beats',
+        display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 's/' } }),
         action: { kind: 'navigate', url: 'https://www.youtube.com/results?search_query=lofi%20beats' },
       }),
     ]);
@@ -268,6 +274,7 @@ describe('YouTube root intent helpers', () => {
       expect.objectContaining({
         id: 'youtube-search-empty-query',
         kind: 'status',
+        display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 's/' } }),
         action: { kind: 'noop' },
       }),
     ]);
@@ -284,6 +291,7 @@ describe('YouTube root intent helpers', () => {
           kind: 'status',
           tone: 'warning',
           title: 'Transcript search unavailable',
+          display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 't/' } }),
           action: { kind: 'noop' },
         }),
       ]);
@@ -331,6 +339,7 @@ describe('YouTube root intent helpers', () => {
         id: 'youtube-transcript-line-direct-transcript-video-0017-0-12000',
         kind: 'search-result',
         title: '0:12 A useful needle appears here',
+        display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 't/' } }),
         action: { kind: 'seek', seconds: 12, seekMode: 'absolute' },
       }),
     ]);

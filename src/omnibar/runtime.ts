@@ -18,8 +18,11 @@ import {
   buildOmnibarStyleSheet,
   classForOmnibarItemKind,
   classForOmnibarStatusTone,
+  deriveOmnibarRowMarker,
+  deriveOmnibarSyntaxParts,
   ensureSelectedOmnibarRowVisible,
   getOmnibarViewDefinition,
+  renderOmnibarSyntaxText,
   type OmnibarSelectionVisibilityAdapter,
 } from './view';
 import type {
@@ -223,26 +226,32 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
     row.setAttribute('role', 'option');
     row.setAttribute('aria-selected', selected ? 'true' : 'false');
 
+    const marker = deriveOmnibarRowMarker(item, state.query);
+    const titleParts = item.display?.titleParts ?? deriveOmnibarSyntaxParts(item);
+    const subtitleParts = item.display?.subtitleParts ?? [];
+
     const cursor = document.createElement('span');
     cursor.className = 'vilify-omnibar-cursor';
     cursor.textContent = selected ? '>' : '';
 
     const kind = document.createElement('span');
     kind.className = 'vilify-omnibar-kind';
-    kind.textContent = item.kind === 'status' ? '!' : item.kind;
+    kind.textContent = marker.kind === 'prefix' ? marker.prefix : item.kind === 'status' ? '' : item.kind;
 
-    const title = document.createElement('span');
-    title.className = item.kind === 'status'
+    const titleClassName = item.kind === 'status'
       ? `vilify-omnibar-item-title vilify-omnibar-status ${classForOmnibarStatusTone(item.tone)}`
       : 'vilify-omnibar-item-title';
-    title.textContent = item.title;
+    const title = renderOmnibarSyntaxText(document, titleClassName, item.title, titleParts);
 
     row.append(cursor, kind, title);
 
     if (item.subtitle) {
-      const subtitle = document.createElement('span');
-      subtitle.className = `vilify-omnibar-item-subtitle ${classForOmnibarStatusTone(item.tone)}`;
-      subtitle.textContent = item.subtitle;
+      const subtitle = renderOmnibarSyntaxText(
+        document,
+        `vilify-omnibar-item-subtitle ${classForOmnibarStatusTone(item.tone)}`,
+        item.subtitle,
+        subtitleParts,
+      );
       row.append(subtitle);
     }
 

@@ -28,7 +28,13 @@ import {
   recordYouTubeBridgeRequests as recordBridgeRequests,
 } from '../../test-helpers/youtube-bridge';
 import { youtubeDefaultMode, youtubePlugin, youtubeTranscriptMode } from './plugin';
-import { createTranscriptProviderState, createYouTubeTranscriptMode } from './transcript-mode';
+import {
+  applyTranscriptLoadSettlement,
+  createTranscriptProviderState,
+  createYouTubeTranscriptMode,
+  settleTranscriptLoadResult,
+  shouldDiscardStaleTranscriptResult,
+} from './transcript-mode';
 
 function providerContext(dom: JSDOM): ProviderContext {
   return {
@@ -89,6 +95,59 @@ async function flushBridgeSettlement(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+describe('transcript stale-response settlement', () => {
+  it('classifies stale bridge results as discard-and-retry settlements for the request cache video', () => {
+    const request = {
+      activeVideoIdAtRequest: 'old-video-0020',
+      requestedVideoId: 'old-video-0020',
+      cacheVideoId: 'old-video-0020',
+    };
+    const staleResult: TranscriptResult = {
+      status: 'stale',
+      reason: 'stale-video-id',
+      requestedVideoId: 'old-video-0020',
+      actualVideoId: 'new-video-0020',
+    };
+
+    expect(shouldDiscardStaleTranscriptResult(request, staleResult)).toBe(true);
+    expect(settleTranscriptLoadResult(request, staleResult)).toEqual({
+      kind: 'discard-stale',
+      request,
+      result: staleResult,
+      retryVideoId: 'old-video-0020',
+    });
+  });
+
+  it('removes a stale loading slot so the active video can issue a fresh transcript request', () => {
+    const state = createTranscriptProviderState();
+    const request = {
+      activeVideoIdAtRequest: 'retry-video-0020',
+      requestedVideoId: 'retry-video-0020',
+      cacheVideoId: 'retry-video-0020',
+    };
+    const staleResult = {
+      status: 'stale' as const,
+      reason: 'stale-video-id' as const,
+      requestedVideoId: 'retry-video-0020',
+      actualVideoId: 'other-video-0020',
+    };
+    state.cacheByVideoId.set('retry-video-0020', {
+      status: 'loading',
+      request,
+      promise: Promise.resolve(staleResult),
+    });
+
+    applyTranscriptLoadSettlement(state, {
+      kind: 'discard-stale',
+      request,
+      result: staleResult,
+      retryVideoId: 'retry-video-0020',
+    });
+
+    expect(state.cacheByVideoId.has('retry-video-0020')).toBe(false);
+  });
+});
 
 describe('youtubeTranscriptMode provider', () => {
   it('returns missing-video status without creating a bridge client on non-watch and Shorts pages', () => {
@@ -175,13 +234,13 @@ describe('youtubeTranscriptMode provider', () => {
 
     expect(transcriptItemsForContext(context, 'stale resolver line')).toEqual([
       expect.objectContaining({
-        id: 'youtube-transcript-unavailable-resolver-old-video-0012',
+        id: 'youtube-transcript-loading-resolver-old-video-0012',
         kind: 'status',
-        title: 'Transcript unavailable',
-        subtitle: expect.stringContaining('Active video is resolver-new-video-0012'),
+        title: 'Loading transcript…',
       }),
     ]);
-    expect(requests).toHaveLength(1);
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toMatchObject({ kind: 'get-transcript', videoId: 'resolver-old-video-0012' });
   });
 
   it('shows missing-video status on non-watch YouTube pages instead of requesting a stale activePlugin id', () => {
@@ -390,6 +449,7 @@ describe('youtubeTranscriptMode provider', () => {
     state.cacheByVideoId.set('cached-old-video-0012', {
       status: 'loaded',
       request: {
+        activeVideoIdAtRequest: 'cached-old-video-0012',
         requestedVideoId: 'cached-old-video-0012',
         cacheVideoId: 'cached-old-video-0012',
       },
@@ -457,7 +517,7 @@ describe('youtubeTranscriptMode provider', () => {
     expect(createBridgeClient).toHaveBeenCalledTimes(1);
   });
 
-  it('renders stale bridge responses as unavailable status rows instead of transcript line rows', async () => {
+  it('discards stale bridge responses and retries the active video instead of caching them as unavailable rows', async () => {
     const dom = makeDom('stale-response-video-0012');
     const requests = recordBridgeRequests(dom.window.document);
 
@@ -476,10 +536,9 @@ describe('youtubeTranscriptMode provider', () => {
 
     expect(items).toEqual([
       expect.objectContaining({
-        id: 'youtube-transcript-unavailable-stale-response-video-0012',
+        id: 'youtube-transcript-loading-stale-response-video-0012',
         kind: 'status',
-        title: 'Transcript unavailable',
-        subtitle: expect.stringContaining('Active video is current-response-video-0012'),
+        title: 'Loading transcript…',
       }),
     ]);
     expect(items).not.toEqual(
@@ -489,6 +548,8 @@ describe('youtubeTranscriptMode provider', () => {
         }),
       ]),
     );
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toMatchObject({ kind: 'get-transcript', videoId: 'stale-response-video-0012' });
   });
 
   it('does not show stale loaded lines when the active video id changes before a pending request resolves', async () => {
