@@ -493,8 +493,96 @@ export function deriveOmnibarRowMarker(item: OmnibarItem, query: string): Omniba
 }
 
 export function deriveOmnibarSyntaxParts(item: OmnibarItem): readonly OmnibarSyntaxPart[] {
-  void item;
-  throw new Error('not implemented: deriveOmnibarSyntaxParts');
+  const explicitTitleParts = item.display?.titleParts;
+  if (explicitTitleParts) {
+    return explicitTitleParts;
+  }
+
+  const title = item.title;
+  if (title.length === 0) {
+    return [];
+  }
+
+  const appendKeywordAndTitle = (parts: OmnibarSyntaxPart[], text: string): void => {
+    const keywordMatch = text.match(/^(\S+)(.*)$/);
+    if (!keywordMatch) {
+      return;
+    }
+
+    parts.push({ kind: 'keyword', text: keywordMatch[1] });
+    if (keywordMatch[2]) {
+      parts.push({ kind: 'title', text: keywordMatch[2] });
+    }
+  };
+
+  const appendPrefixedToken = (parts: OmnibarSyntaxPart[], text: string): boolean => {
+    const prefixMatch = text.match(/^(s\/|t\/|n\/)(\S*)(.*)$/);
+    if (!prefixMatch) {
+      return false;
+    }
+
+    const token = prefixMatch[2];
+    parts.push({ kind: 'prefix', text: prefixMatch[1] });
+    if (token) {
+      parts.push({
+        kind: token.startsWith('{') && token.endsWith('}') ? 'placeholder' : 'keyword',
+        text: token,
+      });
+    }
+    if (prefixMatch[3]) {
+      parts.push({ kind: 'title', text: prefixMatch[3] });
+    }
+
+    return true;
+  };
+
+  const prefixHintMatch = title.match(/^(s\/|t\/|n\/)(\{[^}]+\})(\s+—\s+)(.*)$/);
+  if (prefixHintMatch) {
+    const parts: OmnibarSyntaxPart[] = [
+      { kind: 'prefix', text: prefixHintMatch[1] },
+      { kind: 'placeholder', text: prefixHintMatch[2] },
+      { kind: 'description', text: prefixHintMatch[3] },
+    ];
+    appendKeywordAndTitle(parts, prefixHintMatch[4]);
+    return parts;
+  }
+
+  const exampleMatch = title.match(/^(Example:)(\s+)(.*)$/);
+  if (exampleMatch) {
+    const parts: OmnibarSyntaxPart[] = [
+      { kind: 'example', text: exampleMatch[1] },
+      { kind: 'description', text: exampleMatch[2] },
+    ];
+    if (exampleMatch[3] && !appendPrefixedToken(parts, exampleMatch[3])) {
+      appendKeywordAndTitle(parts, exampleMatch[3]);
+    }
+    return parts;
+  }
+
+  const dashHintMatch = title.match(/^(.+?)(\s+—\s+)(.*)$/);
+  if (dashHintMatch) {
+    const parts: OmnibarSyntaxPart[] = [
+      { kind: dashHintMatch[1].toLowerCase().startsWith('type ') ? 'keyword' : 'title', text: dashHintMatch[1] },
+      { kind: 'description', text: dashHintMatch[2] },
+    ];
+    appendKeywordAndTitle(parts, dashHintMatch[3]);
+    return parts;
+  }
+
+  if (item.kind === 'status') {
+    const statusMatch = title.match(/^(\S+)(.*)$/);
+    if (!statusMatch) {
+      return [];
+    }
+
+    const parts: OmnibarSyntaxPart[] = [{ kind: 'status', text: statusMatch[1] }];
+    if (statusMatch[2]) {
+      parts.push({ kind: 'title', text: statusMatch[2] });
+    }
+    return parts;
+  }
+
+  return [{ kind: 'title', text: title }];
 }
 
 export function renderOmnibarSyntaxText(

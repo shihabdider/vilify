@@ -238,24 +238,109 @@ describe('omnibar view definition', () => {
     });
   });
 
-  it('derives display-only row marker and syntax parts without changing item actions', () => {
-    const action = { kind: 'noop' as const };
-    const item = {
-      id: 'youtube-root-hint-transcript',
-      kind: 'status' as const,
-      title: 't/{query} — search transcript',
-      subtitle: 'Example: t/needle searches the current video transcript.',
-      display: { marker: { kind: 'prefix' as const, prefix: 't/' as const } },
-      action,
-    };
+  describe('deriveOmnibarSyntaxParts', () => {
+    it('returns explicit display title parts unchanged when present', () => {
+      const explicitTitleParts = [
+        { kind: 'keyword', text: 'Custom' },
+        { kind: 'title', text: ' title' },
+      ] as const;
+      const item = makeRowMarkerItem({
+        title: 's/{query} — search YouTube',
+        display: { titleParts: explicitTitleParts },
+      });
 
-    expect(deriveOmnibarRowMarker(item, 't/needle')).toEqual({ kind: 'prefix', prefix: 't/' });
-    expect(deriveOmnibarSyntaxParts(item)).toEqual([
-      { kind: 'prefix', text: 't/' },
-      { kind: 'placeholder', text: '{query}' },
-      { kind: 'description', text: ' — search transcript' },
-    ]);
-    expect(item.action).toBe(action);
+      expect(deriveOmnibarSyntaxParts(item)).toBe(explicitTitleParts);
+    });
+
+    it.each([
+      ['s/{query} — search YouTube', 's/', 'search', ' YouTube'],
+      ['t/{query} — search transcript', 't/', 'search', ' transcript'],
+      ['n/{query} — filter navigation', 'n/', 'filter', ' navigation'],
+    ] as const)('segments prefix hint title %s into prefix, placeholder, keyword, and title parts', (title, prefix, keyword, titleRest) => {
+      const parts = deriveOmnibarSyntaxParts(makeRowMarkerItem({ kind: 'status', title }));
+
+      expect(parts).toEqual([
+        { kind: 'prefix', text: prefix },
+        { kind: 'placeholder', text: '{query}' },
+        { kind: 'description', text: ' — ' },
+        { kind: 'keyword', text: keyword },
+        { kind: 'title', text: titleRest },
+      ]);
+      expect(parts.map((part) => part.text).join('')).toBe(title);
+    });
+
+    it('segments plain typing hints into keyword, description, and title parts', () => {
+      const title = 'type text — filter commands';
+      const parts = deriveOmnibarSyntaxParts(makeRowMarkerItem({ kind: 'status', title }));
+
+      expect(parts).toEqual([
+        { kind: 'keyword', text: 'type text' },
+        { kind: 'description', text: ' — ' },
+        { kind: 'keyword', text: 'filter' },
+        { kind: 'title', text: ' commands' },
+      ]);
+      expect(parts.map((part) => part.text).join('')).toBe(title);
+    });
+
+    it('segments example text into example, prefix, keyword, and title parts', () => {
+      const title = 'Example: t/needle searches the current video transcript.';
+      const parts = deriveOmnibarSyntaxParts(makeRowMarkerItem({ title }));
+
+      expect(parts).toEqual([
+        { kind: 'example', text: 'Example:' },
+        { kind: 'description', text: ' ' },
+        { kind: 'prefix', text: 't/' },
+        { kind: 'keyword', text: 'needle' },
+        { kind: 'title', text: ' searches the current video transcript.' },
+      ]);
+      expect(parts.map((part) => part.text).join('')).toBe(title);
+    });
+
+    it.each([
+      ['Transcript unavailable', 'Transcript', ' unavailable'],
+      ['No active YouTube video', 'No', ' active YouTube video'],
+      ['Loading…', 'Loading…', ''],
+    ] as const)('segments status row title %s into status and title parts', (title, statusText, titleRest) => {
+      const parts = deriveOmnibarSyntaxParts(makeRowMarkerItem({ kind: 'status', title }));
+      const expectedParts = titleRest
+        ? [
+            { kind: 'status', text: statusText },
+            { kind: 'title', text: titleRest },
+          ]
+        : [{ kind: 'status', text: statusText }];
+
+      expect(parts).toEqual(expectedParts);
+      expect(parts.map((part) => part.text).join('')).toBe(title);
+    });
+
+    it('falls back to title parts for normal rows and no parts for empty titles', () => {
+      expect(deriveOmnibarSyntaxParts(makeRowMarkerItem({ kind: 'command', title: 'Search transcript' }))).toEqual([
+        { kind: 'title', text: 'Search transcript' },
+      ]);
+      expect(deriveOmnibarSyntaxParts(makeRowMarkerItem({ title: '' }))).toEqual([]);
+    });
+
+    it('derives display-only row marker and syntax parts without changing item actions', () => {
+      const action = { kind: 'noop' as const };
+      const item = {
+        id: 'youtube-root-hint-transcript',
+        kind: 'status' as const,
+        title: 't/{query} — search transcript',
+        subtitle: 'Example: t/needle searches the current video transcript.',
+        display: { marker: { kind: 'prefix' as const, prefix: 't/' as const } },
+        action,
+      };
+
+      expect(deriveOmnibarRowMarker(item, 't/needle')).toEqual({ kind: 'prefix', prefix: 't/' });
+      expect(deriveOmnibarSyntaxParts(item)).toEqual([
+        { kind: 'prefix', text: 't/' },
+        { kind: 'placeholder', text: '{query}' },
+        { kind: 'description', text: ' — ' },
+        { kind: 'keyword', text: 'search' },
+        { kind: 'title', text: ' transcript' },
+      ]);
+      expect(item.action).toBe(action);
+    });
   });
 
   it('renders syntax text as semantic spans while preserving fallback text for accessibility', () => {
