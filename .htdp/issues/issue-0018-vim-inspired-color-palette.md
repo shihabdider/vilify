@@ -1,6 +1,6 @@
 ---
 id: issue-0018
-status: draft
+status: done
 type: feature
 mode: HITL
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -17,11 +17,11 @@ Replace the current pure black-and-white terminal look with a restrained Vim-ins
 
 ## Acceptance examples
 
-- [ ] Given the omnibar opens in default YouTube mode, when the user sees the prompt and border, then the UI no longer reads as pure black/white vi; it has a muted Vim-like dark background with purposeful accent colors.
-- [ ] Given rows of different kinds render, when the user scans the list, then navigation, command/search, video-scoped, and status/error rows are distinguishable without relying only on text labels.
-- [ ] Given a row is selected, when colors are applied, then the selected row has strong contrast and remains readable for both one-line and wrapped rows.
-- [ ] Given status/unavailable rows render, when colors are applied, then warning/error states are visually distinct but not noisy.
-- [ ] Given manual visual review is performed in the browser, when a screenshot is compared to the current pure black/white picker, then the new palette is accepted as closer to Vim than vi.
+- [x] Given the omnibar opens in default YouTube mode, when the user sees the prompt and border, then the UI no longer reads as pure black/white vi; it uses the default Vim dark feel: black/dark background, bright syntax-like accent colors, and readable selected rows.
+- [x] Given rows of different kinds render, when the user scans the list, then navigation, command/search, video-scoped, and status/error rows are distinguishable without relying only on text labels.
+- [x] Given a row is selected, when colors are applied, then the selected row has strong contrast and remains readable for both one-line and wrapped rows.
+- [x] Given status/unavailable rows render, when colors are applied, then warning/error states are visually distinct but not noisy.
+- [x] Given manual visual review is performed in the browser, when a screenshot is compared to the current pure black/white picker, then the new palette is accepted as closer to Vim than vi.
 
 ## Data definition impact
 
@@ -44,7 +44,7 @@ Phase 0 problem statement: polish the TUI picker aesthetic after the layout rema
 
 ## HtDP iterations
 
-- None yet.
+- Completed in combined HtDP iteration for issues 0014-0019 on 2026-04-29; final preverify passed (`bun run build`, `bun run test` with 121 tests), targeted palette/hints fix landed, and human final verification passed.
 
 ## Out of scope
 

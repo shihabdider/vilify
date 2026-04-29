@@ -1,6 +1,6 @@
 ---
 id: issue-0016
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -17,10 +17,10 @@ Make YouTube command availability reflect the current page capability. Commands 
 
 ## Acceptance examples
 
-- [ ] Given the omnibar opens on `https://www.youtube.com/`, when default results render, then navigation commands are visible and video-scoped commands such as transcript search or current-time URL actions are hidden.
-- [ ] Given the omnibar opens on a YouTube watch page with a current `v` id and a native `HTMLVideoElement`, when default results render, then transcript search and any remaining video-scoped actions are visible.
-- [ ] Given the omnibar opens on a non-watch YouTube page that happens to be supported by the YouTube-wide plugin, when the user searches for “transcript”, then no transcript action appears rather than an item that opens a no-op status mode.
-- [ ] Given SPA navigation moves from a watch page to a non-watch page or back, when the omnibar is reused, then command availability is recomputed from the live page rather than stale plugin state.
+- [x] Given the omnibar opens on `https://www.youtube.com/` with an empty query, when default results render, then only non-actionable prefix hint rows are visible and video-scoped commands such as transcript search or current-time URL actions are hidden.
+- [x] Given the omnibar opens on a YouTube watch page with a current `v` id and a native `HTMLVideoElement`, when the user types a non-empty default query that matches video-scoped commands, then transcript search and any remaining video-scoped actions are visible.
+- [x] Given the omnibar opens on a non-watch YouTube page that happens to be supported by the YouTube-wide plugin, when the user searches for “transcript”, then no transcript action appears rather than an item that opens a no-op status mode.
+- [x] Given SPA navigation moves from a watch page to a non-watch page or back, when the omnibar is reused, then command availability is recomputed from the live page rather than stale plugin state.
 
 ## Data definition impact
 
@@ -44,7 +44,7 @@ Phase 0 problem statement: users should only see commands that can actually appl
 
 ## HtDP iterations
 
-- None yet.
+- Completed in combined HtDP iteration for issues 0014-0019 on 2026-04-29; final preverify passed (`bun run build`, `bun run test` with 121 tests), targeted palette/hints fix landed, and human final verification passed.
 
 ## Out of scope
 

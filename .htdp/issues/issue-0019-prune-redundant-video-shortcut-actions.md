@@ -1,6 +1,6 @@
 ---
 id: issue-0019
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -17,11 +17,11 @@ Remove omnibar commands whose behavior is already covered by reliable default Yo
 
 ## Acceptance examples
 
-- [ ] Given the YouTube default mode opens with an empty query, when results render, then `Play / pause`, relative seek commands, and playback-rate commands are absent.
-- [ ] Given the user searches for `play`, `pause`, `seek`, or `speed`, when those terms only match removed shortcut-duplicate actions, then the removed video actions do not appear.
-- [ ] Given the default mode opens, when results render, then navigation commands and transcript search remain available subject to page capability rules.
-- [ ] Given copy commands are not default YouTube keyboard shortcuts, when the command inventory is pruned, then copy-current-URL behavior is preserved unless a later product issue removes it explicitly.
-- [ ] Given action variants become unused after pruning, when the code is cleaned up, then unused typed actions/tests are removed only where they are not still needed by transcript seek or copy-at-current-time behavior.
+- [x] Given the YouTube default mode opens with an empty query, when results render, then `Play / pause`, relative seek commands, and playback-rate commands are absent.
+- [x] Given the user searches for `play`, `pause`, `seek`, or `speed`, when those terms only match removed shortcut-duplicate actions, then the removed video actions do not appear.
+- [x] Given the default mode opens, when the user types a non-empty query or prefix, then navigation commands and transcript search remain available subject to page capability rules.
+- [x] Given copy commands are not default YouTube keyboard shortcuts, when the command inventory is pruned, then copy-current-URL behavior is preserved unless a later product issue removes it explicitly.
+- [x] Given action variants become unused after pruning, when the code is cleaned up, then unused typed actions/tests are removed only where they are not still needed by transcript seek or copy-at-current-time behavior.
 
 ## Data definition impact
 
@@ -45,7 +45,7 @@ Phase 0 problem statement: align the command surface with the user's stated prod
 
 ## HtDP iterations
 
-- None yet.
+- Completed in combined HtDP iteration for issues 0014-0019 on 2026-04-29; final preverify passed (`bun run build`, `bun run test` with 121 tests), targeted palette/hints fix landed, and human final verification passed.
 
 ## Out of scope
 

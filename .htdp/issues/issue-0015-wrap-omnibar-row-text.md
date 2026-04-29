@@ -1,6 +1,6 @@
 ---
 id: issue-0015
-status: draft
+status: done
 type: bug
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -17,10 +17,10 @@ Fix omnibar row layout so important titles and descriptions wrap within the pick
 
 ## Acceptance examples
 
-- [ ] Given a status item such as “No active YouTube video”, when its title and subtitle exceed the picker width, then the user can read the full message because the row text wraps within the row.
-- [ ] Given a transcript result or command has a long title/subtitle, when it renders, then the content wraps to additional lines instead of being clipped with `…`.
-- [ ] Given row text wraps, when the row is selected, then the inverse-video/highlight treatment covers the full wrapped row and remains legible.
-- [ ] Given the prompt and footer render, when row wrapping is enabled, then the prompt/input and footer/status line still stay compact and do not wrap unexpectedly.
+- [x] Given a status item such as “No active YouTube video”, when its title and subtitle exceed the picker width, then the user can read the full message because the row text wraps within the row.
+- [x] Given a transcript result or command has a long title/subtitle, when it renders, then the content wraps to additional lines instead of being clipped with `…`.
+- [x] Given row text wraps, when the row is selected, then the inverse-video/highlight treatment covers the full wrapped row and remains legible.
+- [x] Given the prompt and footer render, when row wrapping is enabled, then the prompt/input and footer/status line still stay compact and do not wrap unexpectedly.
 
 ## Data definition impact
 
@@ -44,7 +44,7 @@ Phase 0 problem statement: make the terminal picker readable before adding more 
 
 ## HtDP iterations
 
-- None yet.
+- Completed in combined HtDP iteration for issues 0014-0019 on 2026-04-29; final preverify passed (`bun run build`, `bun run test` with 121 tests), targeted palette/hints fix landed, and human final verification passed.
 
 ## Out of scope
 

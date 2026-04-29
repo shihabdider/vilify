@@ -1,6 +1,6 @@
 ---
 id: issue-0014
-status: draft
+status: done
 type: bug
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -17,10 +17,10 @@ Fix the omnibar result viewport so a long result list scrolls within Vilify's pi
 
 ## Acceptance examples
 
-- [ ] Given the YouTube default mode has more rows than fit in the picker, when the user moves the selection down with ArrowDown or Ctrl+n, then the selected row remains visible inside the results viewport.
-- [ ] Given the selected row is near the bottom of a long list, when the footer is visible, then the row is not hidden underneath the footer/status line.
-- [ ] Given the pointer or trackpad scrolls over the result list, when there are overflow rows, then the result list scrolls and the underlying YouTube page does not move.
-- [ ] Given the result list is shorter than the viewport, when the omnibar opens, then there is no unnecessary scrollbar or layout jump.
+- [x] Given the YouTube default mode has more rows than fit in the picker, when the user moves the selection down with ArrowDown or Ctrl+n, then the selected row remains visible inside the results viewport.
+- [x] Given the selected row is near the bottom of a long list, when the footer is visible, then the row is not hidden underneath the footer/status line.
+- [x] Given the pointer or trackpad scrolls over the result list, when there are overflow rows, then the result list scrolls and the underlying YouTube page does not move.
+- [x] Given the result list is shorter than the viewport, when the omnibar opens, then there is no unnecessary scrollbar or layout jump.
 
 ## Data definition impact
 
@@ -44,7 +44,7 @@ Phase 0 problem statement: keep Vilify's one custom UI primitive usable when a p
 
 ## HtDP iterations
 
-- None yet.
+- Completed in combined HtDP iteration for issues 0014-0019 on 2026-04-29; final preverify passed (`bun run build`, `bun run test` with 121 tests), targeted palette/hints fix landed, and human final verification passed.
 
 ## Out of scope
 

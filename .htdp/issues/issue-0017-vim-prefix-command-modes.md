@@ -1,6 +1,6 @@
 ---
 id: issue-0017
-status: draft
+status: done
 type: feature
 mode: AFK
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -17,11 +17,11 @@ Add lightweight Vim-style command prefixes inside the omnibar query so common fl
 
 ## Acceptance examples
 
-- [ ] Given the YouTube omnibar is open, when the user types `s/lofi beats` and presses Enter on the generated/default search item, then Vilify navigates to YouTube search results for `lofi beats` using a URL-encoded query.
-- [ ] Given the YouTube omnibar is open on a watch page with transcript capability, when the user types `t/needle`, then transcript results for `needle` are shown directly without first selecting “Search transcript”.
-- [ ] Given the user types `t/needle` on a page without an actionable current video, then no transcript command/result is shown or a concise unavailable status is shown according to the capability policy from `issue-0016`.
-- [ ] Given the user types `n/h`, when results render, then only matching navigation actions such as Home are shown, not transcript, copy, or video-scoped actions.
-- [ ] Given the query does not start with a known prefix, when results render, then existing default fuzzy command filtering still works.
+- [x] Given the YouTube omnibar is open, when the user types `s/lofi beats` and presses Enter on the generated/default search item, then Vilify navigates to YouTube search results for `lofi beats` using a URL-encoded query.
+- [x] Given the YouTube omnibar is open on a watch page with transcript capability, when the user types `t/needle`, then transcript results for `needle` are shown directly without first selecting “Search transcript”.
+- [x] Given the user types `t/needle` on a page without an actionable current video, then no transcript command/result is shown or a concise unavailable status is shown according to the capability policy from `issue-0016`.
+- [x] Given the user types `n/h`, when results render, then only matching navigation actions such as Home are shown, not transcript, copy, or video-scoped actions.
+- [x] Given the query does not start with a known prefix, when results render, then existing default fuzzy command filtering still works.
 
 ## Data definition impact
 
@@ -45,7 +45,7 @@ Phase 0 problem statement: evolve the omnibar from a generic command picker into
 
 ## HtDP iterations
 
-- None yet.
+- Completed in combined HtDP iteration for issues 0014-0019 on 2026-04-29; final preverify passed (`bun run build`, `bun run test` with 121 tests), targeted palette/hints fix landed, and human final verification passed.
 
 ## Out of scope
 
