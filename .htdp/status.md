@@ -2,7 +2,7 @@
 
 phase: 2
 layer: 1
-updated: 2026-04-29T21:14:25.434Z
+updated: 2026-04-29T21:15:15.031Z
 
 ## Wishes
 
@@ -18,7 +18,7 @@ updated: 2026-04-29T21:14:25.434Z
 | renderOmnibarSyntaxText | src/omnibar/view.ts | 2 | fail | 239.3s |
 | applyYouTubePrefixDisplayMetadata | src/sites/youtube/default-mode.ts | 2 | fail | 205.0s |
 | settleTranscriptLoadResult | src/sites/youtube/transcript-mode.ts | 1 | pass | 255.3s |
-| getOmnibarViewDefinition | src/omnibar/view.ts | 1 | pass | 120.0s |
+| getOmnibarViewDefinition | src/omnibar/view.ts | 1 | pass | 167.0s |
 | renderItem | src/omnibar/runtime.ts | 1 | pending | - |
 | itemsForYouTubeRootIntent | src/sites/youtube/default-mode.ts | 1 | pending | - |
 | startTranscriptLoad | src/sites/youtube/transcript-mode.ts | 0 | pending | - |
@@ -58,5 +58,5 @@ updated: 2026-04-29T21:14:25.434Z
 - 17:12:13 settleTranscriptLoadResult: pass (255.3s, $1.3242)
 - 17:12:15 implementer_post verification for settleTranscriptLoadResult: pass
 - 17:12:25 getOmnibarViewDefinition: running
-- 17:14:25 getOmnibarViewDefinition: pass (120.0s)
-- 17:14:25 implementer_post verification for getOmnibarViewDefinition: pass
+- 17:15:12 getOmnibarViewDefinition: pass (167.0s, $0.8923)
+- 17:15:15 implementer_post verification for getOmnibarViewDefinition: pass
