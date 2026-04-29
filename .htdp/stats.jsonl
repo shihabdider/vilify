@@ -91,3 +91,13 @@
 {"ts":"2026-04-29T19:34:59.021Z","agent":"implementer","wish":null,"layer":null,"status":"pass","turns":48,"input":74302,"output":14934,"cacheRead":1772032,"cost":1.7055,"duration":276.9}
 {"ts":"2026-04-29T20:12:32.159Z","agent":"stubber","wish":null,"layer":null,"status":"pass","turns":58,"input":128605,"output":27817,"cacheRead":4214272,"cost":3.5847,"duration":435.6}
 {"ts":"2026-04-29T20:24:43.556Z","agent":"stubber","wish":null,"layer":null,"status":"pass","turns":91,"input":160164,"output":39432,"cacheRead":5481472,"cost":4.7245,"duration":690.3}
+{"ts":"2026-04-29T20:30:59.530Z","agent":"implementer","wish":"shouldDiscardStaleTranscriptResult","layer":2,"status":"fail","turns":26,"input":72831,"output":12520,"cacheRead":1085440,"cost":1.2825,"duration":217}
+{"ts":"2026-04-29T20:36:43.025Z","agent":"implementer","wish":"loadStateFromResult","layer":2,"status":"fail","turns":44,"input":86567,"output":16244,"cacheRead":1925632,"cost":1.883,"duration":335.3}
+{"ts":"2026-04-29T20:41:13.894Z","agent":"implementer","wish":"applyTranscriptLoadSettlement","layer":2,"status":"fail","turns":47,"input":119398,"output":9101,"cacheRead":1591296,"cost":1.6657,"duration":261.1}
+{"ts":"2026-04-29T20:44:20.852Z","agent":"implementer","wish":"createSyntaxLikeOmnibarThemeTokens","layer":2,"status":"fail","turns":35,"input":80339,"output":6792,"cacheRead":823296,"cost":1.0171,"duration":177}
+{"ts":"2026-04-29T20:48:52.435Z","agent":"implementer","wish":"createReadableOmnibarLayoutDefinition","layer":2,"status":"fail","turns":50,"input":71686,"output":10695,"cacheRead":1715712,"cost":1.5371,"duration":261.8}
+{"ts":"2026-04-29T20:53:34.982Z","agent":"implementer","wish":"deriveOmnibarRowMarker","layer":2,"status":"fail","turns":40,"input":72843,"output":9803,"cacheRead":1191424,"cost":1.254,"duration":272.3}
+{"ts":"2026-04-29T20:59:53.670Z","agent":"implementer","wish":"deriveOmnibarSyntaxParts","layer":2,"status":"fail","turns":60,"input":111751,"output":17258,"cacheRead":3152896,"cost":2.6529,"duration":371.1}
+{"ts":"2026-04-29T21:04:00.136Z","agent":"implementer","wish":"renderOmnibarSyntaxText","layer":2,"status":"fail","turns":37,"input":67879,"output":9699,"cacheRead":1374720,"cost":1.3177,"duration":239.3}
+{"ts":"2026-04-29T21:07:38.279Z","agent":"implementer","wish":"applyYouTubePrefixDisplayMetadata","layer":2,"status":"fail","turns":38,"input":45590,"output":8423,"cacheRead":928768,"cost":0.945,"duration":205}
+{"ts":"2026-04-29T21:12:15.954Z","agent":"implementer","wish":"settleTranscriptLoadResult","layer":1,"status":"pass","turns":43,"input":56224,"output":9589,"cacheRead":1510912,"cost":1.3242,"duration":255.3}
