@@ -19,6 +19,32 @@ export interface OmnibarActionContext {
 
 export type OmnibarItemKind = 'navigation' | 'video-action' | 'command' | 'search-result' | 'status';
 export type OmnibarStatusTone = 'info' | 'warning' | 'error';
+export type OmnibarCommandPrefix = 's/' | 't/' | 'n/';
+
+export type OmnibarRowMarker =
+  | { readonly kind: 'prefix'; readonly prefix: OmnibarCommandPrefix }
+  | { readonly kind: 'empty' };
+
+export type OmnibarSyntaxPartKind =
+  | 'prefix'
+  | 'keyword'
+  | 'placeholder'
+  | 'example'
+  | 'description'
+  | 'kind'
+  | 'status'
+  | 'title';
+
+export interface OmnibarSyntaxPart {
+  readonly kind: OmnibarSyntaxPartKind;
+  readonly text: string;
+}
+
+export interface OmnibarItemDisplay {
+  readonly marker?: OmnibarRowMarker;
+  readonly titleParts?: readonly OmnibarSyntaxPart[];
+  readonly subtitleParts?: readonly OmnibarSyntaxPart[];
+}
 
 export type OmnibarActionResult =
   | { kind: 'none' }
@@ -47,6 +73,7 @@ export interface OmnibarItem {
   readonly subtitle?: string;
   readonly keywords?: readonly string[];
   readonly tone?: OmnibarStatusTone;
+  readonly display?: OmnibarItemDisplay;
   readonly action: OmnibarAction;
 }
 

@@ -389,6 +389,10 @@ describe('youtubeTranscriptMode provider', () => {
     const state = createTranscriptProviderState();
     state.cacheByVideoId.set('cached-old-video-0012', {
       status: 'loaded',
+      request: {
+        requestedVideoId: 'cached-old-video-0012',
+        cacheVideoId: 'cached-old-video-0012',
+      },
       result: {
         status: 'loaded',
         videoId: 'cached-old-video-0012',

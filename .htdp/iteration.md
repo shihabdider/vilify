@@ -1,7 +1,7 @@
 # Iteration
 
-anchor: 69e88c181bf8471667ae7ddb379d02a3eb1beb05
-started: 2026-04-29T17:26:53Z
+anchor: 6ea8a3daa5653248ddeb02be135d5dbff79a1024
+started: 2026-04-29T20:04:39Z
 stubber-mode: compiler-driven
 workflow-mode: autonomous
 language: TypeScript
@@ -10,89 +10,84 @@ transparent: true
 ## Source Artifacts
 
 - PRD: .htdp/prds/prd-0001-omnibar-reset.md
-- Issue: .htdp/issues/issue-0014-scrollable-omnibar-results.md
-- Issue: .htdp/issues/issue-0015-wrap-omnibar-row-text.md
-- Issue: .htdp/issues/issue-0016-gate-video-scoped-commands.md
-- Issue: .htdp/issues/issue-0017-vim-prefix-command-modes.md
-- Issue: .htdp/issues/issue-0018-vim-inspired-color-palette.md
-- Issue: .htdp/issues/issue-0019-prune-redundant-video-shortcut-actions.md
+- Issue: .htdp/issues/issue-0020-fix-stale-transcript-video-id.md
+- Issue: .htdp/issues/issue-0021-refine-omnibar-syntax-colors.md
+- Issue: .htdp/issues/issue-0022-increase-omnibar-type-scale.md
+- Issue: .htdp/issues/issue-0023-replace-bare-row-marker.md
 - Architecture review: <none>
 
 ## Problem
 
-Implement the new omnibar polish and scope tickets as one vertical batch: make overflowing results scroll within the picker, wrap long result text, hide video-scoped YouTube commands unless the current page has an actionable watch video/native video, add Vim-style query prefixes (`s/`, `t/`, `n/`), apply a restrained Vim-inspired color palette, and remove playback controls that duplicate default YouTube shortcuts.
+Implement the four new omnibar feedback issues as one HtDP batch: fix stale transcript request/response identity so transcript mode and `t/` fetch for the active video, refine the omnibar into a more syntax-like Vim color palette, increase the omnibar type scale/readability while keeping the compact TUI picker model, and replace the confusing bare status `!` left marker with useful prefix context (`t/`, `s/`, `n/`) or no marker.
 
 ## Data Definition Plan
 
-Use a compiler-driven pass because this iteration changes TypeScript data definitions and may remove `OmnibarAction` variants. Add an internal YouTube capability definition derived from `ProviderContext` (current URL, watch video id, native video availability) to gate provider output. Add a query-intent discriminated union for YouTube root-mode parsing: default command filtering, YouTube search (`s/{query}`), transcript search (`t/{query}`), and navigation filtering (`n/{query}`). Restructure YouTube root command data so command scope/category/capability is explicit and provider output is derived from data rather than ad hoc arrays. Remove redundant playback action variants/items where no longer used (`playPause`, `setPlaybackRate`; keep `seek` for transcript absolute seeks and any native-video copy-time behavior that remains). Update runtime view/style definitions and tests for a distinct scrollable results viewport, selection visibility, wrapped row text, and Vim-like theme tokens/kind/status colors. Bump package and manifest version to `0.6.80`.
+Use a compiler-driven TypeScript pass because the transcript fix should be modeled in data, not patched as control-flow only, and the row marker/palette work likely needs explicit display/view definitions. Revise transcript load/request identity around `TranscriptLoadState`, bridge client results, or provider cache entries so each pending/settled state is correlated with the requested video id and stale responses are discarded/isolated instead of cached as final unavailable for the current video. Add display-only row marker metadata or renderer derivation so active prefix flows can render `t/`, `s/`, or `n/` in the left marker column while unprefixed/status rows do not render a bare `!`. Extend/refine omnibar view/theme tokens for syntax-part colors and readable type/layout scale; keep these presentation definitions separate from command/action semantics. Bump package and manifest version from 0.6.83 to the next patch version.
 
 ## Polya Ledger
 
 ### Knowns
 
-- Current YouTube root mode includes navigation, playback video actions, copy actions, and transcript mode entry.
-- Current transcript mode already accepts a query and returns timestamped search-result items that seek through the native video element.
-- Current `ProviderContext` carries live `document` and `location`, and previous issue 0012 made SPA-style live reads important.
-- Current runtime CSS uses `white-space: nowrap` and `text-overflow: ellipsis`, which matches the row truncation failure.
-- Current results container has `overflow: auto`, but selected-row movement does not explicitly keep the selected row visible.
-- Issue 0018 is HITL because final palette acceptance depends on visual judgment.
-- Repo convention requires version bumps in package and manifest for changes, then commit and push.
+- Current transcript provider caches load state by resolved active video id.
+- Current bridge client can return `status: 'stale'` when response video id differs from the requested or active video id.
+- Current transcript provider turns stale bridge results into an unavailable load state, producing messages such as `Transcript response was for xmkSf5IS-zw. Active video is A04b-52jtos.`
+- Current `t/` root prefix delegates into `youtubeTranscriptMode` providers on actionable watch pages.
+- Current omnibar rows render `item.kind === 'status' ? '!' : item.kind` in the kind/marker column.
+- Current root prefix hints are status items whose title strings include `s/{query}`, `t/{query}`, `n/{query}`, and `type text`.
+- Current view tokens use bright black/yellow/cyan/green/magenta values but the user reports the result is too monotone/all-blue in practice.
+- Current omnibar base font is inherited from the root with no explicit larger font-size token.
+- Repo convention requires version bumps in package and manifest, then commit and push.
 
 ### Constraints
 
+- Keep the v1 reliability boundary: no visible transcript-panel scraping, no clicking YouTube UI, no hidden-menu choreography.
 - Closed omnibar state still intercepts only `:` outside editable targets.
-- Prefixes are query syntax inside the open omnibar, not ambient multi-key bindings.
-- Do not scrape visible YouTube UI, click visible controls, drive menus, or reintroduce drawers/sidebars/page replacement.
-- Keep YouTube-wide activation; command availability is provider-level capability gating.
-- Keep Google and non-YouTube support out of active v1 scope.
+- Prefixes remain query syntax in the open omnibar, not ambient keybindings.
+- Do not broaden product scope beyond YouTube omnibar v1.
+- Palette/font changes are visual/presentational and should not change command behavior.
+- Error/status semantics must remain visible through row copy and color even if the bare `!` marker is removed.
 - Build and test hooks are `bun run build` and `bun run test` from `htdp.json`.
-- Final human verification should include manual visual review for the Vim-inspired palette and likely browser smoke checks for scroll/wrap/prefix behavior.
+- HITL visual acceptance for palette and type scale must be handled in final verification.
 
 ### Unknowns That Matter
 
-- [resolved by user go] On non-watch/no-video pages, default command list hides video-scoped transcript/current-time commands; explicit `t/...` may show one concise unavailable status because the user intentionally requested transcript search.
-- [resolved by user go] Use a conservative built-in Vim-like palette rather than a named theme clone.
+- [resolved by user go] Implement issues 0020-0023 together in this batch.
+- [resolved by user go] Make a conservative concrete palette/type-scale pass and rely on final browser screenshot review for taste.
+- [resolved by user go] Stale transcript responses should not become terminal unavailable cache entries for the active video; they should be isolated/discarded so the current video can fetch.
 
 ### Out of Scope
 
-- Google support.
-- Non-YouTube plugins.
-- Shorts transcript/video-id semantics.
-- Full Vim command language, mappings, registers, macros, configurable keymaps, or ambient normal-mode bindings while closed.
-- Configurable themes.
-- Replacing YouTube native keyboard shortcuts or adding legacy playback-control scope.
-- Legacy drawers, listing renderers, comments UI, persistent transcript sidebar, or page replacement.
+- Configurable themes or named theme clone.
+- Full responsive redesign beyond keeping the larger picker inside the viewport.
+- Persistent transcript drawer/sidebar or visible YouTube transcript panel automation.
+- Non-YouTube transcript providers.
+- Command inventory changes unrelated to marker/display metadata.
+- Full Vim command language, mappings, registers, macros, or ambient normal-mode bindings while closed.
+- Google support, drawers, listing renderers, comments UI, or page replacement.
 
 ### Assumptions
 
-- Implement all six new issues in one HtDP iteration and one final commit/push.
-- Default non-prefix filtering remains the existing command fuzzy filtering.
-- `s/{query}` produces a YouTube search navigation item; empty `s/` should not navigate to an empty search and should instead return a concise status/no-result item.
-- `n/{query}` filters only navigation actions.
-- `t/{query}` searches transcript lines directly on actionable watch pages without first pushing transcript mode.
-- Default results should hide transcript and current-time commands on non-watch/no-video pages; explicit `t/` can expose a missing-video status.
-- Copy-current-URL remains available because it is not a YouTube playback shortcut.
-- Copy-URL-at-current-time remains video-scoped unless implementation evidence shows it should be deferred/removed with playback actions.
-- Conservative palette means dark charcoal background, muted foreground, green/cyan/yellow accents, and restrained warning/error colors with high contrast.
+- Stale transcript handling should prefer retry/fresh request behavior over showing a stale mismatch as a user-facing terminal unavailable state.
+- A true no-transcript result from the active/requested video should still render an unavailable status tied to that video.
+- For active prefix flows, showing `t/`, `s/`, or `n/` in the left marker column is useful; for unprefixed status rows, an empty or neutral marker is preferable to `!`.
+- Palette refinement can be expressed with explicit theme tokens and syntax/display classes rather than changing provider action data.
+- Font-size increase should be moderate and paired with panel width/max-height/line-height adjustments to keep the picker compact.
+- Version bump target is 0.6.84 unless implementation discovers an existing bump.
 
 ### Alternatives Considered
 
-- Gate video-scoped commands by trying execution and returning status/noop — rejected by issue 0016; default behavior should hide commands that cannot apply.
-- Hide explicit `t/` on non-watch pages completely — rejected by user confirmation in favor of one concise unavailable status for explicit transcript intent.
-- Named theme clone such as gruvbox/solarized — deferred; user accepted a conservative Vim-like palette.
-- Add a broad generic provider-intent API to all modes — only introduce if the stubber finds it necessary; expected scope is YouTube root-mode parsing.
-- Keep `playPause`/`setPlaybackRate` action variants for possible future use — remove if compiler proves they are dead after pruning; future issues can re-add typed variants if needed.
-- Chosen: capability-aware YouTube root provider + parsed query intent + pruned playback commands + runtime layout/theme fixes.
+- Keep stale responses as unavailable but improve copy — rejected because issue 0020 says stale responses should be discarded/isolated and allow fresh active-video requests.
+- Remove the left marker column entirely — acceptable for unprefixed/status rows, but less informative than prefix context for `t/`, `s/`, and `n/` flows.
+- Encode prefix markers into `OmnibarItemKind` — rejected because marker context is display/query-intent metadata, not command kind semantics.
+- Use a named Vim theme clone — deferred; user feedback asks for syntax-like differentiation, not a specific theme.
+- Large modal-like font/layout increase — rejected by issue 0022; preserve compact TUI picker.
+- Chosen: request-correlated transcript load state + display-only prefix marker/syntax classes + explicit theme/type-scale tokens.
 
 ### Decision Log
 
-- 2026-04-29T17:26:53Z — Started fresh iteration for issues 0014-0019 after user chose not to resume old issue 0012 iteration.
-- 2026-04-29T17:26:53Z — User confirmed Phase 0 understanding with `go`, including explicit `t/` missing-video status and conservative Vim-like palette assumptions.
-- 2026-04-29T17:40:00Z — User accepted stubber-flagged assertion updates for version 0.6.80, wrapped rows, new theme tokens/classes, pruned playback controls, capability-gated commands, and direct `t/` prefix behavior.
+- 2026-04-29T20:04:39Z — User chose to start fresh instead of resuming completed issues 0014-0019 iteration.
+- 2026-04-29T20:04:39Z — User confirmed Phase 0 understanding with `go` for implementing issues 0020-0023 together.
 
 ### Look Back
 
-- 2026-04-29T18:20:00Z — Human verification item 1 failed: current palette/selected row can produce light background with light text. Target is default Vim dark scheme: black/dark background, bright syntax-like accents, and readable selected rows.
-- 2026-04-29T18:20:00Z — Human passed command pruning/capability gating but revised empty-root behavior: opening the default omnibar should show prefix hints rather than command results until the user types a query/prefix.
-- 2026-04-29T19:33:47Z — Targeted fix complete: default Vim dark palette applied, selected-row child colors now override kind/status colors late in CSS, empty/whitespace YouTube root queries return noop prefix hints, non-empty filtering/prefix behavior preserved, version bumped to 0.6.82, build/test pass.
-- 2026-04-29T19:45:00Z — User reported all final verification items pass; issues 0014-0019 marked done.
+- Leave empty for now. Fill during replans and final verification with anything future iterations should remember.

@@ -1,7 +1,7 @@
 import { createStatusOmnibarItem } from '../../omnibar/items';
 import type { OmnibarItem, OmnibarMode, OmnibarProvider, ProviderContext } from '../../omnibar/types';
 import { createYouTubeBridgeClient, type YouTubeBridgeClient } from './bridge-client';
-import type { TranscriptLine, TranscriptResult } from './bridge-types';
+import type { StaleVideoResult, TranscriptLine, TranscriptResult } from './bridge-types';
 import { formatTranscriptTimestamp } from './transcript-parser';
 import { getYouTubeVideoId, isSupportedYouTubeUrl } from './url';
 
@@ -13,15 +13,33 @@ export interface TranscriptProviderState {
 
 type LoadedTranscriptResult = Extract<TranscriptResult, { status: 'loaded' }>;
 
+type UnavailableTranscriptLoadState = {
+  readonly status: 'unavailable';
+  readonly request: TranscriptRequestIdentity;
+  readonly reason: string;
+  readonly message?: string;
+};
+
+export interface TranscriptRequestIdentity {
+  readonly requestedVideoId: string;
+  readonly cacheVideoId: string;
+}
+
 export type TranscriptLoadState =
   | { readonly status: 'idle' }
-  | { readonly status: 'loading'; readonly promise: Promise<TranscriptResult> }
-  | { readonly status: 'loaded'; readonly result: LoadedTranscriptResult }
+  | { readonly status: 'loading'; readonly request: TranscriptRequestIdentity; readonly promise: Promise<TranscriptResult> }
+  | { readonly status: 'loaded'; readonly request: TranscriptRequestIdentity; readonly result: LoadedTranscriptResult }
+  | UnavailableTranscriptLoadState
   | {
-      readonly status: 'unavailable';
-      readonly reason: string;
+      readonly status: 'stale';
+      readonly request: TranscriptRequestIdentity;
+      readonly result: StaleVideoResult;
       readonly message?: string;
     };
+
+export type TranscriptLoadSettlement =
+  | { readonly kind: 'store'; readonly videoId: string; readonly state: Exclude<TranscriptLoadState, { readonly status: 'idle' | 'loading' | 'stale' }> }
+  | { readonly kind: 'discard-stale'; readonly request: TranscriptRequestIdentity; readonly result: StaleVideoResult };
 
 export interface YouTubeTranscriptModeOptions {
   readonly state?: TranscriptProviderState;
@@ -83,6 +101,8 @@ function getTranscriptItems(
       return [loadingItem(videoId)];
     case 'unavailable':
       return [unavailableItem(videoId, loadState)];
+    case 'stale':
+      return staleTranscriptItems(videoId, loadState);
     case 'loaded':
       return transcriptResultItems(videoId, loadState.result.lines, query);
   }
@@ -94,9 +114,11 @@ function startTranscriptLoad(
   context: ProviderContext,
   videoId: string,
 ): readonly OmnibarItem[] {
+  const request = createTranscriptRequestIdentity(videoId);
+
   try {
     const promise = createBridgeClient(context).getTranscript(videoId);
-    const loadingState: TranscriptLoadState = { status: 'loading', promise };
+    const loadingState: TranscriptLoadState = { status: 'loading', request, promise };
     state.cacheByVideoId.set(videoId, loadingState);
 
     promise
@@ -105,7 +127,7 @@ function startTranscriptLoad(
           return;
         }
 
-        state.cacheByVideoId.set(videoId, loadStateFromResult(videoId, result));
+        state.cacheByVideoId.set(videoId, loadStateFromResult(request, result));
         context.requestRender?.();
       })
       .catch((error) => {
@@ -115,6 +137,7 @@ function startTranscriptLoad(
 
         state.cacheByVideoId.set(videoId, {
           status: 'unavailable',
+          request,
           reason: 'bridge-error',
           message: error instanceof Error ? error.message : 'Transcript request failed.',
         });
@@ -123,6 +146,7 @@ function startTranscriptLoad(
   } catch (error) {
     const unavailableState: Extract<TranscriptLoadState, { status: 'unavailable' }> = {
       status: 'unavailable',
+      request,
       reason: 'bridge-error',
       message: error instanceof Error ? error.message : 'Transcript request failed.',
     };
@@ -134,35 +158,62 @@ function startTranscriptLoad(
   return [loadingItem(videoId)];
 }
 
-function loadStateFromResult(videoId: string, result: TranscriptResult): TranscriptLoadState {
+function loadStateFromResult(request: TranscriptRequestIdentity, result: TranscriptResult): TranscriptLoadState {
   switch (result.status) {
     case 'loaded':
-      if (result.videoId !== videoId) {
-        return staleUnavailableState(result.videoId, videoId);
+      if (result.videoId !== request.cacheVideoId) {
+        return staleTranscriptLoadState(request, result.videoId, request.cacheVideoId);
       }
 
-      return { status: 'loaded', result };
+      return { status: 'loaded', request, result };
     case 'unavailable':
       return {
         status: 'unavailable',
+        request,
         reason: result.reason,
         message: result.message,
       };
     case 'stale':
-      return staleUnavailableState(result.requestedVideoId, result.actualVideoId);
+      return {
+        status: 'stale',
+        request,
+        result,
+        message: staleTranscriptMessage(result.requestedVideoId, result.actualVideoId),
+      };
   }
 }
 
-function staleUnavailableState(
+function createTranscriptRequestIdentity(videoId: string): TranscriptRequestIdentity {
+  return {
+    requestedVideoId: videoId,
+    cacheVideoId: videoId,
+  };
+}
+
+function staleTranscriptLoadState(
+  request: TranscriptRequestIdentity,
   requestedVideoId: string | undefined,
   actualVideoId: string | undefined,
 ): TranscriptLoadState {
-  const suffix = actualVideoId ? ` Active video is ${actualVideoId}.` : '';
   return {
-    status: 'unavailable',
-    reason: 'stale-video-id',
-    message: `Transcript response was for ${requestedVideoId ?? 'a previous video'}.${suffix}`,
+    status: 'stale',
+    request,
+    result: {
+      status: 'stale',
+      reason: 'stale-video-id',
+      ...(requestedVideoId ? { requestedVideoId } : {}),
+      ...(actualVideoId ? { actualVideoId } : {}),
+    },
+    message: staleTranscriptMessage(requestedVideoId, actualVideoId),
   };
+}
+
+function staleTranscriptMessage(
+  requestedVideoId: string | undefined,
+  actualVideoId: string | undefined,
+): string {
+  const suffix = actualVideoId ? ` Active video is ${actualVideoId}.` : '';
+  return `Transcript response was for ${requestedVideoId ?? 'a previous video'}.${suffix}`;
 }
 
 function transcriptResultItems(
@@ -291,6 +342,42 @@ function noMatchesItem(videoId: string, query: string): OmnibarItem {
     subtitle: normalizedQuery ? `No transcript lines match “${normalizedQuery}”.` : 'No transcript lines are available.',
     keywords: ['transcript', 'no matches', videoId],
   });
+}
+
+function staleTranscriptItems(
+  videoId: string,
+  loadState: Extract<TranscriptLoadState, { status: 'stale' }>,
+): readonly OmnibarItem[] {
+  void videoId;
+  void loadState;
+  throw new Error('not implemented: staleTranscriptItems');
+}
+
+export function settleTranscriptLoadResult(
+  request: TranscriptRequestIdentity,
+  result: TranscriptResult,
+): TranscriptLoadSettlement {
+  void request;
+  void result;
+  throw new Error('not implemented: settleTranscriptLoadResult');
+}
+
+export function shouldDiscardStaleTranscriptResult(
+  request: TranscriptRequestIdentity,
+  result: TranscriptResult,
+): boolean {
+  void request;
+  void result;
+  throw new Error('not implemented: shouldDiscardStaleTranscriptResult');
+}
+
+export function applyTranscriptLoadSettlement(
+  state: TranscriptProviderState,
+  settlement: TranscriptLoadSettlement,
+): void {
+  void state;
+  void settlement;
+  throw new Error('not implemented: applyTranscriptLoadSettlement');
 }
 
 function createBridgeClientForContext(context: ProviderContext): YouTubeBridgeClient {

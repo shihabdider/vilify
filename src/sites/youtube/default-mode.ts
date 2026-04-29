@@ -8,7 +8,12 @@ import {
   type YouTubeCommandCapabilityRequirement,
   type YouTubePageCapability,
 } from './capability';
-import { buildYouTubeSearchUrl, parseYouTubeRootQueryIntent, type YouTubeRootQueryIntent } from './query-intent';
+import {
+  buildYouTubeSearchUrl,
+  parseYouTubeRootQueryIntent,
+  type YouTubeRootPrefixIntent,
+  type YouTubeRootQueryIntent,
+} from './query-intent';
 
 export { youtubeTranscriptMode } from './transcript-mode';
 
@@ -204,6 +209,15 @@ export function itemsForYouTubeRootIntent(
     case 'transcript-search':
       return getTranscriptSearchIntentItems(context, intent.query, capability);
   }
+}
+
+export function applyYouTubePrefixDisplayMetadata(
+  items: readonly OmnibarItem[],
+  intent: YouTubeRootPrefixIntent,
+): readonly OmnibarItem[] {
+  void items;
+  void intent;
+  throw new Error('not implemented: applyYouTubePrefixDisplayMetadata');
 }
 
 export function availableYouTubeRootCommands(

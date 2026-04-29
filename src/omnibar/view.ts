@@ -1,4 +1,10 @@
-import type { OmnibarItemKind, OmnibarStatusTone } from './types';
+import type {
+  OmnibarItem,
+  OmnibarItemKind,
+  OmnibarRowMarker,
+  OmnibarStatusTone,
+  OmnibarSyntaxPart,
+} from './types';
 
 export type OmnibarThemeToken =
   | 'background'
@@ -14,7 +20,14 @@ export type OmnibarThemeToken =
   | 'searchResult'
   | 'statusInfo'
   | 'statusWarning'
-  | 'statusError';
+  | 'statusError'
+  | 'syntaxPrefix'
+  | 'syntaxKeyword'
+  | 'syntaxPlaceholder'
+  | 'syntaxExample'
+  | 'syntaxDescription'
+  | 'syntaxKind'
+  | 'syntaxStatus';
 
 export type OmnibarTextWrapPolicy = 'wrap' | 'nowrap';
 export type OmnibarSelectionVisibilityPolicy = 'nearest-scrollport';
@@ -37,11 +50,29 @@ export interface OmnibarThemeDefinition {
   readonly tokens: Record<OmnibarThemeToken, string>;
   readonly kindClasses: Record<OmnibarItemKind, string>;
   readonly statusToneClasses: Record<OmnibarStatusTone, string>;
+  readonly syntaxPartClasses: Record<OmnibarSyntaxPart['kind'], string>;
+}
+
+export interface OmnibarLayoutDefinition {
+  readonly baseFontSize: string;
+  readonly lineHeight: string;
+  readonly panelWidth: string;
+  readonly panelMaxHeight: string;
+  readonly resultsMaxHeight: string;
+  readonly overlayPadding: string;
+  readonly promptPadding: string;
+  readonly rowPadding: string;
+  readonly footerPadding: string;
+  readonly markerColumnWidth: string;
+  readonly kindColumnWidth: string;
+  readonly rowColumnGap: string;
+  readonly rowGap: string;
 }
 
 export interface OmnibarViewDefinition {
   readonly resultsViewport: OmnibarResultsViewportDefinition;
   readonly rowText: OmnibarRowTextDefinition;
+  readonly layout: OmnibarLayoutDefinition;
   readonly theme: OmnibarThemeDefinition;
 }
 
@@ -63,6 +94,21 @@ export function getOmnibarViewDefinition(): OmnibarViewDefinition {
       subtitleWrap: 'wrap',
       statusWrap: 'wrap',
     },
+    layout: {
+      baseFontSize: 'inherit',
+      lineHeight: '1.35',
+      panelWidth: 'min(80ch, calc(100vw - 2rem))',
+      panelMaxHeight: 'min(72vh, 42rem)',
+      resultsMaxHeight: 'min(52vh, 32rem)',
+      overlayPadding: '12vh 1rem 1rem',
+      promptPadding: '0.6rem 0.75rem',
+      rowPadding: '0.45rem 0.75rem',
+      footerPadding: '0.45rem 0.75rem',
+      markerColumnWidth: '2ch',
+      kindColumnWidth: 'minmax(10ch, 16ch)',
+      rowColumnGap: '1ch',
+      rowGap: '0.15rem',
+    },
     theme: {
       tokens: {
         background: '#000000',
@@ -79,6 +125,13 @@ export function getOmnibarViewDefinition(): OmnibarViewDefinition {
         statusInfo: '#00ffff',
         statusWarning: '#ffd75f',
         statusError: '#ff5f5f',
+        syntaxPrefix: '#00ff00',
+        syntaxKeyword: '#ffff00',
+        syntaxPlaceholder: '#808080',
+        syntaxExample: '#00ffff',
+        syntaxDescription: '#e0e0e0',
+        syntaxKind: '#ff00ff',
+        syntaxStatus: '#ffd75f',
       },
       kindClasses: {
         navigation: 'vilify-omnibar-kind-navigation',
@@ -92,12 +145,23 @@ export function getOmnibarViewDefinition(): OmnibarViewDefinition {
         warning: 'vilify-omnibar-status-warning',
         error: 'vilify-omnibar-status-error',
       },
+      syntaxPartClasses: {
+        prefix: 'vilify-omnibar-syntax-prefix',
+        keyword: 'vilify-omnibar-syntax-keyword',
+        placeholder: 'vilify-omnibar-syntax-placeholder',
+        example: 'vilify-omnibar-syntax-example',
+        description: 'vilify-omnibar-syntax-description',
+        kind: 'vilify-omnibar-syntax-kind',
+        status: 'vilify-omnibar-syntax-status',
+        title: 'vilify-omnibar-syntax-title',
+      },
     },
   };
 }
 
 export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): string {
   const tokens = definition.theme.tokens;
+  const layout = definition.layout;
 
   return `#vilify-omnibar-root {
   --vilify-omnibar-background: ${tokens.background};
@@ -116,10 +180,31 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
   --vilify-omnibar-status-info: ${tokens.statusInfo};
   --vilify-omnibar-status-warning: ${tokens.statusWarning};
   --vilify-omnibar-status-error: ${tokens.statusError};
+  --vilify-omnibar-syntax-prefix: ${tokens.syntaxPrefix};
+  --vilify-omnibar-syntax-keyword: ${tokens.syntaxKeyword};
+  --vilify-omnibar-syntax-placeholder: ${tokens.syntaxPlaceholder};
+  --vilify-omnibar-syntax-example: ${tokens.syntaxExample};
+  --vilify-omnibar-syntax-description: ${tokens.syntaxDescription};
+  --vilify-omnibar-syntax-kind: ${tokens.syntaxKind};
+  --vilify-omnibar-syntax-status: ${tokens.syntaxStatus};
+  --vilify-omnibar-font-size: ${layout.baseFontSize};
+  --vilify-omnibar-line-height: ${layout.lineHeight};
+  --vilify-omnibar-panel-width: ${layout.panelWidth};
+  --vilify-omnibar-panel-max-height: ${layout.panelMaxHeight};
+  --vilify-omnibar-results-max-height: ${layout.resultsMaxHeight};
+  --vilify-omnibar-overlay-padding: ${layout.overlayPadding};
+  --vilify-omnibar-prompt-padding: ${layout.promptPadding};
+  --vilify-omnibar-row-padding: ${layout.rowPadding};
+  --vilify-omnibar-footer-padding: ${layout.footerPadding};
+  --vilify-omnibar-marker-column-width: ${layout.markerColumnWidth};
+  --vilify-omnibar-kind-column-width: ${layout.kindColumnWidth};
+  --vilify-omnibar-row-column-gap: ${layout.rowColumnGap};
+  --vilify-omnibar-row-gap: ${layout.rowGap};
   position: fixed;
   inset: 0;
   z-index: 2147483647;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--vilify-omnibar-font-size);
   color: var(--vilify-omnibar-foreground);
   pointer-events: none;
 }
@@ -130,14 +215,14 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 12vh 1rem 1rem;
+  padding: var(--vilify-omnibar-overlay-padding);
   box-sizing: border-box;
   pointer-events: none;
 }
 
 #vilify-omnibar-root .vilify-omnibar-panel {
-  width: min(80ch, calc(100vw - 2rem));
-  max-height: min(72vh, 42rem);
+  width: var(--vilify-omnibar-panel-width);
+  max-height: var(--vilify-omnibar-panel-max-height);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -155,7 +240,7 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
   display: flex;
   align-items: center;
   gap: 1ch;
-  padding: 0.6rem 0.75rem;
+  padding: var(--vilify-omnibar-prompt-padding);
   border-bottom: 1px solid var(--vilify-omnibar-border);
   background: var(--vilify-omnibar-background);
   color: var(--vilify-omnibar-foreground);
@@ -190,7 +275,7 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
 #vilify-omnibar-root .${definition.resultsViewport.className} {
   flex: 1 1 auto;
   min-height: 0;
-  max-height: min(52vh, 32rem);
+  max-height: var(--vilify-omnibar-results-max-height);
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
@@ -200,15 +285,15 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
 
 #vilify-omnibar-root .vilify-omnibar-row {
   display: grid;
-  grid-template-columns: 2ch minmax(10ch, 16ch) minmax(0, 1fr);
-  column-gap: 1ch;
-  row-gap: 0.15rem;
+  grid-template-columns: var(--vilify-omnibar-marker-column-width) var(--vilify-omnibar-kind-column-width) minmax(0, 1fr);
+  column-gap: var(--vilify-omnibar-row-column-gap);
+  row-gap: var(--vilify-omnibar-row-gap);
   align-items: start;
-  padding: 0.45rem 0.75rem;
+  padding: var(--vilify-omnibar-row-padding);
   border-radius: 0;
   white-space: ${definition.rowText.titleWrap === 'wrap' ? 'normal' : 'nowrap'};
   overflow-wrap: anywhere;
-  line-height: 1.35;
+  line-height: var(--vilify-omnibar-line-height);
 }
 
 #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] {
@@ -290,22 +375,51 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
   color: var(--vilify-omnibar-status-error);
 }
 
+#vilify-omnibar-root .vilify-omnibar-syntax-prefix {
+  color: var(--vilify-omnibar-syntax-prefix);
+}
+
+#vilify-omnibar-root .vilify-omnibar-syntax-keyword {
+  color: var(--vilify-omnibar-syntax-keyword);
+}
+
+#vilify-omnibar-root .vilify-omnibar-syntax-placeholder {
+  color: var(--vilify-omnibar-syntax-placeholder);
+}
+
+#vilify-omnibar-root .vilify-omnibar-syntax-example {
+  color: var(--vilify-omnibar-syntax-example);
+}
+
+#vilify-omnibar-root .vilify-omnibar-syntax-description {
+  color: var(--vilify-omnibar-syntax-description);
+}
+
+#vilify-omnibar-root .vilify-omnibar-syntax-kind {
+  color: var(--vilify-omnibar-syntax-kind);
+}
+
+#vilify-omnibar-root .vilify-omnibar-syntax-status {
+  color: var(--vilify-omnibar-syntax-status);
+}
+
 #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-cursor,
 #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-kind,
 #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-title,
 #vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-subtitle,
-#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status {
+#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status,
+#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] [class*="vilify-omnibar-syntax-"] {
   color: var(--vilify-omnibar-selection-fg);
 }
 
 #vilify-omnibar-root .vilify-omnibar-empty {
-  padding: 0.45rem 0.75rem;
+  padding: var(--vilify-omnibar-row-padding);
   color: var(--vilify-omnibar-muted);
 }
 
 #vilify-omnibar-root .vilify-omnibar-footer {
   flex: 0 0 auto;
-  padding: 0.45rem 0.75rem;
+  padding: var(--vilify-omnibar-footer-padding);
   border-top: 1px solid var(--vilify-omnibar-border);
   color: var(--vilify-omnibar-muted);
   background: var(--vilify-omnibar-background);
@@ -346,4 +460,36 @@ export function classForOmnibarStatusTone(tone: OmnibarStatusTone | undefined): 
   }
 
   return getOmnibarViewDefinition().theme.statusToneClasses[tone];
+}
+
+export function createSyntaxLikeOmnibarThemeTokens(): Record<OmnibarThemeToken, string> {
+  throw new Error('not implemented: createSyntaxLikeOmnibarThemeTokens');
+}
+
+export function createReadableOmnibarLayoutDefinition(): OmnibarLayoutDefinition {
+  throw new Error('not implemented: createReadableOmnibarLayoutDefinition');
+}
+
+export function deriveOmnibarRowMarker(item: OmnibarItem, query: string): OmnibarRowMarker {
+  void item;
+  void query;
+  throw new Error('not implemented: deriveOmnibarRowMarker');
+}
+
+export function deriveOmnibarSyntaxParts(item: OmnibarItem): readonly OmnibarSyntaxPart[] {
+  void item;
+  throw new Error('not implemented: deriveOmnibarSyntaxParts');
+}
+
+export function renderOmnibarSyntaxText(
+  document: Document,
+  className: string,
+  fallbackText: string,
+  parts: readonly OmnibarSyntaxPart[],
+): HTMLSpanElement {
+  void document;
+  void className;
+  void fallbackText;
+  void parts;
+  throw new Error('not implemented: renderOmnibarSyntaxText');
 }
