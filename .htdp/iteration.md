@@ -92,3 +92,4 @@ Use a compiler-driven TypeScript pass because the transcript fix should be model
 ### Look Back
 
 - 2026-04-29T20:12:32Z — First stubber dispatch returned 0 wishes; retrying Phase 1 with narrower file-level context because the requirement clearly needs code/test changes.
+- 2026-04-29T21:30:35Z — Layer 2 wishes show `fail` in status because implementer_post ran full tests while downstream stubs were still pending; later full-suite verification passes after layer 1/0, so treating the layer 2 code as complete for Phase 3.
