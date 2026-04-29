@@ -1,6 +1,6 @@
 ---
 id: issue-0021
-status: draft
+status: done
 type: feature
 mode: HITL
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
@@ -22,37 +22,37 @@ Source screenshots from the feedback:
 
 ## Acceptance examples
 
-- [ ] Given the default picker shows prefix help rows such as `s/{query}`, `t/{query}`, `n/{query}`, and `type text`, when colors render, then prefixes/keywords, placeholders, titles, examples, and descriptions are not all the same blue/cyan token.
-- [ ] Given a row is selected, when the highlight renders, then it uses a readable Vim-like highlight treatment that matches the reference direction better than the current loud monotone treatment.
-- [ ] Given navigation, search/transcript, video action, and status/unavailable rows render, when the user scans the list, then row purpose is distinguishable through color as well as text.
-- [ ] Given warning or unavailable status rows render, when colors render, then error emphasis is clear but does not dominate the whole picker or make normal text feel monochrome.
+- [x] Given the default picker shows prefix help rows such as `s/{query}`, `t/{query}`, `n/{query}`, and `type text`, when colors render, then prefixes/keywords, placeholders, titles, examples, and descriptions are not all the same blue/cyan token.
+- [x] Given a row is selected, when the highlight renders, then it uses a readable Vim-like highlight treatment that matches the reference direction better than the current loud monotone treatment.
+- [x] Given navigation, search/transcript, video action, and status/unavailable rows render, when the user scans the list, then row purpose is distinguishable through color as well as text.
+- [x] Given warning or unavailable status rows render, when colors render, then error emphasis is clear but does not dominate the whole picker or make normal text feel monochrome.
 
 ## Data definition impact
 
-No command semantics should change. Expected presentational changes include clearer CSS theme tokens and possibly finer-grained row markup/spans for syntax parts such as prefix, placeholder, title, example label, and description. If the renderer needs a small display-only classification for syntax coloring, keep it separate from provider/action behavior.
+Implemented display-only theme/syntax definitions: `OmnibarThemeToken` syntax tokens, `OmnibarSyntaxPart`, syntax-part class mapping, and safe syntax-span rendering. Command/provider semantics were not changed for palette behavior.
 
 ## HtDP entry note
 
-Phase 0 problem statement: follow up the completed Vim-inspired palette work with the user's visual feedback that the current picker is too monotone. Tune semantic colors and row text segmentation so the UI resembles a syntax-highlighted Vim buffer more than a single-color terminal list. This is visual polish only; do not broaden product scope or alter command behavior.
+Completed. Future palette changes should stay presentation-only unless a new PRD expands product behavior.
 
 ## Verification
 
 - `bun run build`
 - `bun run test`
-- DOM/CSS tests for semantic theme tokens or syntax-part classes where useful.
-- Manual screenshot review of default prefix help, filtered command results, selected rows, status/unavailable rows, and transcript results against the provided reference direction.
+- DOM/CSS tests for semantic theme tokens and syntax-part classes.
+- Manual screenshot review passed on 2026-04-29. Remaining visual note about result/input alignment was split to `issue-0024`.
 
 ## Blocked by
 
-- Human visual judgment is required before marking done; palette matching cannot be fully verified symbolically.
+- None - done.
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-29: Implemented syntax-like Vim palette and syntax-part rendering through version `0.6.98`; symbolic verification passed and final human visual verification passed.
 
 ## Out of scope
 
 - Configurable themes.
-- Font-size/layout changes; see `issue-0022`.
-- Left marker/prefix-column behavior; see `issue-0023`.
+- Font-size/layout changes beyond completed readability pass; see `issue-0022`.
+- Result/input column alignment polish; see `issue-0024`.
 - Transcript fetching correctness; see `issue-0020`.

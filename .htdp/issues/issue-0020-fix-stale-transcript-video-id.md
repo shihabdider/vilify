@@ -2,55 +2,72 @@
 id: issue-0020
 status: draft
 type: bug
-mode: AFK
+mode: HITL
 source_prd: .htdp/prds/prd-0001-omnibar-reset.md
 depends_on: []
 remote:
   github: null
 ---
 
-# Fix stale transcript responses after active video changes
+# Fix transcript fetching for captioned YouTube videos
 
 ## What to build
 
-Make transcript mode and the `t/` prefix reliably fetch and display transcript lines for the currently active YouTube video. When YouTube SPA navigation or bridge timing produces a response for an earlier video, Vilify should not turn that stale response into a final “transcript unavailable” result for the current video; it should discard or isolate the stale response and allow a fresh request for the active video.
+Make transcript mode and the `t/` prefix reliably fetch and display transcript lines for the currently active YouTube video. The previous HtDP iteration fixed stale request/response identity in the provider cache, but final manual verification still failed on a captioned video with `caption-parse-failed`.
 
-The observed failure is an unavailable row that says: `Transcript response was for xmkSf5IS-zw. Active video is A04b-52jtos.` This happened on a video that should have transcript data.
+Current failing evidence:
+
+- Video: `https://www.youtube.com/watch?v=xmkSf5IS-zw`
+- Browser evidence: YouTube shows `Subtitles/CC (2)` for this video.
+- Vilify result after typing `t/`: `Transcript unavailable` / `Could not load this transcript (caption-parse-failed).`
+- Screenshots:
+  - Failure: `/var/folders/vb/vpcg5jdd3xsbq6xd77tv1x0jdgfsjw/T/pi-clipboard-caf0af53-d9ae-4368-8d48-e9b590c749b6.png`
+  - YouTube CC evidence: `/var/folders/vb/vpcg5jdd3xsbq6xd77tv1x0jdgfsjw/T/pi-clipboard-319fc6cf-68c2-4398-aaa1-a9e0b49573c6.png`
+
+The next iteration should focus on structured transcript retrieval and parsing/fallback correctness for videos where YouTube has captions, not on DOM transcript-panel scraping.
 
 ## Acceptance examples
 
-- [ ] Given the active YouTube video is `A04b-52jtos` and it has transcript data, when the user opens the omnibar and types `t/`, then transcript fetching is correlated with `A04b-52jtos` and transcript results for that video can render.
-- [ ] Given transcript fetch for video A is pending, when YouTube SPA navigation changes the active video to video B before the response resolves, then the response for A is ignored for B and does not become a terminal unavailable status for B.
-- [ ] Given the bridge or structured YouTube globals temporarily report an old video id while the URL/runtime reports a new active video id, when transcript mode requests data, then Vilify applies one explicit current-video identity policy instead of permanently caching a mismatch as unavailable.
-- [ ] Given a video truly has no transcript available, when transcript mode settles, then the unavailable reason is tied to the current active video id and is not caused solely by a stale response for a previous video.
+- [ ] Given `https://www.youtube.com/watch?v=xmkSf5IS-zw` shows YouTube `Subtitles/CC (2)`, when the user opens Vilify and types `t/`, then transcript lines render instead of `Transcript unavailable (caption-parse-failed)`.
+- [ ] Given a caption track response is in a YouTube-supported structured caption format, when Vilify fetches it, then the parser either returns timestamped `TranscriptLine` values or falls back to another structured track/format before reporting unavailable.
+- [ ] Given transcript fetch/parsing genuinely fails after all structured fallbacks, when Vilify reports unavailable, then the reason identifies the failed source/format enough to debug without inspecting visible YouTube UI.
+- [x] Given transcript fetch for video A is pending, when YouTube SPA navigation changes the active video to video B before the response resolves, then the response for A is ignored for B and does not become a terminal unavailable status for B.
+- [x] Given the bridge or structured YouTube globals temporarily report an old video id while the URL/runtime reports a new active video id, when transcript mode requests data, then Vilify applies one explicit current-video identity policy instead of permanently caching a mismatch as unavailable.
 
 ## Data definition impact
 
-Expected changes around transcript request identity and load state. Options include adding an explicit requested video id, request generation token, or stale-response state to the transcript provider/bridge boundary. Preserve the invariant that cached transcript results are keyed by the video they belong to, not by whatever video happens to be active when an async response resolves.
+Likely changes are now around structured transcript source/fetch/parse diagnostics, not just provider cache identity. Consider adding or refining data definitions for caption fetch attempts, caption response format/source, parser failure reason, and fallback ordering so `caption-parse-failed` can be tested with fixtures and not treated as a terminal black box. Preserve the invariant that cached transcript results are keyed by the video they belong to.
 
 ## HtDP entry note
 
-Phase 0 problem statement: fix the transcript mismatch bug shown in the screenshot where transcript mode reports a response for one video while the active video is another. Keep the v1 reliability boundary: use structured YouTube protocols/data and native video APIs only; do not click or scrape the visible transcript panel. The implementation should be small and evidence-backed, with tests that simulate pending transcript requests across active-video changes.
+Phase 0 problem statement: finish the transcript user story for real captioned YouTube videos. A previous iteration implemented request identity, stale response discard/retry behavior, and prefix marker/display work through version `0.6.98`; symbolic tests pass, but manual verification failed for `xmkSf5IS-zw` with `caption-parse-failed` despite YouTube showing captions. Start from the structured bridge/parser path: inspect caption-track URL construction, response text, parser assumptions, and fallback order using fixtures where possible.
+
+Constraints:
+
+- Do not scrape YouTube's visible transcript panel.
+- Do not click `Show transcript`, captions menus, or other visible controls as the feature strategy.
+- Keep using structured YouTube protocols/data and caption track URLs.
+- Keep the stale response discard/retry behavior from the previous iteration.
 
 ## Verification
 
 - `bun run build`
 - `bun run test`
-- Unit/provider tests for stale response isolation, retry/fresh request behavior for the active video, and cache keys by video id.
-- Bridge/client tests, if needed, for mismatched requested-vs-returned video ids.
-- Manual YouTube smoke test on a known video with transcripts: open `:`, type `t/`, confirm transcript results render instead of the mismatch unavailable row.
+- Unit tests with fixture caption responses that reproduce or guard against `caption-parse-failed` for supported YouTube caption formats.
+- Provider/bridge tests confirming stale responses still discard/retry and true unavailable states remain tied to the requested active video.
+- Manual YouTube smoke test on `https://www.youtube.com/watch?v=xmkSf5IS-zw`: open `:`, type `t/`, confirm transcript results render.
 
 ## Blocked by
 
-- None - can start immediately.
+- Manual browser verification is required before marking done, because the failure is against live YouTube caption data.
 
 ## HtDP iterations
 
-- None yet.
+- 2026-04-29: Implemented transcript request identity, stale response discard/retry settlement, cache-key isolation, and tests through version `0.6.98`. `bun run build` and `bun run test` passed, but final manual verification failed on `xmkSf5IS-zw` with `caption-parse-failed`; this issue remains open for structured caption parsing/fallback correctness.
 
 ## Out of scope
 
 - Scraping or opening YouTube's visible transcript panel.
 - Persistent transcript sidebars/drawers.
 - Non-YouTube transcript providers.
-- Broad rewrites of the omnibar runtime unrelated to transcript request identity.
+- Visual alignment/palette work; see `issue-0024` for the remaining alignment polish.

@@ -93,3 +93,4 @@ Use a compiler-driven TypeScript pass because the transcript fix should be model
 
 - 2026-04-29T20:12:32Z — First stubber dispatch returned 0 wishes; retrying Phase 1 with narrower file-level context because the requirement clearly needs code/test changes.
 - 2026-04-29T21:30:35Z — Layer 2 wishes show `fail` in status because implementer_post ran full tests while downstream stubs were still pending; later full-suite verification passes after layer 1/0, so treating the layer 2 code as complete for Phase 3.
+- 2026-04-29T21:45:00Z — Final human verification: transcript item failed on `xmkSf5IS-zw` with `caption-parse-failed` despite YouTube showing `Subtitles/CC (2)`, so issue-0020 remains open and is reframed around structured caption parsing/fallback. Visual palette/type-scale/marker items passed; result/input alignment polish was split to issue-0024.
