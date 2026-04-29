@@ -44,7 +44,7 @@ function makeRowMarkerItem(overrides: Partial<OmnibarItem> = {}): OmnibarItem {
 }
 
 describe('omnibar view definition', () => {
-  it('defines a scrollable results viewport, wrapping row text, explicit classes, and a default Vim dark palette', () => {
+  it('composes a scrollable viewport, wrapping row text, explicit classes, readable layout, and Vim-like theme tokens', () => {
     const definition = getOmnibarViewDefinition();
 
     expect(definition.resultsViewport).toEqual({
@@ -59,6 +59,7 @@ describe('omnibar view definition', () => {
       subtitleWrap: 'wrap',
       statusWrap: 'wrap',
     });
+    expect(definition.layout).toEqual(createReadableOmnibarLayoutDefinition());
     expect(definition.theme.kindClasses).toEqual({
       navigation: 'vilify-omnibar-kind-navigation',
       command: 'vilify-omnibar-kind-command',
@@ -81,6 +82,7 @@ describe('omnibar view definition', () => {
       status: 'vilify-omnibar-syntax-status',
       title: 'vilify-omnibar-syntax-title',
     });
+    expect(definition.theme.tokens).toEqual(createSyntaxLikeOmnibarThemeTokens());
     expect(definition.theme.tokens).toEqual({
       background: '#000000',
       foreground: '#e8e8d3',
