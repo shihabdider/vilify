@@ -265,6 +265,88 @@ describe('YouTube root intent helpers', () => {
     ).toEqual([]);
   });
 
+  it('routes s/, t/, and n/ root intents through prefix display metadata without changing actions', () => {
+    const home = makeContext('https://www.youtube.com/').context;
+    const homeCapability = deriveYouTubePageCapability(home);
+    const { context: watch } = makeWatchContext('prefixed-root-intent-video');
+    const watchCapability = deriveYouTubePageCapability(watch);
+
+    expect(
+      itemsForYouTubeRootIntent(
+        youtubeRootCommands,
+        homeCapability,
+        { kind: 'youtube-search', query: 'lofi beats', prefix: 's/' },
+        home,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: 'youtube-search-lofi-beats',
+        display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 's/' } }),
+        action: { kind: 'navigate', url: 'https://www.youtube.com/results?search_query=lofi%20beats' },
+      }),
+    ]);
+
+    expect(
+      itemsForYouTubeRootIntent(
+        youtubeRootCommands,
+        homeCapability,
+        { kind: 'transcript-search', query: 'needle', prefix: 't/' },
+        home,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-search-unavailable',
+        kind: 'status',
+        display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 't/' } }),
+        action: { kind: 'noop' },
+      }),
+    ]);
+
+    expect(
+      itemsForYouTubeRootIntent(
+        youtubeRootCommands,
+        watchCapability,
+        { kind: 'navigation-filter', query: 'history', prefix: 'n/' },
+        watch,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: 'youtube-nav-history',
+        kind: 'navigation',
+        display: expect.objectContaining({ marker: { kind: 'prefix', prefix: 'n/' } }),
+        action: { kind: 'navigate', url: 'https://www.youtube.com/feed/history' },
+      }),
+    ]);
+  });
+
+  it('leaves unprefixed command filters and root hints without prefix display metadata', () => {
+    const { context } = makeWatchContext('unprefixed-root-intent-video');
+    const capability = deriveYouTubePageCapability(context);
+
+    const hints = itemsForYouTubeRootIntent(
+      youtubeRootCommands,
+      capability,
+      { kind: 'command-filter', query: '   ' },
+      context,
+    );
+    const commands = itemsForYouTubeRootIntent(
+      youtubeRootCommands,
+      capability,
+      { kind: 'command-filter', query: 'copy time' },
+      context,
+    );
+
+    expect(ids(hints)).toEqual(ROOT_HINT_IDS);
+    expect(hints.every((item) => item.display?.marker === undefined)).toBe(true);
+    expect(commands).toEqual([
+      expect.objectContaining({
+        id: 'youtube-copy-url-at-current-time',
+        action: { kind: 'copy', source: { kind: 'current-url-at-video-time' } },
+      }),
+    ]);
+    expect(commands.every((item) => item.display?.marker === undefined)).toBe(true);
+  });
+
   it('limits n/{query} intent filtering to navigation commands', () => {
     const { context } = makeWatchContext('navigation-filter-video');
     const capability = deriveYouTubePageCapability(context);
