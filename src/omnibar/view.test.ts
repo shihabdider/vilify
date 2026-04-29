@@ -156,12 +156,37 @@ describe('omnibar view definition', () => {
   it('derives readable type-scale layout tokens bounded to the viewport', () => {
     const layout = createReadableOmnibarLayoutDefinition();
 
+    expect(Object.keys(layout).sort()).toEqual([
+      'baseFontSize',
+      'footerPadding',
+      'kindColumnWidth',
+      'lineHeight',
+      'markerColumnWidth',
+      'overlayPadding',
+      'panelMaxHeight',
+      'panelWidth',
+      'promptPadding',
+      'resultsMaxHeight',
+      'rowColumnGap',
+      'rowGap',
+      'rowPadding',
+    ].sort());
     expect(layout.baseFontSize).toMatch(/^(?:1[6-9]px|clamp\()/);
     expect(layout.lineHeight).toMatch(/^(?:1\.[4-9]|clamp\()/);
     expect(layout.panelWidth).toMatch(/^min\((?:8[8-9]|9[0-6])ch,\s*calc\(100vw - 2rem\)\)$/);
     expect(layout.panelMaxHeight).toMatch(/^min\((?:7[4-9]|8[0-5])vh,/);
+    expect(layout.panelMaxHeight).toContain('calc(100vh - 2rem)');
     expect(layout.resultsMaxHeight).toMatch(/^min\((?:5[8-9]|6[0-8])vh,/);
+    expect(layout.resultsMaxHeight).toContain('calc(100vh - 8rem)');
+    expect(layout.overlayPadding).toBe('1rem');
+    expect(layout.promptPadding).toMatch(/^0\.[6-9]rem 0\.9rem$/);
+    expect(layout.rowPadding).toMatch(/^0\.[5-7]rem 0\.9rem$/);
     expect(layout.rowPadding).not.toBe('0.45rem 0.75rem');
+    expect(layout.footerPadding).toMatch(/^0\.[5-7]rem 0\.9rem$/);
+    expect(layout.markerColumnWidth).toMatch(/^[12]ch$/);
+    expect(layout.kindColumnWidth).toMatch(/^1[0-4]ch$/);
+    expect(layout.rowColumnGap).toMatch(/^0\.[6-9]rem$/);
+    expect(layout.rowGap).toMatch(/^0\.[12]rem$/);
   });
 
   it('derives display-only row marker and syntax parts without changing item actions', () => {

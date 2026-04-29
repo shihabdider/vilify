@@ -453,7 +453,21 @@ export function createSyntaxLikeOmnibarThemeTokens(): Record<OmnibarThemeToken, 
 }
 
 export function createReadableOmnibarLayoutDefinition(): OmnibarLayoutDefinition {
-  throw new Error('not implemented: createReadableOmnibarLayoutDefinition');
+  return {
+    baseFontSize: '16px',
+    lineHeight: '1.45',
+    panelWidth: 'min(92ch, calc(100vw - 2rem))',
+    panelMaxHeight: 'min(80vh, calc(100vh - 2rem))',
+    resultsMaxHeight: 'min(64vh, calc(100vh - 8rem))',
+    overlayPadding: '1rem',
+    promptPadding: '0.7rem 0.9rem',
+    rowPadding: '0.6rem 0.9rem',
+    footerPadding: '0.5rem 0.9rem',
+    markerColumnWidth: '2ch',
+    kindColumnWidth: '12ch',
+    rowColumnGap: '0.8rem',
+    rowGap: '0.2rem',
+  };
 }
 
 export function deriveOmnibarRowMarker(item: OmnibarItem, query: string): OmnibarRowMarker {
