@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { transformSync } from 'esbuild';
 import { describe, expect, it, vi } from 'vitest';
 import { createOmnibarActionExecutor } from '../../omnibar/actions';
 import { createOmnibarRuntime } from '../../omnibar/runtime';
@@ -35,6 +38,7 @@ import {
   settleTranscriptLoadResult,
   shouldDiscardStaleTranscriptResult,
   type TranscriptRequestIdentity,
+  type TranscriptSettledLoadState,
 } from './transcript-mode';
 
 function providerContext(dom: JSDOM): ProviderContext {
@@ -96,6 +100,145 @@ async function flushBridgeSettlement(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+type FreshTranscriptResult = Exclude<TranscriptResult, { readonly status: 'stale' }>;
+
+type LoadStateFromResult = (
+  request: TranscriptRequestIdentity,
+  result: FreshTranscriptResult,
+) => TranscriptSettledLoadState;
+
+function loadPrivateLoadStateFromResult(): LoadStateFromResult {
+  const source = readFileSync(new URL('./transcript-mode.ts', import.meta.url), 'utf8');
+  const functionSource = extractFunctionSource(source, 'loadStateFromResult');
+  const compiled = transformSync(
+    `${functionSource}\n(globalThis as { __loadStateFromResult?: LoadStateFromResult }).__loadStateFromResult = loadStateFromResult;`,
+    {
+      format: 'cjs',
+      loader: 'ts',
+      target: 'es2020',
+    },
+  ).code;
+  const sandbox: { __loadStateFromResult?: LoadStateFromResult } = {};
+
+  runInNewContext(compiled, sandbox);
+  if (!sandbox.__loadStateFromResult) {
+    throw new Error('Could not load private loadStateFromResult helper.');
+  }
+
+  return sandbox.__loadStateFromResult;
+}
+
+function extractFunctionSource(source: string, functionName: string): string {
+  const marker = `function ${functionName}(`;
+  const start = source.indexOf(marker);
+  if (start < 0) {
+    throw new Error(`Could not find ${functionName}.`);
+  }
+
+  const paramsStart = source.indexOf('(', start);
+  let paramsDepth = 0;
+  let paramsEnd = -1;
+  for (let index = paramsStart; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '(') {
+      paramsDepth += 1;
+    } else if (char === ')') {
+      paramsDepth -= 1;
+      if (paramsDepth === 0) {
+        paramsEnd = index;
+        break;
+      }
+    }
+  }
+
+  const firstBrace = source.indexOf('{', paramsEnd);
+  if (paramsEnd < 0 || firstBrace < 0) {
+    throw new Error(`Could not find ${functionName} body.`);
+  }
+
+  let depth = 0;
+  for (let index = firstBrace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(start, index + 1);
+      }
+    }
+  }
+
+  throw new Error(`Could not find ${functionName} body end.`);
+}
+
+describe('loadStateFromResult', () => {
+  const loadStateFromResult = loadPrivateLoadStateFromResult();
+
+  it('preserves a loaded transcript result with the request identity', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'fresh-loaded-video-0020',
+      requestedVideoId: 'fresh-loaded-video-0020',
+      cacheVideoId: 'fresh-loaded-video-0020',
+    };
+    const result: FreshTranscriptResult = {
+      status: 'loaded',
+      videoId: 'fresh-loaded-video-0020',
+      language: 'en',
+      source: 'caption-json3',
+      trackName: 'English',
+      lines: [
+        { time: 12, timeText: '0:12', duration: 3, text: 'Fresh loaded transcript line' },
+      ],
+    };
+
+    expect(loadStateFromResult(request, result)).toEqual({
+      status: 'loaded',
+      request,
+      result,
+    });
+  });
+
+  it('preserves an unavailable reason and message with the request identity', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'fresh-unavailable-video-0020',
+      requestedVideoId: 'fresh-unavailable-video-0020',
+      cacheVideoId: 'fresh-unavailable-video-0020',
+    };
+    const result: FreshTranscriptResult = {
+      status: 'unavailable',
+      videoId: 'fresh-unavailable-video-0020',
+      reason: 'empty-transcript',
+      message: 'No captions are available for this video.',
+    };
+
+    expect(loadStateFromResult(request, result)).toEqual({
+      status: 'unavailable',
+      request,
+      reason: 'empty-transcript',
+      message: 'No captions are available for this video.',
+    });
+  });
+
+  it('keeps unavailable state minimal when the bridge did not provide a message', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'fresh-timeout-video-0020',
+      requestedVideoId: 'fresh-timeout-video-0020',
+      cacheVideoId: 'fresh-timeout-video-0020',
+    };
+    const result: FreshTranscriptResult = {
+      status: 'unavailable',
+      reason: 'timeout',
+    };
+
+    expect(loadStateFromResult(request, result)).toEqual({
+      status: 'unavailable',
+      request,
+      reason: 'timeout',
+    });
+  });
+});
 
 describe('transcript stale-response settlement', () => {
   it('keeps fresh loaded and unavailable results for the request cache video', () => {

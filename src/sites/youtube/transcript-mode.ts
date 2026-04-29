@@ -165,9 +165,16 @@ function loadStateFromResult(
   request: TranscriptRequestIdentity,
   result: Exclude<TranscriptResult, { readonly status: 'stale' }>,
 ): TranscriptSettledLoadState {
-  void request;
-  void result;
-  throw new Error('not implemented: loadStateFromResult');
+  if (result.status === 'loaded') {
+    return { status: 'loaded', request, result };
+  }
+
+  return {
+    status: 'unavailable',
+    request,
+    reason: result.reason,
+    ...(result.message !== undefined ? { message: result.message } : {}),
+  };
 }
 
 function createTranscriptRequestIdentity(videoId: string): TranscriptRequestIdentity {
