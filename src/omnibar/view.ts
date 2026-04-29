@@ -476,8 +476,8 @@ export function createReadableOmnibarLayoutDefinition(): OmnibarLayoutDefinition
     rowPadding: '0.6rem 0.9rem',
     footerPadding: '0.5rem 0.9rem',
     markerColumnWidth: '2ch',
-    kindColumnWidth: '12ch',
-    rowColumnGap: '0.8rem',
+    kindColumnWidth: '8ch',
+    rowColumnGap: '0.6rem',
     rowGap: '0.2rem',
   };
 }

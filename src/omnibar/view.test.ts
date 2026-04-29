@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { makeOmnibarTestDom } from '../test-helpers/omnibar';
 import type { OmnibarItem, OmnibarRowMarker } from './types';
+import type { OmnibarLayoutDefinition } from './view';
 import {
   buildOmnibarStyleSheet,
   classForOmnibarItemKind,
@@ -41,6 +42,41 @@ function makeRowMarkerItem(overrides: Partial<OmnibarItem> = {}): OmnibarItem {
     action: { kind: 'noop' },
     ...overrides,
   };
+}
+
+function cssLengthValue(length: string, unit: 'ch' | 'rem'): number {
+  const match = new RegExp(`^(\\d+(?:\\.\\d+)?)${unit}$`).exec(length);
+  if (!match) {
+    throw new Error(`Expected ${length} to be a plain ${unit} length`);
+  }
+
+  return Number(match[1]);
+}
+
+function paddingInlineStartRem(padding: string): number {
+  const parts = padding.trim().split(/\s+/);
+  const inlineStart = parts.length === 1 ? parts[0] : parts.length === 4 ? parts[3] : parts[1];
+
+  return cssLengthValue(inlineStart, 'rem');
+}
+
+function approximateDefaultYouTubePromptInputStartCh(layout: OmnibarLayoutDefinition): number {
+  const approximateChPerRem = 1.65;
+  const defaultYouTubePromptLabelCh = 'youtube ❯ :'.length;
+  const promptInputFlexGapCh = 1;
+
+  return (paddingInlineStartRem(layout.promptPadding) * approximateChPerRem)
+    + defaultYouTubePromptLabelCh
+    + promptInputFlexGapCh;
+}
+
+function approximateRowTitleStartCh(layout: OmnibarLayoutDefinition): number {
+  const approximateChPerRem = 1.65;
+
+  return (paddingInlineStartRem(layout.rowPadding) * approximateChPerRem)
+    + cssLengthValue(layout.markerColumnWidth, 'ch')
+    + cssLengthValue(layout.kindColumnWidth, 'ch')
+    + (2 * cssLengthValue(layout.rowColumnGap, 'rem') * approximateChPerRem);
 }
 
 describe('omnibar view definition', () => {
@@ -197,9 +233,19 @@ describe('omnibar view definition', () => {
     expect(layout.rowPadding).not.toBe('0.45rem 0.75rem');
     expect(layout.footerPadding).toMatch(/^0\.[5-7]rem 0\.9rem$/);
     expect(layout.markerColumnWidth).toMatch(/^[12]ch$/);
-    expect(layout.kindColumnWidth).toMatch(/^1[0-4]ch$/);
+    expect(layout.kindColumnWidth).toMatch(/^[2-8]ch$/);
     expect(layout.rowColumnGap).toMatch(/^0\.[6-9]rem$/);
     expect(layout.rowGap).toMatch(/^0\.[12]rem$/);
+  });
+
+  it('aligns the result title column near the default YouTube prompt input start without hiding two-character prefix markers', () => {
+    const layout = createReadableOmnibarLayoutDefinition();
+    const promptInputStartCh = approximateDefaultYouTubePromptInputStartCh(layout);
+    const rowTitleStartCh = approximateRowTitleStartCh(layout);
+
+    expect(cssLengthValue(layout.kindColumnWidth, 'ch')).toBeGreaterThanOrEqual(2);
+    expect(layout.kindColumnWidth).not.toBe('12ch');
+    expect(Math.abs(rowTitleStartCh - promptInputStartCh)).toBeLessThanOrEqual(1);
   });
 
   describe('deriveOmnibarRowMarker', () => {
