@@ -82,6 +82,36 @@ function pendingBridgeFactory() {
   return { createBridgeClient, getTranscript };
 }
 
+interface ControllableTranscriptRequest {
+  readonly videoId: string | undefined;
+  readonly promise: Promise<TranscriptResult>;
+  readonly resolve: (result: TranscriptResult) => void;
+  readonly reject: (error: unknown) => void;
+}
+
+function controllableBridgeFactory() {
+  const requests: ControllableTranscriptRequest[] = [];
+  const getTranscript = vi.fn((videoId?: string) => {
+    let resolveRequest!: (result: TranscriptResult) => void;
+    let rejectRequest!: (error: unknown) => void;
+    const promise = new Promise<TranscriptResult>((resolve, reject) => {
+      resolveRequest = resolve;
+      rejectRequest = reject;
+    });
+
+    requests.push({ videoId, promise, resolve: resolveRequest, reject: rejectRequest });
+    return promise;
+  });
+  const createBridgeClient = vi.fn(
+    (): YouTubeBridgeClient => ({
+      getVideoMetadata: async () => ({ status: 'unavailable', reason: 'bridge-unavailable' }),
+      getTranscript,
+    }),
+  );
+
+  return { createBridgeClient, getTranscript, requests };
+}
+
 function dispatchTranscriptResponse(
   document: Document,
   request: YouTubeBridgeRequest,
@@ -741,6 +771,166 @@ describe('youtubeTranscriptMode provider', () => {
       kind: 'get-transcript',
       videoId: 'pending-video-0010',
     });
+  });
+
+  it('settles resolved transcript promises with the request identity and requests a render', async () => {
+    const state = createTranscriptProviderState();
+    const { createBridgeClient, getTranscript, requests } = controllableBridgeFactory();
+    const mode = createYouTubeTranscriptMode({ state, createBridgeClient });
+    const dom = makeDom('identity-video-0020');
+    const requestRender = vi.fn();
+    const context: ProviderContext = { ...providerContext(dom), requestRender };
+
+    expect(transcriptItemsForMode(mode, context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-identity-video-0020',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(transcriptItemsForMode(mode, context, 'identity')).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-identity-video-0020',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(createBridgeClient).toHaveBeenCalledTimes(1);
+    expect(createBridgeClient).toHaveBeenCalledWith(context);
+    expect(getTranscript).toHaveBeenCalledTimes(1);
+    expect(getTranscript).toHaveBeenCalledWith('identity-video-0020');
+    expect(state.cacheByVideoId.get('identity-video-0020')).toMatchObject({
+      status: 'loading',
+      request: {
+        activeVideoIdAtRequest: 'identity-video-0020',
+        requestedVideoId: 'identity-video-0020',
+        cacheVideoId: 'identity-video-0020',
+      },
+    });
+
+    requests[0].resolve({
+      status: 'loaded',
+      videoId: 'identity-video-0020',
+      language: 'en',
+      source: 'caption-json3',
+      lines: [{ time: 9, timeText: '0:09', duration: 2, text: 'Identity line' }],
+    });
+    await flushBridgeSettlement();
+
+    expect(requestRender).toHaveBeenCalledTimes(1);
+    expect(state.cacheByVideoId.get('identity-video-0020')).toMatchObject({
+      status: 'loaded',
+      request: {
+        activeVideoIdAtRequest: 'identity-video-0020',
+        requestedVideoId: 'identity-video-0020',
+        cacheVideoId: 'identity-video-0020',
+      },
+      result: {
+        status: 'loaded',
+        videoId: 'identity-video-0020',
+        lines: [{ time: 9, timeText: '0:09', duration: 2, text: 'Identity line' }],
+      },
+    });
+    expect(transcriptItemsForMode(mode, context, 'identity')).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-line-identity-video-0020-0-9000',
+        kind: 'search-result',
+        title: '0:09 Identity line',
+      }),
+    ]);
+  });
+
+  it('discards stale transcript promises, requests a render, and retries on the next provider call', async () => {
+    const state = createTranscriptProviderState();
+    const { createBridgeClient, getTranscript, requests } = controllableBridgeFactory();
+    const mode = createYouTubeTranscriptMode({ state, createBridgeClient });
+    const dom = makeDom('retryable-stale-video-0020');
+    const requestRender = vi.fn();
+    const context: ProviderContext = { ...providerContext(dom), requestRender };
+
+    expect(transcriptItemsForMode(mode, context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-retryable-stale-video-0020',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(getTranscript).toHaveBeenCalledTimes(1);
+
+    requests[0].resolve({
+      status: 'stale',
+      reason: 'stale-video-id',
+      requestedVideoId: 'retryable-stale-video-0020',
+      actualVideoId: 'other-stale-video-0020',
+    });
+    await flushBridgeSettlement();
+
+    expect(requestRender).toHaveBeenCalledTimes(1);
+    expect(state.cacheByVideoId.has('retryable-stale-video-0020')).toBe(false);
+
+    expect(transcriptItemsForMode(mode, context, 'stale')).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-retryable-stale-video-0020',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+    expect(getTranscript).toHaveBeenCalledTimes(2);
+    expect(getTranscript).toHaveBeenLastCalledWith('retryable-stale-video-0020');
+    expect(state.cacheByVideoId.get('retryable-stale-video-0020')).toMatchObject({
+      status: 'loading',
+      request: {
+        activeVideoIdAtRequest: 'retryable-stale-video-0020',
+        requestedVideoId: 'retryable-stale-video-0020',
+        cacheVideoId: 'retryable-stale-video-0020',
+      },
+    });
+    expect(transcriptItemsForMode(mode, context, 'stale')).not.toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-unavailable-retryable-stale-video-0020',
+      }),
+    ]);
+  });
+
+  it('stores rejected transcript promises as unavailable and requests a render', async () => {
+    const state = createTranscriptProviderState();
+    const { createBridgeClient, getTranscript, requests } = controllableBridgeFactory();
+    const mode = createYouTubeTranscriptMode({ state, createBridgeClient });
+    const dom = makeDom('rejected-video-0020');
+    const requestRender = vi.fn();
+    const context: ProviderContext = { ...providerContext(dom), requestRender };
+
+    expect(transcriptItemsForMode(mode, context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-loading-rejected-video-0020',
+        kind: 'status',
+        title: 'Loading transcript…',
+      }),
+    ]);
+
+    requests[0].reject(new Error('Bridge rejected transcript request.'));
+    await flushBridgeSettlement();
+
+    expect(requestRender).toHaveBeenCalledTimes(1);
+    expect(getTranscript).toHaveBeenCalledTimes(1);
+    expect(state.cacheByVideoId.get('rejected-video-0020')).toMatchObject({
+      status: 'unavailable',
+      request: {
+        activeVideoIdAtRequest: 'rejected-video-0020',
+        requestedVideoId: 'rejected-video-0020',
+        cacheVideoId: 'rejected-video-0020',
+      },
+      reason: 'bridge-error',
+      message: 'Bridge rejected transcript request.',
+    });
+    expect(transcriptItemsForMode(mode, context)).toEqual([
+      expect.objectContaining({
+        id: 'youtube-transcript-unavailable-rejected-video-0020',
+        kind: 'status',
+        title: 'Transcript unavailable',
+        subtitle: 'Bridge rejected transcript request.',
+      }),
+    ]);
   });
 
   it('renders loaded matching transcript lines as ranked timestamped search results with stable seek actions', async () => {
