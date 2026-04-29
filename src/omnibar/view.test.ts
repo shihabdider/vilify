@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { makeOmnibarTestDom } from '../test-helpers/omnibar';
+import type { OmnibarItem, OmnibarRowMarker } from './types';
 import {
   buildOmnibarStyleSheet,
   classForOmnibarItemKind,
@@ -30,6 +31,16 @@ function relativeLuminance(hexColor: string): number {
     });
 
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function makeRowMarkerItem(overrides: Partial<OmnibarItem> = {}): OmnibarItem {
+  return {
+    id: 'row-marker-item',
+    kind: 'command',
+    title: 'Row marker item',
+    action: { kind: 'noop' },
+    ...overrides,
+  };
 }
 
 describe('omnibar view definition', () => {
@@ -187,6 +198,44 @@ describe('omnibar view definition', () => {
     expect(layout.kindColumnWidth).toMatch(/^1[0-4]ch$/);
     expect(layout.rowColumnGap).toMatch(/^0\.[6-9]rem$/);
     expect(layout.rowGap).toMatch(/^0\.[12]rem$/);
+  });
+
+  describe('deriveOmnibarRowMarker', () => {
+    it('returns the explicit display marker when one is present', () => {
+      const marker: OmnibarRowMarker = { kind: 'prefix', prefix: 't/' };
+      const emptyMarker: OmnibarRowMarker = { kind: 'empty' };
+      const item = makeRowMarkerItem({ display: { marker } });
+      const emptyItem = makeRowMarkerItem({ display: { marker: emptyMarker } });
+
+      expect(deriveOmnibarRowMarker(item, 's/active search')).toBe(marker);
+      expect(deriveOmnibarRowMarker(emptyItem, 't/active search')).toBe(emptyMarker);
+    });
+
+    it.each([
+      ['s/lofi beats', 's/'],
+      ['t/needle', 't/'],
+      ['n/history', 'n/'],
+      ['s/', 's/'],
+    ] as const)('derives prefix marker %s from active prefix query context', (query, prefix) => {
+      expect(deriveOmnibarRowMarker(makeRowMarkerItem(), query)).toEqual({ kind: 'prefix', prefix });
+    });
+
+    it.each(['', 'search text', 'x/s/lofi', 'S/lofi', ' t/needle'] as const)(
+      'returns an empty marker for non-prefix query %j',
+      (query) => {
+        expect(deriveOmnibarRowMarker(makeRowMarkerItem(), query)).toEqual({ kind: 'empty' });
+      },
+    );
+
+    it('does not derive a marker from status or action semantics', () => {
+      const item = makeRowMarkerItem({
+        kind: 'status',
+        tone: 'warning',
+        action: { kind: 'close' },
+      });
+
+      expect(deriveOmnibarRowMarker(item, 'warning')).toEqual({ kind: 'empty' });
+    });
   });
 
   it('derives display-only row marker and syntax parts without changing item actions', () => {

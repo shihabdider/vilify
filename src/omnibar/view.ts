@@ -471,9 +471,25 @@ export function createReadableOmnibarLayoutDefinition(): OmnibarLayoutDefinition
 }
 
 export function deriveOmnibarRowMarker(item: OmnibarItem, query: string): OmnibarRowMarker {
-  void item;
-  void query;
-  throw new Error('not implemented: deriveOmnibarRowMarker');
+  const explicitMarker = item.display?.marker;
+
+  if (explicitMarker) {
+    return explicitMarker;
+  }
+
+  if (query.startsWith('s/')) {
+    return { kind: 'prefix', prefix: 's/' };
+  }
+
+  if (query.startsWith('t/')) {
+    return { kind: 'prefix', prefix: 't/' };
+  }
+
+  if (query.startsWith('n/')) {
+    return { kind: 'prefix', prefix: 'n/' };
+  }
+
+  return { kind: 'empty' };
 }
 
 export function deriveOmnibarSyntaxParts(item: OmnibarItem): readonly OmnibarSyntaxPart[] {
