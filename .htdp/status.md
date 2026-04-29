@@ -2,7 +2,7 @@
 
 phase: 2
 layer: 1
-updated: 2026-04-29T21:22:12.581Z
+updated: 2026-04-29T21:23:04.634Z
 
 ## Wishes
 
@@ -20,7 +20,7 @@ updated: 2026-04-29T21:22:12.581Z
 | settleTranscriptLoadResult | src/sites/youtube/transcript-mode.ts | 1 | pass | 255.3s |
 | getOmnibarViewDefinition | src/omnibar/view.ts | 1 | pass | 167.0s |
 | renderItem | src/omnibar/runtime.ts | 1 | pass | 261.2s |
-| itemsForYouTubeRootIntent | src/sites/youtube/default-mode.ts | 1 | pass | 141.0s |
+| itemsForYouTubeRootIntent | src/sites/youtube/default-mode.ts | 1 | pass | 188.1s |
 | startTranscriptLoad | src/sites/youtube/transcript-mode.ts | 0 | pending | - |
 
 ## Log
@@ -64,5 +64,6 @@ updated: 2026-04-29T21:22:12.581Z
 - 17:19:42 renderItem: pass (261.2s, $1.6352)
 - 17:19:44 implementer_post verification for renderItem: pass
 - 17:19:51 itemsForYouTubeRootIntent: running
-- 17:22:12 itemsForYouTubeRootIntent: pass (141.0s, manual)
-- 17:22:12 implementer_post verification for itemsForYouTubeRootIntent: pass
+- 17:22:59 itemsForYouTubeRootIntent: pass (188.1s, $1.3541)
+- 17:23:02 implementer_post verification for itemsForYouTubeRootIntent: pass
+- 17:23:04 layer 1 verification: pass
