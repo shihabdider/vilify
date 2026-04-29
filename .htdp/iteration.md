@@ -88,6 +88,7 @@ Use a compiler-driven pass because this iteration changes TypeScript data defini
 
 - 2026-04-29T17:26:53Z — Started fresh iteration for issues 0014-0019 after user chose not to resume old issue 0012 iteration.
 - 2026-04-29T17:26:53Z — User confirmed Phase 0 understanding with `go`, including explicit `t/` missing-video status and conservative Vim-like palette assumptions.
+- 2026-04-29T17:40:00Z — User accepted stubber-flagged assertion updates for version 0.6.80, wrapped rows, new theme tokens/classes, pruned playback controls, capability-gated commands, and direct `t/` prefix behavior.
 
 ### Look Back
 
