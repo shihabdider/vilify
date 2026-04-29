@@ -354,9 +354,15 @@ export function applyTranscriptLoadSettlement(
   state: TranscriptProviderState,
   settlement: TranscriptLoadSettlement,
 ): void {
-  void state;
-  void settlement;
-  throw new Error('not implemented: applyTranscriptLoadSettlement');
+  if (settlement.kind === 'store') {
+    state.cacheByVideoId.set(settlement.videoId, settlement.state);
+    return;
+  }
+
+  const currentState = state.cacheByVideoId.get(settlement.retryVideoId);
+  if (currentState?.status === 'loading' && currentState.request === settlement.request) {
+    state.cacheByVideoId.delete(settlement.retryVideoId);
+  }
 }
 
 function createBridgeClientForContext(context: ProviderContext): YouTubeBridgeClient {

@@ -312,6 +312,35 @@ describe('transcript stale-response settlement', () => {
     });
   });
 
+  it('stores settled transcript states under the settlement video cache key', () => {
+    const state = createTranscriptProviderState();
+    const request = {
+      activeVideoIdAtRequest: 'request-cache-video-0020',
+      requestedVideoId: 'request-cache-video-0020',
+      cacheVideoId: 'request-cache-video-0020',
+    };
+    const settledState: TranscriptSettledLoadState = {
+      status: 'loaded',
+      request,
+      result: {
+        status: 'loaded',
+        videoId: 'stored-video-0020',
+        language: 'en',
+        source: 'caption-json3',
+        lines: [{ time: 4, timeText: '0:04', duration: 2, text: 'Stored transcript line' }],
+      },
+    };
+
+    applyTranscriptLoadSettlement(state, {
+      kind: 'store',
+      videoId: 'stored-video-0020',
+      state: settledState,
+    });
+
+    expect(state.cacheByVideoId.get('stored-video-0020')).toBe(settledState);
+    expect(state.cacheByVideoId.has('request-cache-video-0020')).toBe(false);
+  });
+
   it('removes a stale loading slot so the active video can issue a fresh transcript request', () => {
     const state = createTranscriptProviderState();
     const request = {
@@ -339,6 +368,45 @@ describe('transcript stale-response settlement', () => {
     });
 
     expect(state.cacheByVideoId.has('retry-video-0020')).toBe(false);
+  });
+
+  it('leaves a newer loading slot in place when an older stale request settles', () => {
+    const state = createTranscriptProviderState();
+    const staleRequest = {
+      activeVideoIdAtRequest: 'retry-video-0021',
+      requestedVideoId: 'retry-video-0021',
+      cacheVideoId: 'retry-video-0021',
+    };
+    const freshRequest = {
+      activeVideoIdAtRequest: 'retry-video-0021',
+      requestedVideoId: 'retry-video-0021',
+      cacheVideoId: 'retry-video-0021',
+    };
+    const staleResult = {
+      status: 'stale' as const,
+      reason: 'stale-video-id' as const,
+      requestedVideoId: 'retry-video-0021',
+      actualVideoId: 'other-video-0021',
+    };
+    const freshLoadingState = {
+      status: 'loading' as const,
+      request: freshRequest,
+      promise: Promise.resolve<TranscriptResult>({
+        status: 'unavailable',
+        videoId: 'retry-video-0021',
+        reason: 'timeout',
+      }),
+    };
+    state.cacheByVideoId.set('retry-video-0021', freshLoadingState);
+
+    applyTranscriptLoadSettlement(state, {
+      kind: 'discard-stale',
+      request: staleRequest,
+      result: staleResult,
+      retryVideoId: 'retry-video-0021',
+    });
+
+    expect(state.cacheByVideoId.get('retry-video-0021')).toBe(freshLoadingState);
   });
 });
 
