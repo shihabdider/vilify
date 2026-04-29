@@ -90,4 +90,4 @@ Use a compiler-driven TypeScript pass because the transcript fix should be model
 
 ### Look Back
 
-- Leave empty for now. Fill during replans and final verification with anything future iterations should remember.
+- 2026-04-29T20:12:32Z — First stubber dispatch returned 0 wishes; retrying Phase 1 with narrower file-level context because the requirement clearly needs code/test changes.
