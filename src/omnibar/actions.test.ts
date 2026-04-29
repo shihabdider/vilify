@@ -76,22 +76,6 @@ describe('createOmnibarActionExecutor', () => {
     expect(result).toEqual({ kind: 'close' });
   });
 
-  it('toggles playback through the native video element and never YouTube controls', async () => {
-    const video = makeVideo({ paused: true });
-    const getVideoElement = vi.fn(() => video);
-    const context = makeContext();
-    const execute = createOmnibarActionExecutor({ getVideoElement });
-
-    await expect(resolveActionResult(execute({ kind: 'playPause' }, context))).resolves.toEqual({ kind: 'close' });
-    expect(getVideoElement).toHaveBeenCalledWith(context);
-    expect(video.play).toHaveBeenCalledTimes(1);
-    expect(video.pause).not.toHaveBeenCalled();
-
-    video.paused = false;
-    await expect(resolveActionResult(execute({ kind: 'playPause' }, context))).resolves.toEqual({ kind: 'close' });
-    expect(video.pause).toHaveBeenCalledTimes(1);
-  });
-
   it('returns the missing-video status when video-only actions have no native video element', async () => {
     const context = makeContext();
     const getVideoElement = vi.fn(() => null);
@@ -103,9 +87,7 @@ describe('createOmnibarActionExecutor', () => {
       writeClipboardText,
     });
     const videoOnlyActions: OmnibarAction[] = [
-      { kind: 'playPause' },
       { kind: 'seek', seconds: 10 },
-      { kind: 'setPlaybackRate', rate: 1.25 },
       { kind: 'copy', source: { kind: 'current-url-at-video-time' } },
     ];
 
@@ -136,15 +118,6 @@ describe('createOmnibarActionExecutor', () => {
 
     expect(execute({ kind: 'seek', seconds: 123, seekMode: 'absolute' }, context)).toEqual({ kind: 'close' });
     expect(video.currentTime).toBe(123);
-  });
-
-  it('sets playbackRate on the native video element', () => {
-    const video = makeVideo({ playbackRate: 1 });
-    const context = makeContext();
-    const execute = createOmnibarActionExecutor({ getVideoElement: () => video });
-
-    expect(execute({ kind: 'setPlaybackRate', rate: 1.5 }, context)).toEqual({ kind: 'close' });
-    expect(video.playbackRate).toBe(1.5);
   });
 
   it('copies the current URL by reading the live URL adapter at execution time', async () => {

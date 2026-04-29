@@ -528,7 +528,10 @@ describe('youtubeTranscriptMode provider', () => {
 
 describe('YouTube transcript omnibar integration', () => {
   it('enters transcript mode from the Search transcript default item and pops back to default mode with Escape', () => {
-    const dom = makeDom('entry-video-0010');
+    const dom = makeDom(
+      'entry-video-0010',
+      '<main id="page"><video></video><button id="native-control">Native page control</button></main>',
+    );
     recordBridgeRequests(dom.window.document);
     const runtime = createOmnibarRuntime({
       document: dom.window.document,

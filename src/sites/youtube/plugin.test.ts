@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { collectOmnibarItems, createInitialOmnibarState } from '../../omnibar/state';
+import { domDocumentLocation, makeOmnibarTestDom } from '../../test-helpers/omnibar';
 import {
   getYouTubeVideoId,
   isSupportedYouTubeUrl,
@@ -86,8 +87,12 @@ describe('youtubePlugin', () => {
     }
   });
 
-  it('declares a default mode with a transcript search action', () => {
-    const items = collectOmnibarItems(createInitialOmnibarState(youtubeDefaultMode));
+  it('declares a capability-aware default mode with a transcript search action on watch pages', () => {
+    const dom = makeOmnibarTestDom(
+      'https://www.youtube.com/watch?v=plugin-video-0016',
+      '<main><video></video></main>',
+    );
+    const items = collectOmnibarItems(createInitialOmnibarState(youtubeDefaultMode), domDocumentLocation(dom));
 
     expect(items).toEqual(
       expect.arrayContaining([

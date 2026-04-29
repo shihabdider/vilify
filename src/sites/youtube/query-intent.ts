@@ -4,10 +4,22 @@ export type YouTubeRootQueryIntent =
   | { readonly kind: 'transcript-search'; readonly query: string }
   | { readonly kind: 'navigation-filter'; readonly query: string };
 
-export function parseYouTubeRootQueryIntent(_query: string): YouTubeRootQueryIntent {
-  throw new Error('not implemented: parseYouTubeRootQueryIntent');
+export function parseYouTubeRootQueryIntent(query: string): YouTubeRootQueryIntent {
+  if (query.startsWith('s/')) {
+    return { kind: 'youtube-search', query: query.slice(2) };
+  }
+
+  if (query.startsWith('t/')) {
+    return { kind: 'transcript-search', query: query.slice(2) };
+  }
+
+  if (query.startsWith('n/')) {
+    return { kind: 'navigation-filter', query: query.slice(2) };
+  }
+
+  return { kind: 'command-filter', query };
 }
 
-export function buildYouTubeSearchUrl(_query: string): string {
-  throw new Error('not implemented: buildYouTubeSearchUrl');
+export function buildYouTubeSearchUrl(query: string): string {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`;
 }

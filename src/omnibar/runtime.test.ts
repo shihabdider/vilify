@@ -184,10 +184,11 @@ describe('createOmnibarRuntime', () => {
     expect(panelRule).toMatch(/border:\s*1px\s+solid/);
     expect(panelRule).toMatch(/border-radius:\s*0\b/);
     expect(panelRule).toMatch(/box-shadow:\s*none/);
-    expect(panelRule).not.toMatch(/backdrop-filter|blur\(|border-radius:\s*(?!0\b)[^;]+/i);
+    expect(panelRule).not.toMatch(/backdrop-filter|blur\(/i);
+    expect(panelRule).not.toMatch(/border-radius:\s*(?:[1-9]|0?\.\d)/i);
   });
 
-  it('styles selected rows as square inverse video instead of a rounded blue pill', () => {
+  it('styles selected rows as square high-contrast Vim rows while allowing wrapped text', () => {
     const dom = makeDom();
     const runtime = createOmnibarRuntime({
       document: dom.window.document,
@@ -203,12 +204,14 @@ describe('createOmnibarRuntime', () => {
     const selectedRule = cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"]');
 
     expect(selectedItemId(dom.window.document)).toBe('alpha');
-    expect(rowRule).toMatch(/white-space:\s*nowrap/);
+    expect(rowRule).toMatch(/white-space:\s*normal/);
+    expect(rowRule).toMatch(/overflow-wrap:\s*anywhere/);
     expect(rowRule).toMatch(/border-radius:\s*0\b/);
-    expect(selectedRule).toMatch(/background:\s*var\(--vilify-omnibar-fg\)/);
-    expect(selectedRule).toMatch(/color:\s*var\(--vilify-omnibar-bg\)/);
+    expect(selectedRule).toMatch(/background:\s*var\(--vilify-omnibar-selection-bg\)/);
+    expect(selectedRule).toMatch(/color:\s*var\(--vilify-omnibar-selection-fg\)/);
     expect(selectedRule).toMatch(/border-radius:\s*0\b/);
-    expect(selectedRule).not.toMatch(/59,\s*130,\s*246|blue|border-radius:\s*(?!0\b)[^;]+/i);
+    expect(selectedRule).not.toMatch(/59,\s*130,\s*246|blue/i);
+    expect(selectedRule).not.toMatch(/border-radius:\s*(?:[1-9]|0?\.\d)/i);
   });
 
   it('exposes CSS anchors for prompt, metadata, footer, empty, and status rows', () => {
@@ -243,6 +246,12 @@ describe('createOmnibarRuntime', () => {
     expect(cssRule(styles, '#vilify-omnibar-root .vilify-omnibar-empty')).toMatch(
       /color:\s*var\(--vilify-omnibar-muted\)/,
     );
+    expect(styles).toContain('.vilify-omnibar-kind-navigation');
+    expect(styles).toContain('.vilify-omnibar-kind-command');
+    expect(styles).toContain('.vilify-omnibar-kind-video-scoped');
+    expect(styles).toContain('.vilify-omnibar-kind-search-result');
+    expect(styles).toContain('.vilify-omnibar-status-warning');
+    expect(styles).toContain('.vilify-omnibar-status-error');
   });
 
   it('renders the active mode as a terminal prompt with focused input and footer status', () => {
@@ -325,13 +334,16 @@ describe('createOmnibarRuntime', () => {
     expect(results.dataset.vilifyOmnibarResults).toBe('true');
     expect(rows.map((row) => row.dataset.itemId)).toEqual(['alpha', 'beta', 'gamma']);
     expect(rows.map((row) => row.dataset.itemKind)).toEqual(['command', 'video-action', 'search-result']);
+    expect(rows[0].classList.contains('vilify-omnibar-kind-command')).toBe(true);
+    expect(rows[1].classList.contains('vilify-omnibar-kind-video-scoped')).toBe(true);
+    expect(rows[2].classList.contains('vilify-omnibar-kind-search-result')).toBe(true);
     expect(rows.map((row) => row.getAttribute('role'))).toEqual(['option', 'option', 'option']);
     expect(rows.map((row) => row.dataset.selected)).toEqual(['false', 'true', 'false']);
     expect(rows.map((row) => row.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
     expect(selectedItemId(dom.window.document)).toBe('beta');
   });
 
-  it('renders each item as a one-line terminal row with cursor, kind, title, and subtitle hooks', () => {
+  it('renders each item as a wrapped terminal row with cursor, kind, title, and subtitle hooks', () => {
     const dom = makeDom();
     const runtime = createOmnibarRuntime({
       document: dom.window.document,
@@ -359,7 +371,7 @@ describe('createOmnibarRuntime', () => {
       'vilify-omnibar-cursor',
       'vilify-omnibar-kind',
       'vilify-omnibar-item-title',
-      'vilify-omnibar-item-subtitle',
+      'vilify-omnibar-item-subtitle vilify-omnibar-status-neutral',
     ]);
     expect(selectedRow.querySelector('.vilify-omnibar-cursor')?.textContent).toBe('>');
     expect(selectedRow.querySelector('.vilify-omnibar-kind')?.textContent).toBe('command');
@@ -469,6 +481,33 @@ describe('createOmnibarRuntime', () => {
     pressKey(dom.window, input(dom.window.document), 'ArrowUp');
     expect(runtime.getState().selectedIndex).toBe(0);
     expect(selectedItemId(dom.window.document)).toBe('alpha');
+  });
+
+  it('requests nearest selected-row visibility after opening and after selection movement', () => {
+    const dom = makeDom();
+    const keepVisible = vi.fn();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      selectionVisibilityAdapter: { keepVisible },
+      rootMode: makeMode([
+        { id: 'alpha', kind: 'command', title: 'Alpha command', action: { kind: 'noop' } },
+        { id: 'beta', kind: 'command', title: 'Beta command', action: { kind: 'noop' } },
+      ]),
+    });
+
+    runtime.open();
+    expect(keepVisible).toHaveBeenLastCalledWith(
+      itemRow(dom.window.document, 'alpha'),
+      resultsList(dom.window.document),
+    );
+
+    pressKey(dom.window, input(dom.window.document), 'ArrowDown');
+
+    expect(keepVisible).toHaveBeenLastCalledWith(
+      itemRow(dom.window.document, 'beta'),
+      resultsList(dom.window.document),
+    );
+    expect(keepVisible).toHaveBeenCalledTimes(2);
   });
 
   it('keeps Ctrl+n and Ctrl+p selection navigation in the same bounds as arrows', () => {
