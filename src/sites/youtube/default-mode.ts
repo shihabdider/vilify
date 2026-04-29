@@ -140,6 +140,37 @@ export const youtubeRootCommands: readonly YouTubeRootCommand[] = [
   },
 ];
 
+const youtubeRootHintItems: readonly OmnibarItem[] = [
+  createStatusOmnibarItem({
+    id: 'youtube-root-hint-search',
+    tone: 'info',
+    title: 's/{query} — search YouTube',
+    subtitle: 'Example: s/lofi opens YouTube search results.',
+    keywords: ['youtube', 'search', 'prefix', 'hint', 's/'],
+  }),
+  createStatusOmnibarItem({
+    id: 'youtube-root-hint-transcript',
+    tone: 'info',
+    title: 't/{query} — search transcript',
+    subtitle: 'Example: t/needle searches the current video transcript.',
+    keywords: ['transcript', 'search', 'prefix', 'hint', 't/'],
+  }),
+  createStatusOmnibarItem({
+    id: 'youtube-root-hint-navigation',
+    tone: 'info',
+    title: 'n/{query} — filter navigation',
+    subtitle: 'Example: n/history filters navigation shortcuts.',
+    keywords: ['navigation', 'filter', 'prefix', 'hint', 'n/'],
+  }),
+  createStatusOmnibarItem({
+    id: 'youtube-root-hint-command-filter',
+    tone: 'info',
+    title: 'type text — filter commands',
+    subtitle: 'Type words like copy or transcript to filter available commands.',
+    keywords: ['commands', 'filter', 'plain typing', 'hint'],
+  }),
+];
+
 export function getYouTubeRootItems(context: ProviderContext, query: string): readonly OmnibarItem[] {
   const capability = deriveYouTubePageCapability(context);
   const intent = parseYouTubeRootQueryIntent(query);
@@ -155,6 +186,14 @@ export function itemsForYouTubeRootIntent(
 ): readonly OmnibarItem[] {
   switch (intent.kind) {
     case 'command-filter':
+      if (intent.query.trim().length === 0) {
+        return youtubeRootHintItems;
+      }
+
+      return filterYouTubeRootCommandsByIntent(
+        availableYouTubeRootCommands(commands, capability),
+        intent,
+      ).map((command) => command.item);
     case 'navigation-filter':
       return filterYouTubeRootCommandsByIntent(
         availableYouTubeRootCommands(commands, capability),

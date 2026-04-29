@@ -65,20 +65,20 @@ export function getOmnibarViewDefinition(): OmnibarViewDefinition {
     },
     theme: {
       tokens: {
-        background: '#1c1f1a',
-        foreground: '#d7d7c7',
-        muted: '#8f9a88',
-        border: '#4b5745',
-        prompt: '#8ec07c',
-        selectionBackground: '#b8bb26',
-        selectionForeground: '#1c1f1a',
-        navigation: '#83a598',
-        command: '#d7ba7d',
-        videoScoped: '#fe8019',
-        searchResult: '#8ec07c',
-        statusInfo: '#83a598',
-        statusWarning: '#fabd2f',
-        statusError: '#fb4934',
+        background: '#000000',
+        foreground: '#e0e0e0',
+        muted: '#808080',
+        border: '#444444',
+        prompt: '#00ff00',
+        selectionBackground: '#ffff00',
+        selectionForeground: '#000000',
+        navigation: '#00ffff',
+        command: '#ffff00',
+        videoScoped: '#ff00ff',
+        searchResult: '#00ff00',
+        statusInfo: '#00ffff',
+        statusWarning: '#ffd75f',
+        statusError: '#ff5f5f',
       },
       kindClasses: {
         navigation: 'vilify-omnibar-kind-navigation',
@@ -248,15 +248,6 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
   color: var(--vilify-omnibar-muted);
 }
 
-#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-kind,
-#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-subtitle,
-#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status-neutral,
-#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status-info,
-#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status-warning,
-#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status-error {
-  color: var(--vilify-omnibar-selection-fg);
-}
-
 #vilify-omnibar-root .vilify-omnibar-kind-navigation .vilify-omnibar-kind,
 #vilify-omnibar-root .vilify-omnibar-kind-navigation .vilify-omnibar-item-title {
   color: var(--vilify-omnibar-navigation);
@@ -297,6 +288,14 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
 
 #vilify-omnibar-root .vilify-omnibar-status-error {
   color: var(--vilify-omnibar-status-error);
+}
+
+#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-cursor,
+#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-kind,
+#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-title,
+#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-subtitle,
+#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status {
+  color: var(--vilify-omnibar-selection-fg);
 }
 
 #vilify-omnibar-root .vilify-omnibar-empty {

@@ -92,4 +92,6 @@ Use a compiler-driven pass because this iteration changes TypeScript data defini
 
 ### Look Back
 
-- Leave empty for now.
+- 2026-04-29T18:20:00Z — Human verification item 1 failed: current palette/selected row can produce light background with light text. Target is default Vim dark scheme: black/dark background, bright syntax-like accents, and readable selected rows.
+- 2026-04-29T18:20:00Z — Human passed command pruning/capability gating but revised empty-root behavior: opening the default omnibar should show prefix hints rather than command results until the user types a query/prefix.
+- 2026-04-29T19:33:47Z — Targeted fix complete: default Vim dark palette applied, selected-row child colors now override kind/status colors late in CSS, empty/whitespace YouTube root queries return noop prefix hints, non-empty filtering/prefix behavior preserved, version bumped to 0.6.82, build/test pass.

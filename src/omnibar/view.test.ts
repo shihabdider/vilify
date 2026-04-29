@@ -8,8 +8,27 @@ import {
   getOmnibarViewDefinition,
 } from './view';
 
+function contrastRatio(foreground: string, background: string): number {
+  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
+  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(hexColor: string): number {
+  const [red, green, blue] = hexColor
+    .replace('#', '')
+    .match(/.{2}/g)!
+    .map((channel) => {
+      const value = parseInt(channel, 16) / 255;
+      return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
 describe('omnibar view definition', () => {
-  it('defines a scrollable results viewport, wrapping row text, and explicit Vim-like classes', () => {
+  it('defines a scrollable results viewport, wrapping row text, explicit classes, and a default Vim dark palette', () => {
     const definition = getOmnibarViewDefinition();
 
     expect(definition.resultsViewport).toEqual({
@@ -36,21 +55,35 @@ describe('omnibar view definition', () => {
       warning: 'vilify-omnibar-status-warning',
       error: 'vilify-omnibar-status-error',
     });
-    expect(definition.theme.tokens).toMatchObject({
-      background: expect.stringMatching(/^#[0-9a-f]{6}$/i),
-      foreground: expect.stringMatching(/^#[0-9a-f]{6}$/i),
-      prompt: expect.stringMatching(/^#[0-9a-f]{6}$/i),
-      navigation: expect.stringMatching(/^#[0-9a-f]{6}$/i),
-      statusWarning: expect.stringMatching(/^#[0-9a-f]{6}$/i),
-      statusError: expect.stringMatching(/^#[0-9a-f]{6}$/i),
+    expect(definition.theme.tokens).toEqual({
+      background: '#000000',
+      foreground: '#e0e0e0',
+      muted: '#808080',
+      border: '#444444',
+      prompt: '#00ff00',
+      selectionBackground: '#ffff00',
+      selectionForeground: '#000000',
+      navigation: '#00ffff',
+      command: '#ffff00',
+      videoScoped: '#ff00ff',
+      searchResult: '#00ff00',
+      statusInfo: '#00ffff',
+      statusWarning: '#ffd75f',
+      statusError: '#ff5f5f',
     });
+    for (const muddyToken of ['#1c1f1a', '#d7d7c7', '#8f9a88', '#b8bb26']) {
+      expect(Object.values(definition.theme.tokens)).not.toContain(muddyToken);
+    }
+    expect(contrastRatio(definition.theme.tokens.foreground, definition.theme.tokens.background)).toBeGreaterThan(10);
+    expect(contrastRatio(definition.theme.tokens.selectionForeground, definition.theme.tokens.selectionBackground)).toBeGreaterThan(15);
   });
 
   it('builds CSS with fixed prompt/footer, a scrollable result viewport, wrapped rows, and no glass effects', () => {
     const css = buildOmnibarStyleSheet(getOmnibarViewDefinition());
 
-    expect(css).toContain('--vilify-omnibar-background: #1c1f1a;');
-    expect(css).toContain('--vilify-omnibar-selection-bg:');
+    expect(css).toContain('--vilify-omnibar-background: #000000;');
+    expect(css).toContain('--vilify-omnibar-selection-bg: #ffff00;');
+    expect(css).toContain('--vilify-omnibar-selection-fg: #000000;');
     expect(css).toContain('.vilify-omnibar-prompt');
     expect(css).toContain('flex: 0 0 auto;');
     expect(css).toContain('.vilify-omnibar-footer');
@@ -62,7 +95,36 @@ describe('omnibar view definition', () => {
     expect(css).toContain('.vilify-omnibar-kind-navigation');
     expect(css).toContain('.vilify-omnibar-kind-video-scoped');
     expect(css).toContain('.vilify-omnibar-status-warning');
+    expect(css).not.toContain('#1c1f1a');
     expect(css).not.toMatch(/gradient|glass|backdrop-filter|blur\(/i);
+  });
+
+  it('keeps selected row text dark on the bright selected background after kind and status colors', () => {
+    const definition = getOmnibarViewDefinition();
+    const css = buildOmnibarStyleSheet(definition);
+
+    expect(relativeLuminance(definition.theme.tokens.selectionBackground)).toBeGreaterThan(0.9);
+    expect(relativeLuminance(definition.theme.tokens.selectionForeground)).toBe(0);
+    expect(contrastRatio(definition.theme.tokens.selectionForeground, definition.theme.tokens.selectionBackground)).toBeGreaterThan(15);
+
+    const lastKindColorIndex = Math.max(
+      css.lastIndexOf('.vilify-omnibar-kind-navigation'),
+      css.lastIndexOf('.vilify-omnibar-kind-command'),
+      css.lastIndexOf('.vilify-omnibar-kind-video-scoped'),
+      css.lastIndexOf('.vilify-omnibar-kind-search-result'),
+      css.lastIndexOf('.vilify-omnibar-status-error'),
+    );
+    const selectedOverrideIndex = css.lastIndexOf(
+      '#vilify-omnibar-root .vilify-omnibar-row[data-selected="true"] .vilify-omnibar-kind',
+    );
+    const selectedOverride = css.slice(selectedOverrideIndex, css.indexOf('}', selectedOverrideIndex) + 1);
+
+    expect(selectedOverrideIndex).toBeGreaterThan(lastKindColorIndex);
+    expect(selectedOverride).toContain('.vilify-omnibar-row[data-selected="true"] .vilify-omnibar-kind');
+    expect(selectedOverride).toContain('.vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-title');
+    expect(selectedOverride).toContain('.vilify-omnibar-row[data-selected="true"] .vilify-omnibar-item-subtitle');
+    expect(selectedOverride).toContain('.vilify-omnibar-row[data-selected="true"] .vilify-omnibar-status');
+    expect(selectedOverride).toContain('color: var(--vilify-omnibar-selection-fg);');
   });
 
   it('maps item kinds and optional status tones to stable CSS classes', () => {

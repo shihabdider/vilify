@@ -31,6 +31,13 @@ const WATCH_COMMAND_IDS = [
   'youtube-open-transcript',
 ];
 
+const ROOT_HINT_IDS = [
+  'youtube-root-hint-search',
+  'youtube-root-hint-transcript',
+  'youtube-root-hint-navigation',
+  'youtube-root-hint-command-filter',
+];
+
 function makeContext(
   url = 'https://www.youtube.com/',
   body = '<main id="page"></main>',
@@ -69,9 +76,55 @@ function ids(items: readonly OmnibarItem[]): string[] {
 }
 
 describe('youtubeDefaultMode root commands', () => {
-  it('shows only site-wide navigation and copy commands on non-watch YouTube pages', () => {
+  it('shows only non-actionable prefix hints for empty and whitespace root queries', () => {
+    const { context } = makeWatchContext('hint-video-0017');
+
+    for (const query of ['', '   ']) {
+      const items = defaultItems(context, query);
+
+      expect(ids(items)).toEqual(ROOT_HINT_IDS);
+      expect(items).toEqual([
+        expect.objectContaining({
+          id: 'youtube-root-hint-search',
+          kind: 'status',
+          tone: 'info',
+          title: 's/{query} — search YouTube',
+          subtitle: 'Example: s/lofi opens YouTube search results.',
+          action: { kind: 'noop' },
+        }),
+        expect.objectContaining({
+          id: 'youtube-root-hint-transcript',
+          kind: 'status',
+          tone: 'info',
+          title: 't/{query} — search transcript',
+          subtitle: 'Example: t/needle searches the current video transcript.',
+          action: { kind: 'noop' },
+        }),
+        expect.objectContaining({
+          id: 'youtube-root-hint-navigation',
+          kind: 'status',
+          tone: 'info',
+          title: 'n/{query} — filter navigation',
+          subtitle: 'Example: n/history filters navigation shortcuts.',
+          action: { kind: 'noop' },
+        }),
+        expect.objectContaining({
+          id: 'youtube-root-hint-command-filter',
+          kind: 'status',
+          tone: 'info',
+          title: 'type text — filter commands',
+          subtitle: 'Type words like copy or transcript to filter available commands.',
+          action: { kind: 'noop' },
+        }),
+      ]);
+      expect(items.every((item) => item.action.kind === 'noop')).toBe(true);
+      expect(ids(items)).not.toEqual(expect.arrayContaining(WATCH_COMMAND_IDS));
+    }
+  });
+
+  it('shows only site-wide navigation and copy commands for a non-empty default query on non-watch YouTube pages', () => {
     const { context } = makeContext('https://www.youtube.com/');
-    const items = defaultItems(context);
+    const items = defaultItems(context, 'youtube');
     const byId = new Map(items.map((item) => [item.id, item]));
 
     expect(ids(items)).toEqual(SITE_COMMAND_IDS);
@@ -89,9 +142,9 @@ describe('youtubeDefaultMode root commands', () => {
     expect(byId.has('youtube-open-transcript')).toBe(false);
   });
 
-  it('shows remaining video-scoped copy and transcript commands only on actionable watch pages', () => {
+  it('shows remaining video-scoped copy and transcript commands only for a non-empty default query on actionable watch pages', () => {
     const { context } = makeWatchContext('actionable-video-0016');
-    const items = defaultItems(context);
+    const items = defaultItems(context, 'youtube');
     const byId = new Map(items.map((item) => [item.id, item]));
 
     expect(ids(items)).toEqual(WATCH_COMMAND_IDS);
@@ -108,9 +161,9 @@ describe('youtubeDefaultMode root commands', () => {
     });
   });
 
-  it('keeps pruned playback shortcut duplicate commands absent from empty and filtered results', () => {
+  it('keeps pruned playback shortcut duplicate commands absent from non-empty default and filtered results', () => {
     const { context } = makeWatchContext('pruned-video-0019');
-    const allItems = defaultItems(context);
+    const allItems = defaultItems(context, 'youtube');
 
     expect(ids(allItems)).not.toEqual(expect.arrayContaining([
       'youtube-video-play-pause',

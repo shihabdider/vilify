@@ -2,7 +2,7 @@
 
 phase: 3
 layer: complete
-updated: 2026-04-29T18:11:24Z
+updated: 2026-04-29T19:33:47Z
 
 ## Wishes
 
@@ -32,3 +32,5 @@ updated: 2026-04-29T18:11:24Z
 - 18:03:00 final verification: `bun run build` pass; `bun run test` pass (119 tests)
 - 18:11:24 abstractor complete, extracted shared status item construction and reused derived YouTube capability for transcript intent dispatch
 - 18:11:24 abstractor verification: `bun run build` pass; `bun run test` pass (119 tests)
+- 19:33:47 targeted final-verification fix: switched to default Vim dark palette with selected-row override; empty YouTube root now shows noop prefix hints; version bumped to 0.6.82
+- 19:33:47 targeted fix verification: `bun run build` pass; `bun run test` pass (121 tests)
