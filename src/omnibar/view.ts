@@ -54,6 +54,14 @@ export interface OmnibarThemeDefinition {
   readonly syntaxPartClasses: Record<OmnibarSyntaxPart['kind'], string>;
 }
 
+/**
+ * Presentation-only layout tokens for the omnibar shell and result rows.
+ *
+ * Rows are laid out as cursor/marker, prefix-kind marker, and primary content.
+ * The sum of markerColumnWidth, kindColumnWidth, and the row column gaps defines
+ * the primary title-column start; keep that start near the prompt input text
+ * column for the default YouTube prompt while preserving visible prefix markers.
+ */
 export interface OmnibarLayoutDefinition {
   readonly baseFontSize: string;
   readonly lineHeight: string;
@@ -64,8 +72,11 @@ export interface OmnibarLayoutDefinition {
   readonly promptPadding: string;
   readonly rowPadding: string;
   readonly footerPadding: string;
+  /** Cursor/selection marker column for the row grid. */
   readonly markerColumnWidth: string;
+  /** Compact prefix-kind marker column; should fit two-character markers like s/, t/, and n/. */
   readonly kindColumnWidth: string;
+  /** Gap between marker, prefix-kind, and primary content columns. */
   readonly rowColumnGap: string;
   readonly rowGap: string;
 }
