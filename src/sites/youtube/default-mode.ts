@@ -21,6 +21,10 @@ const YOUTUBE_BASE_URL = 'https://www.youtube.com';
 
 export type YouTubeRootCommandScope = 'site' | 'video';
 export type YouTubeRootCommandCategory = 'navigation' | 'search' | 'transcript' | 'copy' | 'status';
+type YouTubeRootCommandListIntent = Extract<
+  YouTubeRootQueryIntent,
+  { readonly kind: 'command-filter' | 'navigation-filter' }
+>;
 
 export interface YouTubeRootCommand {
   readonly id: string;
@@ -195,16 +199,10 @@ export function itemsForYouTubeRootIntent(
         return youtubeRootHintItems;
       }
 
-      return filterYouTubeRootCommandsByIntent(
-        availableYouTubeRootCommands(commands, capability),
-        intent,
-      ).map((command) => command.item);
+      return itemsForFilteredYouTubeRootCommands(commands, capability, intent);
     case 'navigation-filter':
       return applyYouTubePrefixDisplayMetadata(
-        filterYouTubeRootCommandsByIntent(
-          availableYouTubeRootCommands(commands, capability),
-          intent,
-        ).map((command) => command.item),
+        itemsForFilteredYouTubeRootCommands(commands, capability, intent),
         intent,
       );
     case 'youtube-search':
@@ -212,6 +210,17 @@ export function itemsForYouTubeRootIntent(
     case 'transcript-search':
       return applyYouTubePrefixDisplayMetadata(getTranscriptSearchIntentItems(context, intent.query, capability), intent);
   }
+}
+
+function itemsForFilteredYouTubeRootCommands(
+  commands: readonly YouTubeRootCommand[],
+  capability: YouTubePageCapability,
+  intent: YouTubeRootCommandListIntent,
+): readonly OmnibarItem[] {
+  return filterYouTubeRootCommandsByIntent(
+    availableYouTubeRootCommands(commands, capability),
+    intent,
+  ).map((command) => command.item);
 }
 
 export function applyYouTubePrefixDisplayMetadata(

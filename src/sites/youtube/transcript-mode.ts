@@ -138,21 +138,11 @@ function startTranscriptLoad(
           return;
         }
 
-        state.cacheByVideoId.set(videoId, {
-          status: 'unavailable',
-          request,
-          reason: 'bridge-error',
-          message: error instanceof Error ? error.message : 'Transcript request failed.',
-        });
+        state.cacheByVideoId.set(videoId, createBridgeErrorTranscriptLoadState(request, error));
         context.requestRender?.();
       });
   } catch (error) {
-    const unavailableState: Extract<TranscriptLoadState, { status: 'unavailable' }> = {
-      status: 'unavailable',
-      request,
-      reason: 'bridge-error',
-      message: error instanceof Error ? error.message : 'Transcript request failed.',
-    };
+    const unavailableState = createBridgeErrorTranscriptLoadState(request, error);
     state.cacheByVideoId.set(videoId, unavailableState);
     context.requestRender?.();
     return [unavailableItem(videoId, unavailableState)];
@@ -174,6 +164,18 @@ function loadStateFromResult(
     request,
     reason: result.reason,
     ...(result.message !== undefined ? { message: result.message } : {}),
+  };
+}
+
+function createBridgeErrorTranscriptLoadState(
+  request: TranscriptRequestIdentity,
+  error: unknown,
+): UnavailableTranscriptLoadState {
+  return {
+    status: 'unavailable',
+    request,
+    reason: 'bridge-error',
+    message: error instanceof Error ? error.message : 'Transcript request failed.',
   };
 }
 
@@ -326,27 +328,32 @@ export function settleTranscriptLoadResult(
   result: TranscriptResult,
 ): TranscriptLoadSettlement {
   if (result.status === 'stale') {
-    return {
-      kind: 'discard-stale',
-      request,
-      result,
-      retryVideoId: request.cacheVideoId,
-    };
+    return discardStaleTranscriptLoadSettlement(request, result);
   }
 
   if (shouldDiscardStaleTranscriptResult(request, result)) {
-    return {
-      kind: 'discard-stale',
+    return discardStaleTranscriptLoadSettlement(
       request,
-      result: createStaleVideoResult(request.requestedVideoId, result.videoId),
-      retryVideoId: request.cacheVideoId,
-    };
+      createStaleVideoResult(request.requestedVideoId, result.videoId),
+    );
   }
 
   return {
     kind: 'store',
     videoId: request.cacheVideoId,
     state: loadStateFromResult(request, result),
+  };
+}
+
+function discardStaleTranscriptLoadSettlement(
+  request: TranscriptRequestIdentity,
+  result: StaleVideoResult,
+): Extract<TranscriptLoadSettlement, { readonly kind: 'discard-stale' }> {
+  return {
+    kind: 'discard-stale',
+    request,
+    result,
+    retryVideoId: request.cacheVideoId,
   };
 }
 

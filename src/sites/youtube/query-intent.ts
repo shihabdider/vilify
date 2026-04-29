@@ -1,3 +1,4 @@
+import { getOmnibarCommandPrefix } from '../../omnibar/prefix';
 import type { OmnibarCommandPrefix } from '../../omnibar/types';
 
 export type YouTubeRootQueryIntent =
@@ -9,19 +10,17 @@ export type YouTubeRootQueryIntent =
 export type YouTubeRootPrefixIntent = Extract<YouTubeRootQueryIntent, { readonly prefix: OmnibarCommandPrefix }>;
 
 export function parseYouTubeRootQueryIntent(query: string): YouTubeRootQueryIntent {
-  if (query.startsWith('s/')) {
-    return { kind: 'youtube-search', query: query.slice(2), prefix: 's/' };
+  const prefix = getOmnibarCommandPrefix(query);
+  switch (prefix) {
+    case 's/':
+      return { kind: 'youtube-search', query: query.slice(prefix.length), prefix };
+    case 't/':
+      return { kind: 'transcript-search', query: query.slice(prefix.length), prefix };
+    case 'n/':
+      return { kind: 'navigation-filter', query: query.slice(prefix.length), prefix };
+    case null:
+      return { kind: 'command-filter', query };
   }
-
-  if (query.startsWith('t/')) {
-    return { kind: 'transcript-search', query: query.slice(2), prefix: 't/' };
-  }
-
-  if (query.startsWith('n/')) {
-    return { kind: 'navigation-filter', query: query.slice(2), prefix: 'n/' };
-  }
-
-  return { kind: 'command-filter', query };
 }
 
 export function buildYouTubeSearchUrl(query: string): string {

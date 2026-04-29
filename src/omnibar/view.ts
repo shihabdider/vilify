@@ -1,3 +1,4 @@
+import { getOmnibarCommandPrefix } from './prefix';
 import type {
   OmnibarItem,
   OmnibarItemKind,
@@ -477,19 +478,8 @@ export function deriveOmnibarRowMarker(item: OmnibarItem, query: string): Omniba
     return explicitMarker;
   }
 
-  if (query.startsWith('s/')) {
-    return { kind: 'prefix', prefix: 's/' };
-  }
-
-  if (query.startsWith('t/')) {
-    return { kind: 'prefix', prefix: 't/' };
-  }
-
-  if (query.startsWith('n/')) {
-    return { kind: 'prefix', prefix: 'n/' };
-  }
-
-  return { kind: 'empty' };
+  const activePrefix = getOmnibarCommandPrefix(query);
+  return activePrefix ? { kind: 'prefix', prefix: activePrefix } : { kind: 'empty' };
 }
 
 export function deriveOmnibarSyntaxParts(item: OmnibarItem): readonly OmnibarSyntaxPart[] {
@@ -503,47 +493,61 @@ export function deriveOmnibarSyntaxParts(item: OmnibarItem): readonly OmnibarSyn
     return [];
   }
 
-  const appendKeywordAndTitle = (parts: OmnibarSyntaxPart[], text: string): void => {
-    const keywordMatch = text.match(/^(\S+)(.*)$/);
-    if (!keywordMatch) {
-      return;
-    }
-
-    parts.push({ kind: 'keyword', text: keywordMatch[1] });
-    if (keywordMatch[2]) {
-      parts.push({ kind: 'title', text: keywordMatch[2] });
-    }
-  };
-
-  const appendPrefixedToken = (parts: OmnibarSyntaxPart[], text: string): boolean => {
-    const prefixMatch = text.match(/^(s\/|t\/|n\/)(\S*)(.*)$/);
-    if (!prefixMatch) {
+  const appendLeadingPartAndTitle = (
+    parts: OmnibarSyntaxPart[],
+    text: string,
+    leadingKind: OmnibarSyntaxPart['kind'],
+  ): boolean => {
+    const leadingPartMatch = text.match(/^(\S+)(.*)$/);
+    if (!leadingPartMatch) {
       return false;
     }
 
-    const token = prefixMatch[2];
-    parts.push({ kind: 'prefix', text: prefixMatch[1] });
+    parts.push({ kind: leadingKind, text: leadingPartMatch[1] });
+    if (leadingPartMatch[2]) {
+      parts.push({ kind: 'title', text: leadingPartMatch[2] });
+    }
+
+    return true;
+  };
+
+  const appendPrefixedToken = (parts: OmnibarSyntaxPart[], text: string): boolean => {
+    const prefix = getOmnibarCommandPrefix(text);
+    if (!prefix) {
+      return false;
+    }
+
+    const tokenMatch = text.slice(prefix.length).match(/^(\S*)(.*)$/);
+    if (!tokenMatch) {
+      return false;
+    }
+
+    const token = tokenMatch[1];
+    parts.push({ kind: 'prefix', text: prefix });
     if (token) {
       parts.push({
         kind: token.startsWith('{') && token.endsWith('}') ? 'placeholder' : 'keyword',
         text: token,
       });
     }
-    if (prefixMatch[3]) {
-      parts.push({ kind: 'title', text: prefixMatch[3] });
+    if (tokenMatch[2]) {
+      parts.push({ kind: 'title', text: tokenMatch[2] });
     }
 
     return true;
   };
 
-  const prefixHintMatch = title.match(/^(s\/|t\/|n\/)(\{[^}]+\})(\s+—\s+)(.*)$/);
-  if (prefixHintMatch) {
+  const prefixHintPrefix = getOmnibarCommandPrefix(title);
+  const prefixHintMatch = prefixHintPrefix
+    ? title.slice(prefixHintPrefix.length).match(/^(\{[^}]+\})(\s+—\s+)(.*)$/)
+    : null;
+  if (prefixHintPrefix && prefixHintMatch) {
     const parts: OmnibarSyntaxPart[] = [
-      { kind: 'prefix', text: prefixHintMatch[1] },
-      { kind: 'placeholder', text: prefixHintMatch[2] },
-      { kind: 'description', text: prefixHintMatch[3] },
+      { kind: 'prefix', text: prefixHintPrefix },
+      { kind: 'placeholder', text: prefixHintMatch[1] },
+      { kind: 'description', text: prefixHintMatch[2] },
     ];
-    appendKeywordAndTitle(parts, prefixHintMatch[4]);
+    appendLeadingPartAndTitle(parts, prefixHintMatch[3], 'keyword');
     return parts;
   }
 
@@ -554,7 +558,7 @@ export function deriveOmnibarSyntaxParts(item: OmnibarItem): readonly OmnibarSyn
       { kind: 'description', text: exampleMatch[2] },
     ];
     if (exampleMatch[3] && !appendPrefixedToken(parts, exampleMatch[3])) {
-      appendKeywordAndTitle(parts, exampleMatch[3]);
+      appendLeadingPartAndTitle(parts, exampleMatch[3], 'keyword');
     }
     return parts;
   }
@@ -565,20 +569,16 @@ export function deriveOmnibarSyntaxParts(item: OmnibarItem): readonly OmnibarSyn
       { kind: dashHintMatch[1].toLowerCase().startsWith('type ') ? 'keyword' : 'title', text: dashHintMatch[1] },
       { kind: 'description', text: dashHintMatch[2] },
     ];
-    appendKeywordAndTitle(parts, dashHintMatch[3]);
+    appendLeadingPartAndTitle(parts, dashHintMatch[3], 'keyword');
     return parts;
   }
 
   if (item.kind === 'status') {
-    const statusMatch = title.match(/^(\S+)(.*)$/);
-    if (!statusMatch) {
+    const parts: OmnibarSyntaxPart[] = [];
+    if (!appendLeadingPartAndTitle(parts, title, 'status')) {
       return [];
     }
 
-    const parts: OmnibarSyntaxPart[] = [{ kind: 'status', text: statusMatch[1] }];
-    if (statusMatch[2]) {
-      parts.push({ kind: 'title', text: statusMatch[2] });
-    }
     return parts;
   }
 
