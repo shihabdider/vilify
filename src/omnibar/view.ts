@@ -591,9 +591,21 @@ export function renderOmnibarSyntaxText(
   fallbackText: string,
   parts: readonly OmnibarSyntaxPart[],
 ): HTMLSpanElement {
-  void document;
-  void className;
-  void fallbackText;
-  void parts;
-  throw new Error('not implemented: renderOmnibarSyntaxText');
+  const container = document.createElement('span');
+  container.className = className;
+
+  if (parts.length === 0) {
+    container.textContent = fallbackText;
+    return container;
+  }
+
+  const syntaxPartClasses = getOmnibarViewDefinition().theme.syntaxPartClasses;
+  for (const part of parts) {
+    const partElement = document.createElement('span');
+    partElement.className = syntaxPartClasses[part.kind];
+    partElement.textContent = part.text;
+    container.append(partElement);
+  }
+
+  return container;
 }

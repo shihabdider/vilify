@@ -343,21 +343,60 @@ describe('omnibar view definition', () => {
     });
   });
 
-  it('renders syntax text as semantic spans while preserving fallback text for accessibility', () => {
-    const dom = makeOmnibarTestDom();
-    const element = renderOmnibarSyntaxText(dom.window.document, 'vilify-omnibar-item-title', 't/{query} — search transcript', [
-      { kind: 'prefix', text: 't/' },
-      { kind: 'placeholder', text: '{query}' },
-      { kind: 'description', text: ' — search transcript' },
-    ]);
+  describe('renderOmnibarSyntaxText', () => {
+    it('renders syntax text as semantic spans while preserving fallback text for accessibility', () => {
+      const dom = makeOmnibarTestDom();
+      const element = renderOmnibarSyntaxText(dom.window.document, 'vilify-omnibar-item-title', 't/{query} — search transcript', [
+        { kind: 'prefix', text: 't/' },
+        { kind: 'placeholder', text: '{query}' },
+        { kind: 'description', text: ' — search transcript' },
+      ]);
 
-    expect(element.className).toBe('vilify-omnibar-item-title');
-    expect(element.textContent).toBe('t/{query} — search transcript');
-    expect(Array.from(element.children).map((child) => child.className)).toEqual([
-      'vilify-omnibar-syntax-prefix',
-      'vilify-omnibar-syntax-placeholder',
-      'vilify-omnibar-syntax-description',
-    ]);
+      expect(element.className).toBe('vilify-omnibar-item-title');
+      expect(element.textContent).toBe('t/{query} — search transcript');
+      expect(Array.from(element.children).map((child) => child.className)).toEqual([
+        'vilify-omnibar-syntax-prefix',
+        'vilify-omnibar-syntax-placeholder',
+        'vilify-omnibar-syntax-description',
+      ]);
+    });
+
+    it('uses fallback text directly when no syntax parts are present', () => {
+      const dom = makeOmnibarTestDom();
+      const element = renderOmnibarSyntaxText(dom.window.document, 'vilify-omnibar-item-subtitle', '<b>Plain fallback</b>', []);
+
+      expect(element.className).toBe('vilify-omnibar-item-subtitle');
+      expect(element.children).toHaveLength(0);
+      expect(element.textContent).toBe('<b>Plain fallback</b>');
+      expect(element.querySelector('b')).toBeNull();
+    });
+
+    it('maps every syntax part kind to a stable semantic class without injecting HTML', () => {
+      const dom = makeOmnibarTestDom();
+      const element = renderOmnibarSyntaxText(dom.window.document, 'vilify-omnibar-item-title', 's/{query} Example: search <em>status</em> title kind', [
+        { kind: 'prefix', text: 's/' },
+        { kind: 'placeholder', text: '{query}' },
+        { kind: 'description', text: ' ' },
+        { kind: 'example', text: 'Example:' },
+        { kind: 'keyword', text: ' search' },
+        { kind: 'status', text: ' <em>status</em>' },
+        { kind: 'title', text: ' title' },
+        { kind: 'kind', text: ' kind' },
+      ]);
+
+      expect(element.textContent).toBe('s/{query} Example: search <em>status</em> title kind');
+      expect(Array.from(element.children).map((child) => [child.className, child.textContent])).toEqual([
+        ['vilify-omnibar-syntax-prefix', 's/'],
+        ['vilify-omnibar-syntax-placeholder', '{query}'],
+        ['vilify-omnibar-syntax-description', ' '],
+        ['vilify-omnibar-syntax-example', 'Example:'],
+        ['vilify-omnibar-syntax-keyword', ' search'],
+        ['vilify-omnibar-syntax-status', ' <em>status</em>'],
+        ['vilify-omnibar-syntax-title', ' title'],
+        ['vilify-omnibar-syntax-kind', ' kind'],
+      ]);
+      expect(element.querySelector('em')).toBeNull();
+    });
   });
 
   it('builds CSS with fixed prompt/footer, a scrollable result viewport, wrapped rows, and no glass effects', () => {
