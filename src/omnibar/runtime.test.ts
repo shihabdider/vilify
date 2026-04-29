@@ -345,7 +345,7 @@ describe('createOmnibarRuntime', () => {
     expect(selectedItemId(dom.window.document)).toBe('beta');
   });
 
-  it('renders each item as a wrapped terminal row with cursor, kind, title, and subtitle hooks', () => {
+  it('renders each item as a wrapped terminal row with cursor, marker, title, and subtitle hooks', () => {
     const dom = makeDom();
     const runtime = createOmnibarRuntime({
       document: dom.window.document,
@@ -376,7 +376,7 @@ describe('createOmnibarRuntime', () => {
       'vilify-omnibar-item-subtitle vilify-omnibar-status-neutral',
     ]);
     expect(selectedRow.querySelector('.vilify-omnibar-cursor')?.textContent).toBe('>');
-    expect(selectedRow.querySelector('.vilify-omnibar-kind')?.textContent).toBe('command');
+    expect(selectedRow.querySelector('.vilify-omnibar-kind')?.textContent).toBe('');
     expect(selectedRow.querySelector('.vilify-omnibar-item-title')?.textContent).toBe('Copy URL');
     expect(selectedRow.querySelector('.vilify-omnibar-item-subtitle')?.textContent).toBe(
       'Writes the current watch URL to the clipboard',
@@ -391,7 +391,7 @@ describe('createOmnibarRuntime', () => {
       'vilify-omnibar-item-title',
     ]);
     expect(unselectedRow.querySelector('.vilify-omnibar-cursor')?.textContent).not.toContain('>');
-    expect(unselectedRow.querySelector('.vilify-omnibar-kind')?.textContent).toBe('navigation');
+    expect(unselectedRow.querySelector('.vilify-omnibar-kind')?.textContent).toBe('');
     expect(unselectedRow.querySelector('.vilify-omnibar-item-title')?.textContent).toBe('Open Home');
     expect(unselectedRow.querySelector('.vilify-omnibar-item-subtitle')).toBeNull();
   });
@@ -426,6 +426,70 @@ describe('createOmnibarRuntime', () => {
     expect(row.querySelector('.vilify-omnibar-item-subtitle')?.textContent).toBe(
       'Timed out while loading transcript data',
     );
+  });
+
+  it('renders derived prefix and empty markers with syntax-highlighted title and subtitle spans', () => {
+    const dom = makeDom();
+    const runtime = createOmnibarRuntime({
+      document: dom.window.document,
+      rootMode: makeMode([
+        {
+          id: 'transcript-hint',
+          kind: 'status',
+          title: 't/{query} — search transcript',
+          subtitle: 'Example: t/needle searches the current video transcript.',
+          display: {
+            subtitleParts: [
+              { kind: 'example', text: 'Example:' },
+              { kind: 'description', text: ' ' },
+              { kind: 'prefix', text: 't/' },
+              { kind: 'keyword', text: 'needle' },
+              { kind: 'title', text: ' searches the current video transcript.' },
+            ],
+          },
+          action: { kind: 'noop' },
+        },
+        {
+          id: 'empty-marker-override',
+          kind: 'command',
+          title: 't/empty marker override',
+          display: { marker: { kind: 'empty' } },
+          action: { kind: 'noop' },
+        },
+      ]),
+    });
+
+    runtime.open();
+    setOmnibarInputValue(dom.window, dom.window.document, 't/');
+
+    const row = itemRow(dom.window.document, 'transcript-hint');
+    const title = row.querySelector<HTMLElement>('.vilify-omnibar-item-title');
+    const subtitle = row.querySelector<HTMLElement>('.vilify-omnibar-item-subtitle');
+
+    expect(row.querySelector('.vilify-omnibar-cursor')?.textContent).toBe('>');
+    expect(row.querySelector('.vilify-omnibar-kind')?.textContent).toBe('t/');
+    expect(title).not.toBeNull();
+    expect(title?.textContent).toBe('t/{query} — search transcript');
+    expect(Array.from(title?.children ?? []).map((child) => [child.className, child.textContent])).toEqual([
+      ['vilify-omnibar-syntax-prefix', 't/'],
+      ['vilify-omnibar-syntax-placeholder', '{query}'],
+      ['vilify-omnibar-syntax-description', ' — '],
+      ['vilify-omnibar-syntax-keyword', 'search'],
+      ['vilify-omnibar-syntax-title', ' transcript'],
+    ]);
+    expect(subtitle).not.toBeNull();
+    expect(subtitle?.textContent).toBe('Example: t/needle searches the current video transcript.');
+    expect(Array.from(subtitle?.children ?? []).map((child) => [child.className, child.textContent])).toEqual([
+      ['vilify-omnibar-syntax-example', 'Example:'],
+      ['vilify-omnibar-syntax-description', ' '],
+      ['vilify-omnibar-syntax-prefix', 't/'],
+      ['vilify-omnibar-syntax-keyword', 'needle'],
+      ['vilify-omnibar-syntax-title', ' searches the current video transcript.'],
+    ]);
+    expect(itemRow(dom.window.document, 'empty-marker-override').querySelector('.vilify-omnibar-kind')?.textContent).toBe(
+      '',
+    );
+    expect(resultsList(dom.window.document).textContent).not.toContain('!');
   });
 
   it('renders active prefix display markers instead of bare status markers', () => {

@@ -236,7 +236,7 @@ export function createOmnibarRuntime(options: OmnibarRuntimeOptions): OmnibarRun
 
     const kind = document.createElement('span');
     kind.className = 'vilify-omnibar-kind';
-    kind.textContent = marker.kind === 'prefix' ? marker.prefix : item.kind === 'status' ? '' : item.kind;
+    kind.textContent = marker.kind === 'prefix' ? marker.prefix : '';
 
     const titleClassName = item.kind === 'status'
       ? `vilify-omnibar-item-title vilify-omnibar-status ${classForOmnibarStatusTone(item.tone)}`
