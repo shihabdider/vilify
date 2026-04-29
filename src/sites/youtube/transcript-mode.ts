@@ -1,7 +1,7 @@
 import { createStatusOmnibarItem } from '../../omnibar/items';
 import type { OmnibarItem, OmnibarMode, OmnibarProvider, ProviderContext } from '../../omnibar/types';
 import { createYouTubeBridgeClient, type YouTubeBridgeClient } from './bridge-client';
-import type { StaleVideoResult, TranscriptLine, TranscriptResult } from './bridge-types';
+import { createStaleVideoResult, type StaleVideoResult, type TranscriptLine, type TranscriptResult } from './bridge-types';
 import { formatTranscriptTimestamp } from './transcript-parser';
 import { getYouTubeVideoId, isSupportedYouTubeUrl } from './url';
 
@@ -325,9 +325,29 @@ export function settleTranscriptLoadResult(
   request: TranscriptRequestIdentity,
   result: TranscriptResult,
 ): TranscriptLoadSettlement {
-  void request;
-  void result;
-  throw new Error('not implemented: settleTranscriptLoadResult');
+  if (result.status === 'stale') {
+    return {
+      kind: 'discard-stale',
+      request,
+      result,
+      retryVideoId: request.cacheVideoId,
+    };
+  }
+
+  if (shouldDiscardStaleTranscriptResult(request, result)) {
+    return {
+      kind: 'discard-stale',
+      request,
+      result: createStaleVideoResult(request.requestedVideoId, result.videoId),
+      retryVideoId: request.cacheVideoId,
+    };
+  }
+
+  return {
+    kind: 'store',
+    videoId: request.cacheVideoId,
+    state: loadStateFromResult(request, result),
+  };
 }
 
 export function shouldDiscardStaleTranscriptResult(

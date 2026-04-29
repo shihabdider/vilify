@@ -312,6 +312,108 @@ describe('transcript stale-response settlement', () => {
     });
   });
 
+  it('classifies fresh loaded results as cache stores for the request cache video', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'fresh-store-video-0020',
+      requestedVideoId: 'fresh-store-video-0020',
+      cacheVideoId: 'fresh-store-video-0020',
+    };
+    const result: TranscriptResult = {
+      status: 'loaded',
+      videoId: 'fresh-store-video-0020',
+      language: 'en',
+      source: 'caption-json3',
+      lines: [{ time: 7, timeText: '0:07', duration: 2, text: 'Fresh settlement line' }],
+    };
+
+    expect(settleTranscriptLoadResult(request, result)).toEqual({
+      kind: 'store',
+      videoId: 'fresh-store-video-0020',
+      state: {
+        status: 'loaded',
+        request,
+        result,
+      },
+    });
+  });
+
+  it('classifies fresh unavailable results without a video id as cache stores for the request cache video', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'fresh-unavailable-store-video-0020',
+      requestedVideoId: 'fresh-unavailable-store-video-0020',
+      cacheVideoId: 'fresh-unavailable-store-video-0020',
+    };
+    const result: TranscriptResult = {
+      status: 'unavailable',
+      reason: 'timeout',
+      message: 'The transcript bridge timed out.',
+    };
+
+    expect(settleTranscriptLoadResult(request, result)).toEqual({
+      kind: 'store',
+      videoId: 'fresh-unavailable-store-video-0020',
+      state: {
+        status: 'unavailable',
+        request,
+        reason: 'timeout',
+        message: 'The transcript bridge timed out.',
+      },
+    });
+  });
+
+  it('synthesizes stale discard settlements for loaded results from another video', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'requested-loaded-video-0020',
+      requestedVideoId: 'requested-loaded-video-0020',
+      cacheVideoId: 'requested-loaded-video-0020',
+    };
+    const result: TranscriptResult = {
+      status: 'loaded',
+      videoId: 'other-loaded-video-0020',
+      language: 'en',
+      source: 'caption-json3',
+      lines: [{ time: 10, timeText: '0:10', duration: 2, text: 'Wrong video line' }],
+    };
+
+    expect(settleTranscriptLoadResult(request, result)).toEqual({
+      kind: 'discard-stale',
+      request,
+      result: {
+        status: 'stale',
+        reason: 'stale-video-id',
+        requestedVideoId: 'requested-loaded-video-0020',
+        actualVideoId: 'other-loaded-video-0020',
+      },
+      retryVideoId: 'requested-loaded-video-0020',
+    });
+  });
+
+  it('does not turn stale unavailable results into terminal unavailable cache state', () => {
+    const request: TranscriptRequestIdentity = {
+      activeVideoIdAtRequest: 'requested-unavailable-video-0020',
+      requestedVideoId: 'requested-unavailable-video-0020',
+      cacheVideoId: 'requested-unavailable-video-0020',
+    };
+    const result: TranscriptResult = {
+      status: 'unavailable',
+      videoId: 'other-unavailable-video-0020',
+      reason: 'empty-transcript',
+      message: 'Wrong video has no transcript.',
+    };
+
+    expect(settleTranscriptLoadResult(request, result)).toEqual({
+      kind: 'discard-stale',
+      request,
+      result: {
+        status: 'stale',
+        reason: 'stale-video-id',
+        requestedVideoId: 'requested-unavailable-video-0020',
+        actualVideoId: 'other-unavailable-video-0020',
+      },
+      retryVideoId: 'requested-unavailable-video-0020',
+    });
+  });
+
   it('stores settled transcript states under the settlement video cache key', () => {
     const state = createTranscriptProviderState();
     const request = {
