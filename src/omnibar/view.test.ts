@@ -120,6 +120,39 @@ describe('omnibar view definition', () => {
     ]).size).toBeGreaterThanOrEqual(5);
   });
 
+  it('returns a complete valid dark Vim-like theme token map with readable selected-row contrast', () => {
+    const tokens = createSyntaxLikeOmnibarThemeTokens();
+
+    expect(Object.keys(tokens).sort()).toEqual([
+      'background',
+      'border',
+      'command',
+      'foreground',
+      'muted',
+      'navigation',
+      'prompt',
+      'searchResult',
+      'selectionBackground',
+      'selectionForeground',
+      'statusError',
+      'statusInfo',
+      'statusWarning',
+      'syntaxDescription',
+      'syntaxExample',
+      'syntaxKeyword',
+      'syntaxKind',
+      'syntaxPlaceholder',
+      'syntaxPrefix',
+      'syntaxStatus',
+      'videoScoped',
+    ].sort());
+    expect(Object.values(tokens).every((token) => /^#[0-9a-f]{6}$/i.test(token))).toBe(true);
+    expect(tokens.background).toBe('#000000');
+    expect(tokens.selectionForeground).toBe('#000000');
+    expect(relativeLuminance(tokens.selectionBackground)).toBeGreaterThan(0.55);
+    expect(contrastRatio(tokens.selectionForeground, tokens.selectionBackground)).toBeGreaterThan(10);
+  });
+
   it('derives readable type-scale layout tokens bounded to the viewport', () => {
     const layout = createReadableOmnibarLayoutDefinition();
 

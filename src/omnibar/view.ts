@@ -427,7 +427,29 @@ export function classForOmnibarStatusTone(tone: OmnibarStatusTone | undefined): 
 }
 
 export function createSyntaxLikeOmnibarThemeTokens(): Record<OmnibarThemeToken, string> {
-  throw new Error('not implemented: createSyntaxLikeOmnibarThemeTokens');
+  return {
+    background: '#000000',
+    foreground: '#e8e8d3',
+    muted: '#8a8a8a',
+    border: '#5f5f5f',
+    prompt: '#87ff5f',
+    selectionBackground: '#ffd75f',
+    selectionForeground: '#000000',
+    navigation: '#87d7ff',
+    command: '#ffd75f',
+    videoScoped: '#ff87d7',
+    searchResult: '#87ffaf',
+    statusInfo: '#87d7ff',
+    statusWarning: '#ffaf00',
+    statusError: '#ff5f5f',
+    syntaxPrefix: '#87ff5f',
+    syntaxKeyword: '#ffd75f',
+    syntaxPlaceholder: '#af87ff',
+    syntaxExample: '#87d7ff',
+    syntaxDescription: '#d7d7af',
+    syntaxKind: '#ff87d7',
+    syntaxStatus: '#ffaf00',
+  };
 }
 
 export function createReadableOmnibarLayoutDefinition(): OmnibarLayoutDefinition {
