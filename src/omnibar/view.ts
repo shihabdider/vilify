@@ -138,6 +138,11 @@ export function getOmnibarViewDefinition(): OmnibarViewDefinition {
 export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): string {
   const tokens = definition.theme.tokens;
   const layout = definition.layout;
+  const rowGridTemplate = 'var(--vilify-omnibar-marker-column-width) var(--vilify-omnibar-kind-column-width) minmax(0, 1fr)';
+  const rowTitleColumnStart = 'calc(var(--vilify-omnibar-marker-column-width) + var(--vilify-omnibar-kind-column-width) + var(--vilify-omnibar-row-column-gap) + var(--vilify-omnibar-row-column-gap))';
+  const rowCursorGridColumn = '1';
+  const rowKindGridColumn = '2';
+  const rowTitleGridColumn = '3';
 
   return `#vilify-omnibar-root {
   --vilify-omnibar-background: ${tokens.background};
@@ -176,6 +181,11 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
   --vilify-omnibar-kind-column-width: ${layout.kindColumnWidth};
   --vilify-omnibar-row-column-gap: ${layout.rowColumnGap};
   --vilify-omnibar-row-gap: ${layout.rowGap};
+  --vilify-omnibar-row-grid-template: ${rowGridTemplate};
+  --vilify-omnibar-row-title-column-start: ${rowTitleColumnStart};
+  --vilify-omnibar-row-cursor-grid-column: ${rowCursorGridColumn};
+  --vilify-omnibar-row-kind-grid-column: ${rowKindGridColumn};
+  --vilify-omnibar-row-title-grid-column: ${rowTitleGridColumn};
   position: fixed;
   inset: 0;
   z-index: 2147483647;
@@ -261,7 +271,7 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
 
 #vilify-omnibar-root .vilify-omnibar-row {
   display: grid;
-  grid-template-columns: var(--vilify-omnibar-marker-column-width) var(--vilify-omnibar-kind-column-width) minmax(0, 1fr);
+  grid-template-columns: var(--vilify-omnibar-row-grid-template);
   column-gap: var(--vilify-omnibar-row-column-gap);
   row-gap: var(--vilify-omnibar-row-gap);
   align-items: start;
@@ -279,13 +289,13 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
 }
 
 #vilify-omnibar-root .vilify-omnibar-cursor {
-  grid-column: 1;
+  grid-column: var(--vilify-omnibar-row-cursor-grid-column);
   color: var(--vilify-omnibar-prompt);
   font-weight: 700;
 }
 
 #vilify-omnibar-root .vilify-omnibar-kind {
-  grid-column: 2;
+  grid-column: var(--vilify-omnibar-row-kind-grid-column);
   color: var(--vilify-omnibar-muted);
   overflow-wrap: anywhere;
 }
@@ -293,7 +303,7 @@ export function buildOmnibarStyleSheet(definition: OmnibarViewDefinition): strin
 #vilify-omnibar-root .vilify-omnibar-item-title,
 #vilify-omnibar-root .vilify-omnibar-item-subtitle,
 #vilify-omnibar-root .vilify-omnibar-status {
-  grid-column: 3;
+  grid-column: var(--vilify-omnibar-row-title-grid-column);
   min-width: 0;
   white-space: normal;
   overflow: visible;

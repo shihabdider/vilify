@@ -60,6 +60,13 @@ function paddingInlineStartRem(padding: string): number {
   return cssLengthValue(inlineStart, 'rem');
 }
 
+function cssRule(styleText: string, selector: string): string {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = styleText.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`));
+  expect(match).not.toBeNull();
+  return match?.[1] ?? '';
+}
+
 function approximateDefaultYouTubePromptInputStartCh(layout: OmnibarLayoutDefinition): number {
   const approximateChPerRem = 1.65;
   const defaultYouTubePromptLabelCh = 'youtube ❯ :'.length;
@@ -246,6 +253,39 @@ describe('omnibar view definition', () => {
     expect(cssLengthValue(layout.kindColumnWidth, 'ch')).toBeGreaterThanOrEqual(2);
     expect(layout.kindColumnWidth).not.toBe('12ch');
     expect(Math.abs(rowTitleStartCh - promptInputStartCh)).toBeLessThanOrEqual(1);
+  });
+
+  it('derives row grid CSS variables from aligned layout tokens and uses them for the row template', () => {
+    const definition = getOmnibarViewDefinition();
+    const css = buildOmnibarStyleSheet(definition);
+    const rootRule = cssRule(css, '#vilify-omnibar-root');
+    const rowRule = cssRule(css, '#vilify-omnibar-root .vilify-omnibar-row');
+
+    expect(rootRule).toContain(`--vilify-omnibar-marker-column-width: ${definition.layout.markerColumnWidth};`);
+    expect(rootRule).toContain(`--vilify-omnibar-kind-column-width: ${definition.layout.kindColumnWidth};`);
+    expect(rootRule).toContain(`--vilify-omnibar-row-column-gap: ${definition.layout.rowColumnGap};`);
+    expect(rootRule).toContain('--vilify-omnibar-row-grid-template: var(--vilify-omnibar-marker-column-width) var(--vilify-omnibar-kind-column-width) minmax(0, 1fr);');
+    expect(rootRule).toContain('--vilify-omnibar-row-title-column-start: calc(var(--vilify-omnibar-marker-column-width) + var(--vilify-omnibar-kind-column-width) + var(--vilify-omnibar-row-column-gap) + var(--vilify-omnibar-row-column-gap));');
+    expect(rowRule).toContain('grid-template-columns: var(--vilify-omnibar-row-grid-template);');
+    expect(rowRule).toContain('column-gap: var(--vilify-omnibar-row-column-gap);');
+  });
+
+  it('assigns cursor, prefix marker, and title content to stable row grid-column hooks', () => {
+    const css = buildOmnibarStyleSheet(getOmnibarViewDefinition());
+    const rootRule = cssRule(css, '#vilify-omnibar-root');
+    const cursorRule = cssRule(css, '#vilify-omnibar-root .vilify-omnibar-cursor');
+    const kindRule = cssRule(css, '#vilify-omnibar-root .vilify-omnibar-kind');
+    const titleColumnRule = css.match(/#vilify-omnibar-root \.vilify-omnibar-item-title,[^{}]*\{([^}]*)\}/s);
+
+    expect(rootRule).toContain('--vilify-omnibar-row-cursor-grid-column: 1;');
+    expect(rootRule).toContain('--vilify-omnibar-row-kind-grid-column: 2;');
+    expect(rootRule).toContain('--vilify-omnibar-row-title-grid-column: 3;');
+    expect(cursorRule).toContain('grid-column: var(--vilify-omnibar-row-cursor-grid-column);');
+    expect(kindRule).toContain('grid-column: var(--vilify-omnibar-row-kind-grid-column);');
+    expect(titleColumnRule).not.toBeNull();
+    expect(titleColumnRule?.[0]).toContain('.vilify-omnibar-item-subtitle');
+    expect(titleColumnRule?.[0]).toContain('.vilify-omnibar-status');
+    expect(titleColumnRule?.[1]).toContain('grid-column: var(--vilify-omnibar-row-title-grid-column);');
   });
 
   describe('deriveOmnibarRowMarker', () => {
